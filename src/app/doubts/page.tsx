@@ -76,21 +76,21 @@ export default function DoubtsPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#0b0f17]">
+    <div className="flex min-h-screen bg-slate-50">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
         <main className="p-8 space-y-8 flex-1">
           <div>
-            <div className="flex items-center gap-2 text-cyan-400 text-xs font-semibold uppercase tracking-wider mb-1">
-              <Sparkles className="w-4 h-4" /> Mentor Workspace
+            <div className="flex items-center gap-2 text-orange-600 text-xs font-extrabold uppercase tracking-wider mb-1">
+              <Sparkles className="w-4 h-4" /> Mentor Resolution Suite
             </div>
-            <h1 className="text-3xl font-bold text-white tracking-tight">Doubt Resolution Queue</h1>
-            <p className="text-slate-400 text-sm mt-1">Browse open student doubts, claim tickets, and submit handwritten or markdown solutions.</p>
+            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Doubt Resolution Queue</h1>
+            <p className="text-slate-500 text-sm mt-1">Browse open student doubts, claim tickets, and submit step-by-step solutions.</p>
           </div>
 
           {statusMsg && (
-            <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 font-medium text-sm">
+            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-800 font-bold text-sm shadow-xs">
               {statusMsg}
             </div>
           )}
@@ -98,27 +98,27 @@ export default function DoubtsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Left Column: Doubt List */}
             <div className="space-y-4">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Clock className="w-5 h-5 text-amber-400" /> Pending Unassigned Doubts Pool ({doubts.length})
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <Clock className="w-5 h-5 text-amber-500" /> Pending Unassigned Doubts Pool ({doubts.length})
               </h3>
               {doubts.map((d) => (
-                <div key={d.id} className="glass-card p-5 border border-slate-800 space-y-3">
+                <div key={d.id} className="tm-card p-5 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="px-3 py-1 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-xs font-semibold rounded-full">
+                    <span className="px-3 py-1 bg-orange-50 text-orange-600 border border-orange-200 text-xs font-bold rounded-full">
                       {d.subject} • {d.topic || 'General'}
                     </span>
-                    <span className="text-xs text-slate-400 font-medium">
-                      Student: <strong className="text-white">{d.student?.profile?.fullName || 'Student'}</strong>
+                    <span className="text-xs text-slate-500 font-medium">
+                      Student: <strong className="text-slate-900">{d.student?.profile?.fullName || 'Student'}</strong>
                     </span>
                   </div>
-                  <p className="text-sm text-slate-200 font-medium">{d.questionText}</p>
+                  <p className="text-sm text-slate-800 font-semibold leading-relaxed">{d.questionText}</p>
                   <div className="flex justify-end pt-2">
                     <button
                       onClick={() => handleClaim(d)}
-                      className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 text-white rounded-xl text-xs font-semibold shadow-md flex items-center gap-1.5"
+                      className="px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 text-white rounded-xl text-xs font-bold shadow-sm flex items-center gap-1.5 active:scale-[0.99]"
                     >
                       <MessageSquare className="w-4 h-4" />
-                      Claim Ticket & Reply
+                      Claim Ticket & Answer
                     </button>
                   </div>
                 </div>
@@ -126,44 +126,44 @@ export default function DoubtsPage() {
             </div>
 
             {/* Right Column: Resolution Panel */}
-            <div className="glass-card p-6 border border-slate-800 h-fit space-y-4">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-emerald-400" /> Solution Editor Workspace
+            <div className="tm-card p-6 h-fit space-y-4">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-emerald-600" /> Solution Editor Workspace
               </h3>
 
               {selectedDoubt ? (
                 <form onSubmit={handleResolve} className="space-y-4">
-                  <div className="bg-slate-900/80 p-4 rounded-xl border border-slate-800 space-y-1">
-                    <p className="text-xs text-cyan-400 font-bold uppercase">{selectedDoubt.subject} Question</p>
-                    <p className="text-sm text-white font-medium">{selectedDoubt.questionText}</p>
+                  <div className="bg-orange-50/70 p-4 rounded-2xl border border-orange-100 space-y-1">
+                    <p className="text-xs text-orange-600 font-extrabold uppercase">{selectedDoubt.subject} Question</p>
+                    <p className="text-sm text-slate-900 font-bold">{selectedDoubt.questionText}</p>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">
-                      Step-by-Step Solution (Markdown Supported)
+                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
+                      Step-by-Step Solution
                     </label>
                     <textarea
                       rows={6}
                       value={solutionText}
                       onChange={(e) => setSolutionText(e.target.value)}
                       placeholder="Write step 1, step 2, formulas, and detailed explanation for the student..."
-                      className="w-full bg-slate-900 border border-slate-800 rounded-xl p-4 text-white focus:outline-none focus:border-cyan-500 text-sm font-sans"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-slate-900 focus:outline-none focus:border-orange-500 text-sm font-sans font-medium"
                       required
                     ></textarea>
                   </div>
 
                   <button
                     type="submit"
-                    className="w-full py-3.5 bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 text-white font-semibold rounded-xl shadow-lg flex items-center justify-center gap-2 text-sm"
+                    className="w-full py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 text-white font-bold rounded-2xl shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 text-sm active:scale-[0.99]"
                   >
                     <Send className="w-4 h-4" />
-                    Submit Solution & Notify Student
+                    Submit Solution & Push Notification
                   </button>
                 </form>
               ) : (
-                <div className="p-12 text-center text-slate-500 space-y-2">
-                  <MessageSquare className="w-12 h-12 mx-auto text-slate-700" />
-                  <p className="text-sm font-medium">Select a doubt ticket from the left queue to start writing your mentor solution.</p>
+                <div className="p-12 text-center text-slate-400 space-y-2">
+                  <MessageSquare className="w-12 h-12 mx-auto text-slate-300" />
+                  <p className="text-sm font-medium text-slate-500">Select a doubt ticket from the left queue to start writing your solution.</p>
                 </div>
               )}
             </div>

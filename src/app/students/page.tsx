@@ -49,58 +49,58 @@ export default function StudentsPage() {
   );
 
   return (
-    <div className="flex min-h-screen bg-[#0b0f17]">
+    <div className="flex min-h-screen bg-slate-50">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
         <main className="p-8 space-y-8 flex-1">
           <div className="flex items-center justify-between">
             <div>
-              <div className="flex items-center gap-2 text-cyan-400 text-xs font-semibold uppercase tracking-wider mb-1">
-                <Sparkles className="w-4 h-4" /> Account Governance
+              <div className="flex items-center gap-2 text-orange-600 text-xs font-extrabold uppercase tracking-wider mb-1">
+                <Sparkles className="w-4 h-4" /> User Management
               </div>
-              <h1 className="text-3xl font-bold text-white tracking-tight">Student Account Management</h1>
-              <p className="text-slate-400 text-sm mt-1">View student profiles, exam targets, and moderate active sessions.</p>
+              <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Student Account Governance</h1>
+              <p className="text-slate-500 text-sm mt-1">View student profiles, exam targets, and moderate active student sessions.</p>
             </div>
-            <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 w-72">
+            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-2xl px-4 py-2.5 w-80 shadow-xs focus-within:border-orange-500 focus-within:ring-2 focus-within:ring-orange-500/10 transition-all">
               <Search className="w-4 h-4 text-slate-400" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Filter by name or phone..."
-                className="bg-transparent text-sm text-white focus:outline-none w-full"
+                className="bg-transparent text-sm text-slate-900 font-medium focus:outline-none w-full"
               />
             </div>
           </div>
 
-          <div className="glass-card border border-slate-800 overflow-hidden">
+          <div className="tm-card overflow-hidden">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-900/80 text-xs uppercase text-slate-400 border-b border-slate-800">
+              <thead className="bg-slate-50 text-xs uppercase text-slate-500 font-bold border-b border-slate-200">
                 <tr>
-                  <th className="px-6 py-4 font-semibold">Student Name</th>
-                  <th className="px-6 py-4 font-semibold">Phone Number</th>
-                  <th className="px-6 py-4 font-semibold">Target Exam</th>
-                  <th className="px-6 py-4 font-semibold">Study Mode</th>
-                  <th className="px-6 py-4 font-semibold">Status</th>
-                  <th className="px-6 py-4 font-semibold text-right">Action</th>
+                  <th className="px-6 py-4">Student Name</th>
+                  <th className="px-6 py-4">Phone Number</th>
+                  <th className="px-6 py-4">Target Exam</th>
+                  <th className="px-6 py-4">Study Mode</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y divide-slate-100 font-medium">
                 {filtered.map((student) => (
-                  <tr key={student.id} className="hover:bg-slate-800/30 transition-colors">
-                    <td className="px-6 py-4 font-semibold text-white">
+                  <tr key={student.id} className="hover:bg-orange-50/40 transition-colors">
+                    <td className="px-6 py-4 font-bold text-slate-900">
                       {student.profile?.fullName || 'Registered Student'}
                     </td>
-                    <td className="px-6 py-4 font-mono text-cyan-400">{student.phone}</td>
-                    <td className="px-6 py-4 font-medium text-slate-300">{student.profile?.targetExam || 'JEE'} 2026</td>
-                    <td className="px-6 py-4 text-slate-400">{student.profile?.studyMode || 'SELF_STUDY'}</td>
+                    <td className="px-6 py-4 font-mono text-orange-600 font-bold">{student.phone}</td>
+                    <td className="px-6 py-4 text-slate-700 font-semibold">{student.profile?.targetExam || 'JEE'} 2026</td>
+                    <td className="px-6 py-4 text-slate-500">{student.profile?.studyMode || 'SELF_STUDY'}</td>
                     <td className="px-6 py-4">
                       <span
-                        className={`px-3 py-1 text-xs rounded-full font-semibold border ${
+                        className={`px-3 py-1 text-xs rounded-full font-bold border ${
                           student.status === 'ACTIVE'
-                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                            : 'bg-red-500/10 text-red-400 border-red-500/20'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : 'bg-rose-50 text-rose-700 border-rose-200'
                         }`}
                       >
                         {student.status}
@@ -109,10 +109,10 @@ export default function StudentsPage() {
                     <td className="px-6 py-4 text-right">
                       <button
                         onClick={() => toggleStatus(student)}
-                        className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 ml-auto transition-colors ${
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 ml-auto transition-all ${
                           student.status === 'ACTIVE'
-                            ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30'
-                            : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                            ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200'
+                            : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200'
                         }`}
                       >
                         {student.status === 'ACTIVE' ? (

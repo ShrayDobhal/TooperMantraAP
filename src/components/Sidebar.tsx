@@ -7,10 +7,10 @@ import { LayoutDashboard, Users, GraduationCap, School, MessageSquare, LogOut, S
 
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Mentors & Shuffle', href: '/mentors', icon: GraduationCap },
+  { name: 'Mentors & Priority', href: '/mentors', icon: GraduationCap },
   { name: 'School Licenses', href: '/schools', icon: School },
-  { name: 'Doubts Resolution', href: '/doubts', icon: MessageSquare },
-  { name: 'Students', href: '/students', icon: Users },
+  { name: 'Doubts Queue', href: '/doubts', icon: MessageSquare },
+  { name: 'Students Directory', href: '/students', icon: Users },
 ];
 
 export function Sidebar() {
@@ -25,15 +25,15 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="w-64 bg-[#151c2c]/80 border-r border-slate-800 flex flex-col justify-between p-4 min-h-screen">
+    <aside className="w-64 bg-white border-r border-slate-200/80 flex flex-col justify-between p-4 min-h-screen sticky top-0 h-screen z-40">
       <div>
-        <div className="flex items-center gap-3 px-3 py-4 mb-6 border-b border-slate-800">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-violet-600 flex items-center justify-center font-bold text-white shadow-lg shadow-cyan-500/20">
-            <ShieldCheck className="w-5 h-5" />
+        <div className="flex items-center gap-3 px-3 py-4 mb-6 border-b border-slate-100">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-500 flex items-center justify-center font-bold text-white shadow-md shadow-orange-500/20">
+            <ShieldCheck className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="font-bold text-white tracking-wide text-base">TOPPER MANTRA</h1>
-            <p className="text-xs text-cyan-400 font-semibold">Admin & Mentor Portal</p>
+            <h1 className="font-extrabold text-slate-900 tracking-tight text-base leading-tight">TOPPER MANTRA</h1>
+            <p className="text-xs text-orange-600 font-bold">Admin & Mentor Portal</p>
           </div>
         </div>
 
@@ -45,13 +45,13 @@ export function Sidebar() {
               <Link
                 key={item.name}
                 href={item.href}
-                className={`flex items-center gap-3 px-3.5 py-3 rounded-xl font-medium text-sm transition-all duration-200 ${
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-all duration-150 ${
                   isActive
-                    ? 'bg-gradient-to-r from-cyan-500/20 to-violet-600/20 text-cyan-400 border border-cyan-500/30 font-semibold shadow-inner'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                    ? 'bg-orange-50 text-orange-600 font-bold border-r-4 border-orange-500 shadow-sm'
+                    : 'text-slate-600 font-medium hover:text-slate-900 hover:bg-slate-50'
                 }`}
               >
-                <Icon className={`w-5 h-5 ${isActive ? 'text-cyan-400' : 'text-slate-400'}`} />
+                <Icon className={`w-5 h-5 ${isActive ? 'text-orange-500' : 'text-slate-400'}`} />
                 {item.name}
               </Link>
             );
@@ -59,10 +59,10 @@ export function Sidebar() {
         </nav>
       </div>
 
-      <div className="pt-4 border-t border-slate-800">
+      <div className="pt-4 border-t border-slate-100">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl font-medium text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm text-rose-600 hover:bg-rose-50 transition-colors"
         >
           <LogOut className="w-5 h-5" />
           Sign Out
