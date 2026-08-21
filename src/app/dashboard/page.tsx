@@ -4,40 +4,42 @@ import React, { useEffect, useState } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
 import { api } from '@/lib/api';
-import { Users, GraduationCap, MessageSquare, DollarSign, TrendingUp } from 'lucide-react';
+import { Users, GraduationCap, MessageSquare, DollarSign, TrendingUp, RefreshCw } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchStats() {
-      try {
-        const res: any = await api.get('/admin/dashboard/stats');
-        if (res.success && res.data) {
-          setStats(res.data);
-        }
-      } catch (err) {
-        setStats({
-          totalStudents: 14250,
-          activeSubscriptions: 1240,
-          totalMentors: 48,
-          totalDoubtsResolved: 350,
-          doubtResolutionRatePercentage: 96.4,
-          totalRevenueInPaise: 124500000,
-          dauMauTrends: [
-            { date: 'Mon', dau: 1200, mau: 14000 },
-            { date: 'Tue', dau: 1350, mau: 14100 },
-            { date: 'Wed', dau: 1500, mau: 14150 },
-            { date: 'Thu', dau: 1620, mau: 14200 },
-            { date: 'Fri', dau: 1800, mau: 14250 },
-          ],
-        });
-      } finally {
-        setLoading(false);
+  async function fetchStats() {
+    setLoading(true);
+    try {
+      const res: any = await api.get('/admin/dashboard/stats');
+      if (res.success && res.data) {
+        setStats(res.data);
       }
+    } catch (err) {
+      setStats({
+        totalStudents: 14250,
+        activeSubscriptions: 1240,
+        totalMentors: 48,
+        totalDoubtsResolved: 350,
+        doubtResolutionRatePercentage: 96.4,
+        totalRevenueInPaise: 124500000,
+        dauMauTrends: [
+          { date: 'Mon', dau: 1200, mau: 14000 },
+          { date: 'Tue', dau: 1350, mau: 14100 },
+          { date: 'Wed', dau: 1500, mau: 14150 },
+          { date: 'Thu', dau: 1620, mau: 14200 },
+          { date: 'Fri', dau: 1800, mau: 14250 },
+        ],
+      });
+    } finally {
+      setLoading(false);
     }
+  }
+
+  useEffect(() => {
     fetchStats();
   }, []);
 
@@ -46,10 +48,20 @@ export default function DashboardPage() {
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
-        <main className="p-8 space-y-6 flex-1">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Dashboard Overview</h1>
-            <p className="text-slate-500 text-xs mt-0.5">Real-time platform metrics, active student activity, and revenue breakdown.</p>
+        <main className="p-8 space-y-6 flex-1 animate-in fade-in duration-300">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Dashboard Overview</h1>
+              <p className="text-slate-500 text-xs mt-0.5">Real-time platform metrics, active student activity, and revenue breakdown.</p>
+            </div>
+            <button
+              onClick={fetchStats}
+              disabled={loading}
+              className="p-2 text-slate-500 hover:text-slate-900 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 shadow-2xs transition-all"
+              title="Refresh Stats"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-orange-600' : ''}`} />
+            </button>
           </div>
 
           {/* Key Metrics Grid */}
@@ -61,9 +73,13 @@ export default function DashboardPage() {
                   <Users className="w-4 h-4" />
                 </div>
               </div>
-              <h3 className="text-2xl font-bold text-slate-900 mt-2">
-                {stats?.totalStudents?.toLocaleString() || '14,250'}
-              </h3>
+              {loading ? (
+                <div className="h-8 skeleton mt-2 w-28"></div>
+              ) : (
+                <h3 className="text-2xl font-bold text-slate-900 mt-2">
+                  {stats?.totalStudents?.toLocaleString() || '14,250'}
+                </h3>
+              )}
               <div className="mt-3 flex items-center gap-1 text-emerald-600 text-xs font-medium">
                 <TrendingUp className="w-3.5 h-3.5" /> +12.4% vs last month
               </div>
@@ -76,9 +92,13 @@ export default function DashboardPage() {
                   <DollarSign className="w-4 h-4" />
                 </div>
               </div>
-              <h3 className="text-2xl font-bold text-slate-900 mt-2">
-                ₹ {((stats?.totalRevenueInPaise || 124500000) / 100).toLocaleString()}
-              </h3>
+              {loading ? (
+                <div className="h-8 skeleton mt-2 w-32"></div>
+              ) : (
+                <h3 className="text-2xl font-bold text-slate-900 mt-2">
+                  ₹ {((stats?.totalRevenueInPaise || 124500000) / 100).toLocaleString()}
+                </h3>
+              )}
               <p className="mt-3 text-slate-500 text-xs font-medium">B2C & B2B School Licenses</p>
             </div>
 
@@ -89,7 +109,11 @@ export default function DashboardPage() {
                   <GraduationCap className="w-4 h-4" />
                 </div>
               </div>
-              <h3 className="text-2xl font-bold text-slate-900 mt-2">{stats?.totalMentors || 48}</h3>
+              {loading ? (
+                <div className="h-8 skeleton mt-2 w-16"></div>
+              ) : (
+                <h3 className="text-2xl font-bold text-slate-900 mt-2">{stats?.totalMentors || 48}</h3>
+              )}
               <p className="mt-3 text-slate-500 text-xs font-medium">Verified Subject Experts</p>
             </div>
 
@@ -100,7 +124,11 @@ export default function DashboardPage() {
                   <MessageSquare className="w-4 h-4" />
                 </div>
               </div>
-              <h3 className="text-2xl font-bold text-slate-900 mt-2">{stats?.doubtResolutionRatePercentage || 96.4}%</h3>
+              {loading ? (
+                <div className="h-8 skeleton mt-2 w-20"></div>
+              ) : (
+                <h3 className="text-2xl font-bold text-slate-900 mt-2">{stats?.doubtResolutionRatePercentage || 96.4}%</h3>
+              )}
               <p className="mt-3 text-emerald-600 text-xs font-medium">{stats?.totalDoubtsResolved || 350} Doubts Solved</p>
             </div>
           </div>

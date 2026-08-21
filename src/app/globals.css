@@ -16,17 +16,55 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* MNC Minimalist Card Container */
+/* Animated Interactive Card Container */
 .mnc-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 0.75rem; /* 12px clean radius */
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.2s ease,
+              box-shadow 0.2s ease;
+  will-change: transform, box-shadow;
 }
 
 .mnc-card:hover {
-  border-color: #cbd5e1;
+  transform: translateY(-2px);
+  border-color: rgba(251, 146, 60, 0.4);
+  box-shadow: 0 10px 20px -5px rgba(249, 115, 22, 0.06), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+}
+
+.mnc-card-flat {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+}
+
+/* Interactive Buttons & Micro-interactions */
+button {
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+/* Skeleton Loading Shimmer */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 37%, #f1f5f9 63%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 0.5rem;
 }
 
 /* Table styling */
@@ -52,6 +90,7 @@ body {
   border-bottom: 1px solid #f1f5f9;
   font-size: 0.875rem;
   color: #334155;
+  transition: background-color 0.15s ease;
 }
 
 .mnc-table tr:last-child td {
@@ -59,7 +98,7 @@ body {
 }
 
 .mnc-table tr:hover td {
-  background-color: #f8fafc;
+  background-color: rgba(249, 115, 22, 0.03);
 }
 
 /* Custom crisp scrollbar */
