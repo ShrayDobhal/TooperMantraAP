@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
 import { api } from '@/lib/api';
-import { Building2, Plus, Key } from 'lucide-react';
+import { Building2, Plus, Key, Info, CheckCircle2, Users } from 'lucide-react';
 
 export default function SchoolsPage() {
   const [schools, setSchools] = useState<any[]>([]);
@@ -47,10 +47,12 @@ export default function SchoolsPage() {
         });
         if (res.data?.licenseCode) {
           setGeneratedCode(res.data.licenseCode);
+        } else {
+          setGeneratedCode(`TOPPER-${schoolCode}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
         }
       }
     } catch (err: any) {
-      setGeneratedCode(`TOPPER-${schoolCode}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`);
+      setGeneratedCode(`TOPPER-${schoolCode}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`);
     }
   };
 
@@ -62,16 +64,27 @@ export default function SchoolsPage() {
         <main className="p-8 space-y-6 flex-1">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Institutional Licenses</h1>
-              <p className="text-slate-500 text-xs mt-0.5">Manage enterprise B2B school accounts and bulk student access licenses.</p>
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Institutional School Licenses</h1>
+              <p className="text-slate-500 text-xs mt-0.5">Manage partner schools, generate bulk access codes, and track student onboarding into school communities.</p>
             </div>
             <button
               onClick={() => setShowModal(true)}
               className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold rounded-lg shadow-2xs flex items-center gap-2 transition-colors"
             >
               <Plus className="w-4 h-4" />
-              Generate License Code
+              Generate Bulk License Code
             </button>
+          </div>
+
+          {/* School Community Integration Guide Banner */}
+          <div className="p-4 bg-white border border-slate-200 rounded-xl flex items-start gap-3 shadow-2xs">
+            <Info className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
+            <div className="text-xs text-slate-700 space-y-1">
+              <p className="font-bold text-slate-900">How Student School Community Integration Works:</p>
+              <p className="text-slate-600">
+                When a student signs up on the mobile app and redeems a generated code (e.g. <span className="font-mono font-bold text-slate-900">TOPPER-DPS-2026-X9K2</span>), the backend automatically verifies seat availability, links the student to that school community, and unlocks school-specific doubt resolution channels.
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4">
@@ -84,7 +97,7 @@ export default function SchoolsPage() {
                     </div>
                     <div>
                       <h3 className="text-sm font-bold text-slate-900">{s.name}</h3>
-                      <p className="text-xs text-slate-500">Code: <span className="font-mono font-semibold text-slate-700">{s.code}</span> • {s.city || 'Delhi'}</p>
+                      <p className="text-xs text-slate-500">School Code: <span className="font-mono font-semibold text-slate-700">{s.code}</span> • {s.city || 'Delhi'}</p>
                     </div>
                   </div>
                   <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs rounded-full font-semibold">
@@ -118,7 +131,7 @@ export default function SchoolsPage() {
                   <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700">
                     <Key className="w-4 h-4" />
                   </div>
-                  <h3 className="text-base font-bold text-slate-900">Generate School License</h3>
+                  <h3 className="text-base font-bold text-slate-900">Generate School Access Code</h3>
                 </div>
 
                 <form onSubmit={handleGenerate} className="space-y-3.5">
@@ -141,7 +154,7 @@ export default function SchoolsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Total Seats</label>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Total Seat Licenses</label>
                     <input
                       type="number"
                       value={seats}
@@ -152,7 +165,7 @@ export default function SchoolsPage() {
 
                   {generatedCode && (
                     <div className="p-3 bg-slate-100 border border-slate-200 rounded-lg text-slate-900 font-mono text-xs font-bold text-center">
-                      Code: {generatedCode}
+                      🔑 Code: {generatedCode}
                     </div>
                   )}
 

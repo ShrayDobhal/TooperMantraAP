@@ -4,16 +4,23 @@ import React, { useEffect, useState } from 'react';
 import { Bell, Search, User, Command } from 'lucide-react';
 
 export function Header() {
-  const [userPhone, setUserPhone] = useState('Admin');
+  const [userPhone, setUserPhone] = useState('User');
+  const [userRole, setUserRole] = useState('Platform Admin');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const u = localStorage.getItem('tm_user');
+      const r = localStorage.getItem('tm_role');
       if (u) {
         try {
           const parsed = JSON.parse(u);
-          setUserPhone(parsed.phone || 'Admin User');
+          setUserPhone(parsed.phone || 'Authorized User');
         } catch (e) {}
+      }
+      if (r === 'MENTOR') {
+        setUserRole('Verified Mentor');
+      } else {
+        setUserRole('Platform Admin');
       }
     }
   }, []);
@@ -25,7 +32,7 @@ export function Header() {
         <Search className="w-3.5 h-3.5 text-slate-400" />
         <input
           type="text"
-          placeholder="Search platform..."
+          placeholder="Search portal..."
           className="bg-transparent text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none w-full font-medium"
         />
         <kbd className="hidden sm:inline-flex items-center gap-0.5 text-[10px] font-mono text-slate-400 bg-white px-1.5 py-0.5 rounded border border-slate-200">
@@ -37,7 +44,7 @@ export function Header() {
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-1.5 bg-slate-100 text-slate-700 border border-slate-200 text-[11px] px-2.5 py-1 rounded-full font-semibold">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-          Live VPS API
+          Live Production VPS
         </div>
 
         <button className="p-1.5 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors relative">
@@ -53,7 +60,7 @@ export function Header() {
           </div>
           <div className="text-left">
             <p className="text-xs font-semibold text-slate-900 leading-none">{userPhone}</p>
-            <p className="text-[10px] text-slate-400 font-medium mt-0.5">Platform Admin</p>
+            <p className="text-[10px] text-orange-600 font-bold mt-0.5">{userRole}</p>
           </div>
         </div>
       </div>

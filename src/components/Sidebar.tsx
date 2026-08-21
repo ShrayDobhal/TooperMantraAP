@@ -1,43 +1,64 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Users, GraduationCap, School, MessageSquare, LogOut, ShieldCheck } from 'lucide-react';
 
-const navSections = [
-  {
-    title: 'OVERVIEW',
-    items: [
-      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    ],
-  },
-  {
-    title: 'PLATFORM MANAGEMENT',
-    items: [
-      { name: 'Mentors Directory', href: '/mentors', icon: GraduationCap },
-      { name: 'School Licenses', href: '/schools', icon: School },
-    ],
-  },
-  {
-    title: 'OPERATIONS',
-    items: [
-      { name: 'Doubts Queue', href: '/doubts', icon: MessageSquare },
-      { name: 'Students', href: '/students', icon: Users },
-    ],
-  },
-];
-
 export function Sidebar() {
   const pathname = usePathname();
+  const [userRole, setUserRole] = useState<'ADMIN' | 'MENTOR'>('ADMIN');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const r = localStorage.getItem('tm_role');
+      if (r === 'MENTOR') {
+        setUserRole('MENTOR');
+      } else {
+        setUserRole('ADMIN');
+      }
+    }
+  }, []);
 
   const handleLogout = () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('tm_token');
       localStorage.removeItem('tm_user');
+      localStorage.removeItem('tm_role');
       window.location.href = '/';
     }
   };
+
+  const navSections = userRole === 'MENTOR' ? [
+    {
+      title: 'MENTOR WORKSPACE',
+      items: [
+        { name: 'Doubts Resolution Queue', href: '/doubts', icon: MessageSquare },
+        { name: 'School Communities', href: '/schools', icon: School },
+      ],
+    },
+  ] : [
+    {
+      title: 'OVERVIEW',
+      items: [
+        { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+      ],
+    },
+    {
+      title: 'PLATFORM MANAGEMENT',
+      items: [
+        { name: 'Mentors Directory', href: '/mentors', icon: GraduationCap },
+        { name: 'School Licenses', href: '/schools', icon: School },
+      ],
+    },
+    {
+      title: 'OPERATIONS',
+      items: [
+        { name: 'Doubts Queue', href: '/doubts', icon: MessageSquare },
+        { name: 'Students', href: '/students', icon: Users },
+      ],
+    },
+  ];
 
   return (
     <aside className="w-60 bg-white border-r border-slate-200 flex flex-col justify-between p-4 min-h-screen sticky top-0 h-screen z-40 select-none">
@@ -49,7 +70,9 @@ export function Sidebar() {
           </div>
           <div>
             <h1 className="font-bold text-slate-900 tracking-tight text-sm leading-none">Topper Mantra</h1>
-            <p className="text-[10px] text-slate-400 font-semibold tracking-wide uppercase mt-0.5">Control Center</p>
+            <p className="text-[10px] text-orange-600 font-bold tracking-wide uppercase mt-0.5">
+              {userRole === 'MENTOR' ? 'Mentor Portal' : 'Admin Control Center'}
+            </p>
           </div>
         </div>
 
