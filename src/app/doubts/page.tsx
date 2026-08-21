@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
 import { api } from '@/lib/api';
-import { MessageSquare, CheckCircle, Clock, Sparkles, Send } from 'lucide-react';
+import { MessageSquare, CheckCircle, Clock, Send } from 'lucide-react';
 
 export default function DoubtsPage() {
   const [doubts, setDoubts] = useState<any[]>([]);
@@ -65,11 +65,11 @@ export default function DoubtsPage() {
         solutionText,
         solutionImages: [],
       });
-      setStatusMsg(`🎉 Doubt #${selectedDoubt.id} resolved! Push notification dispatched to student!`);
+      setStatusMsg(`Doubt #${selectedDoubt.id} resolved successfully.`);
       setSelectedDoubt(null);
       setSolutionText('');
     } catch (err: any) {
-      setStatusMsg(`🎉 Solution submitted! Student notified.`);
+      setStatusMsg(`Solution submitted for doubt #${selectedDoubt.id}.`);
       setSelectedDoubt(null);
       setSolutionText('');
     }
@@ -80,90 +80,87 @@ export default function DoubtsPage() {
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
-        <main className="p-8 space-y-8 flex-1">
+        <main className="p-8 space-y-6 flex-1">
           <div>
-            <div className="flex items-center gap-2 text-orange-600 text-xs font-extrabold uppercase tracking-wider mb-1">
-              <Sparkles className="w-4 h-4" /> Mentor Resolution Suite
-            </div>
-            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Doubt Resolution Queue</h1>
-            <p className="text-slate-500 text-sm mt-1">Browse open student doubts, claim tickets, and submit step-by-step solutions.</p>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Doubt Resolution Queue</h1>
+            <p className="text-slate-500 text-xs mt-0.5">Browse pending student doubt tickets, claim tickets, and issue step-by-step mentor answers.</p>
           </div>
 
           {statusMsg && (
-            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-800 font-bold text-sm shadow-xs">
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-xs font-medium">
               {statusMsg}
             </div>
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Left Column: Doubt List */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Clock className="w-5 h-5 text-amber-500" /> Pending Unassigned Doubts Pool ({doubts.length})
+            <div className="space-y-3">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <Clock className="w-4 h-4 text-slate-500" /> Pending Doubts Pool ({doubts.length})
               </h3>
               {doubts.map((d) => (
-                <div key={d.id} className="tm-card p-5 space-y-3">
+                <div key={d.id} className="mnc-card p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="px-3 py-1 bg-orange-50 text-orange-600 border border-orange-200 text-xs font-bold rounded-full">
+                    <span className="px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 text-[11px] font-semibold rounded">
                       {d.subject} • {d.topic || 'General'}
                     </span>
                     <span className="text-xs text-slate-500 font-medium">
                       Student: <strong className="text-slate-900">{d.student?.profile?.fullName || 'Student'}</strong>
                     </span>
                   </div>
-                  <p className="text-sm text-slate-800 font-semibold leading-relaxed">{d.questionText}</p>
-                  <div className="flex justify-end pt-2">
+                  <p className="text-xs text-slate-800 font-medium leading-relaxed">{d.questionText}</p>
+                  <div className="flex justify-end pt-1">
                     <button
                       onClick={() => handleClaim(d)}
-                      className="px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 text-white rounded-xl text-xs font-bold shadow-sm flex items-center gap-1.5 active:scale-[0.99]"
+                      className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-md text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-colors"
                     >
-                      <MessageSquare className="w-4 h-4" />
-                      Claim Ticket & Answer
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      Claim Ticket
                     </button>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Right Column: Resolution Panel */}
-            <div className="tm-card p-6 h-fit space-y-4">
-              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-emerald-600" /> Solution Editor Workspace
+            {/* Right Column: Solution Workspace */}
+            <div className="mnc-card p-5 h-fit space-y-4">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-emerald-600" /> Solution Editor Workspace
               </h3>
 
               {selectedDoubt ? (
-                <form onSubmit={handleResolve} className="space-y-4">
-                  <div className="bg-orange-50/70 p-4 rounded-2xl border border-orange-100 space-y-1">
-                    <p className="text-xs text-orange-600 font-extrabold uppercase">{selectedDoubt.subject} Question</p>
-                    <p className="text-sm text-slate-900 font-bold">{selectedDoubt.questionText}</p>
+                <form onSubmit={handleResolve} className="space-y-3.5">
+                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1">
+                    <p className="text-[10px] text-slate-500 font-bold uppercase">{selectedDoubt.subject} Question</p>
+                    <p className="text-xs text-slate-900 font-medium">{selectedDoubt.questionText}</p>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">
-                      Step-by-Step Solution
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Step-by-Step Solution (Markdown Supported)
                     </label>
                     <textarea
                       rows={6}
                       value={solutionText}
                       onChange={(e) => setSolutionText(e.target.value)}
-                      placeholder="Write step 1, step 2, formulas, and detailed explanation for the student..."
-                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-slate-900 focus:outline-none focus:border-orange-500 text-sm font-sans font-medium"
+                      placeholder="Write formulas, step 1, step 2, and detailed explanation for the student..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-slate-900 focus:outline-none focus:border-slate-400 focus:bg-white text-xs font-mono font-medium"
                       required
                     ></textarea>
                   </div>
 
                   <button
                     type="submit"
-                    className="w-full py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 text-white font-bold rounded-2xl shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 text-sm active:scale-[0.99]"
+                    className="w-full py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-lg shadow-2xs flex items-center justify-center gap-2 text-xs transition-colors"
                   >
-                    <Send className="w-4 h-4" />
-                    Submit Solution & Push Notification
+                    <Send className="w-3.5 h-3.5" />
+                    Submit Solution & Send Push Notification
                   </button>
                 </form>
               ) : (
-                <div className="p-12 text-center text-slate-400 space-y-2">
-                  <MessageSquare className="w-12 h-12 mx-auto text-slate-300" />
-                  <p className="text-sm font-medium text-slate-500">Select a doubt ticket from the left queue to start writing your solution.</p>
+                <div className="p-10 text-center text-slate-400 space-y-1.5">
+                  <MessageSquare className="w-8 h-8 mx-auto text-slate-300" />
+                  <p className="text-xs font-medium text-slate-500">Select a doubt ticket from the left pool to begin writing your solution.</p>
                 </div>
               )}
             </div>

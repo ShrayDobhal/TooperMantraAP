@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
 import { api } from '@/lib/api';
-import { GraduationCap, Star, Users, Check, Sparkles, ChevronUp, ChevronDown } from 'lucide-react';
+import { GraduationCap, Star, Users, Check, ChevronUp, ChevronDown } from 'lucide-react';
 
 export default function MentorsPage() {
   const [mentors, setMentors] = useState<any[]>([]);
@@ -48,9 +48,9 @@ export default function MentorsPage() {
     try {
       const idsInOrder = mentors.map((m) => m.id);
       await api.patch('/admin/mentors/shuffle', { mentorIdsInOrder: idsInOrder });
-      setSavedMessage('🎉 Mentor priority order saved and live on student mobile app!');
+      setSavedMessage('Priority order updated and deployed live.');
     } catch (err: any) {
-      setSavedMessage('🎉 Mentor priority reordered successfully!');
+      setSavedMessage('Priority order updated locally.');
     }
   };
 
@@ -59,73 +59,75 @@ export default function MentorsPage() {
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
-        <main className="p-8 space-y-8 flex-1">
+        <main className="p-8 space-y-6 flex-1">
           <div className="flex items-center justify-between">
             <div>
-              <div className="flex items-center gap-2 text-orange-600 text-xs font-extrabold uppercase tracking-wider mb-1">
-                <Sparkles className="w-4 h-4" /> Live Mobile App Sorting
-              </div>
-              <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Mentor Directory & Priority Shuffling</h1>
-              <p className="text-slate-500 text-sm mt-1">Reorder mentors to dynamically change their priority rank on the student mobile app.</p>
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Mentor Priority Management</h1>
+              <p className="text-slate-500 text-xs mt-0.5">Reorder mentors to adjust their display priority on the student mobile app.</p>
             </div>
             <button
               onClick={handleSaveOrder}
-              className="px-6 py-3.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold rounded-2xl shadow-lg shadow-orange-500/20 flex items-center gap-2 transition-all active:scale-[0.99]"
+              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold rounded-lg shadow-2xs flex items-center gap-2 transition-colors"
             >
-              <Check className="w-5 h-5" />
-              Save Live Priority Order
+              <Check className="w-4 h-4" />
+              Save Live Order
             </button>
           </div>
 
           {savedMessage && (
-            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-800 font-bold text-sm shadow-xs flex items-center gap-2">
-              <span>{savedMessage}</span>
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-xs font-medium">
+              {savedMessage}
             </div>
           )}
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {mentors.map((mentor, idx) => (
               <div
                 key={mentor.id}
-                className="tm-card p-6 flex items-center justify-between hover:border-orange-300 transition-all"
+                className="mnc-card p-4 flex items-center justify-between"
               >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-center font-extrabold text-orange-600">
-                    #{idx + 1}
+                <div className="flex items-center gap-3.5">
+                  <div className="w-7 h-7 rounded-md bg-slate-100 font-mono font-bold text-slate-600 text-xs flex items-center justify-center border border-slate-200">
+                    {idx + 1}
                   </div>
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-500 flex items-center justify-center font-bold text-white shadow-md shadow-orange-500/20">
-                    <GraduationCap className="w-6 h-6" />
+                  <div className="w-9 h-9 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 flex items-center justify-center">
+                    <GraduationCap className="w-5 h-5 text-slate-600" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-900 text-lg">{mentor.name}</h3>
-                    <p className="text-xs text-orange-600 font-bold">{mentor.designation}</p>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
-                      <span className="bg-slate-100 px-2.5 py-0.5 rounded-full text-slate-700 font-semibold">{mentor.category}</span>
-                      <span className="flex items-center gap-1 text-amber-500 font-bold">
-                        <Star className="w-3.5 h-3.5 fill-amber-400" /> {mentor.rating || 4.9}
-                      </span>
-                      <span className="flex items-center gap-1 font-medium">
-                        <Users className="w-3.5 h-3.5 text-slate-400" /> {mentor.totalStudentsMentored || 1000}+ Students
-                      </span>
-                    </div>
+                    <h3 className="font-semibold text-slate-900 text-sm">{mentor.name}</h3>
+                    <p className="text-xs text-slate-500 font-medium">{mentor.designation}</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => moveMentor(idx, 'up')}
-                    disabled={idx === 0}
-                    className="p-2.5 bg-slate-100 hover:bg-orange-50 hover:text-orange-600 text-slate-700 disabled:opacity-30 rounded-xl transition-all font-semibold flex items-center gap-1 text-xs border border-slate-200"
-                  >
-                    <ChevronUp className="w-4 h-4" /> Move Up
-                  </button>
-                  <button
-                    onClick={() => moveMentor(idx, 'down')}
-                    disabled={idx === mentors.length - 1}
-                    className="p-2.5 bg-slate-100 hover:bg-orange-50 hover:text-orange-600 text-slate-700 disabled:opacity-30 rounded-xl transition-all font-semibold flex items-center gap-1 text-xs border border-slate-200"
-                  >
-                    <ChevronDown className="w-4 h-4" /> Move Down
-                  </button>
+                <div className="flex items-center gap-6">
+                  <div className="hidden md:flex items-center gap-3 text-xs text-slate-500">
+                    <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-medium">{mentor.category}</span>
+                    <span className="flex items-center gap-1 text-slate-700 font-medium">
+                      <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" /> {mentor.rating || 4.9}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Users className="w-3.5 h-3.5 text-slate-400" /> {mentor.totalStudentsMentored || 1000}+
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => moveMentor(idx, 'up')}
+                      disabled={idx === 0}
+                      className="p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 disabled:opacity-30 rounded-md border border-slate-200 transition-colors"
+                      title="Move Up"
+                    >
+                      <ChevronUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => moveMentor(idx, 'down')}
+                      disabled={idx === mentors.length - 1}
+                      className="p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 disabled:opacity-30 rounded-md border border-slate-200 transition-colors"
+                      title="Move Down"
+                    >
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
