@@ -42,11 +42,6 @@ export function Header() {
 
       {/* Header Actions & Profile */}
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-1.5 bg-slate-100 text-slate-700 border border-slate-200 text-[11px] px-2.5 py-1 rounded-full font-semibold">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-          Live Production VPS
-        </div>
-
         <button className="p-1.5 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors relative">
           <Bell className="w-4 h-4" />
           <span className="w-1.5 h-1.5 rounded-full bg-orange-600 absolute top-1 right-1"></span>

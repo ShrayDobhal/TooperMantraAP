@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { ShieldCheck, Phone, KeyRound, ArrowRight, AlertCircle, CheckCircle2, UserCheck, GraduationCap, Mail, Lock, Info } from 'lucide-react';
+import { ShieldCheck, Phone, KeyRound, ArrowRight, AlertCircle, CheckCircle2, UserCheck, GraduationCap, Mail, Lock } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -329,20 +329,7 @@ export default function LoginPage() {
           </form>
         )}
 
-        {/* Test Helper Guide */}
-        <div className="mt-6 p-3 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-600 space-y-1">
-          <div className="flex items-center gap-1.5 font-bold text-slate-800 mb-1">
-            <Info className="w-3.5 h-3.5 text-orange-600 shrink-0" />
-            <span>Test Credentials Guide</span>
-          </div>
-          {selectedRole === 'ADMIN' ? (
-            <p><span className="font-semibold text-slate-700">Admin Email:</span> <code className="bg-slate-200 px-1 py-0.5 rounded font-mono text-[10px] text-slate-900">toppermantrainfo@gmail.com</code></p>
-          ) : (
-            <p><span className="font-semibold text-slate-700">Mentor Demo Phone:</span> <code className="bg-slate-200 px-1 py-0.5 rounded font-mono text-[10px] text-slate-900">9876543210</code> (OTP: <code className="bg-slate-200 px-1 py-0.5 rounded font-mono text-[10px] text-slate-900">123456</code>)</p>
-          )}
-        </div>
-
-        <div className="mt-6 pt-3 border-t border-slate-100 text-center">
+        <div className="mt-8 pt-4 border-t border-slate-100 text-center">
           <p className="text-[11px] text-slate-400 font-medium">Topper Mantra Security Verified © 2026</p>
         </div>
       </div>
