@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Bell, Search, User, Command } from 'lucide-react';
 
 export function Header() {
-  const [userPhone, setUserPhone] = useState('User');
+  const [userLabel, setUserLabel] = useState('User');
   const [userRole, setUserRole] = useState('Platform Admin');
 
   useEffect(() => {
@@ -14,7 +14,7 @@ export function Header() {
       if (u) {
         try {
           const parsed = JSON.parse(u);
-          setUserPhone(parsed.phone || 'Authorized User');
+          setUserLabel(parsed.email || parsed.phone || 'Authorized User');
         } catch (e) {}
       }
       if (r === 'MENTOR') {
@@ -59,7 +59,7 @@ export function Header() {
             <User className="w-4 h-4 text-slate-500" />
           </div>
           <div className="text-left">
-            <p className="text-xs font-semibold text-slate-900 leading-none">{userPhone}</p>
+            <p className="text-xs font-semibold text-slate-900 leading-none">{userLabel}</p>
             <p className="text-[10px] text-orange-600 font-bold mt-0.5">{userRole}</p>
           </div>
         </div>
