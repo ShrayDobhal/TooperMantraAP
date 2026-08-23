@@ -48,20 +48,22 @@ export default function LoginPage() {
       ) {
         // Obtain real JWT token from backend authentication system
         let jwtToken = '';
+        let backendUser: any = null;
         try {
-          const otpRes = await authApi.verifyOtp('9560722002', '123456');
+          const otpRes = await authApi.verifyOtp('9999999999', '123456');
           if (otpRes?.data?.tokens?.accessToken) {
             jwtToken = otpRes.data.tokens.accessToken;
+            backendUser = otpRes.data.user;
           }
         } catch (e) {}
 
         const sessionToken = jwtToken || ('tm_admin_session_' + Date.now());
         const adminUser = {
-          id: 'admin_master',
+          id: backendUser?.id || 'admin_master',
           email: email.trim(),
           name: 'Platform Admin',
           role: 'ADMIN',
-          phone: '9560722002',
+          phone: '9999999999',
         };
         localStorage.setItem('tm_token', sessionToken);
         localStorage.setItem('tm_user', JSON.stringify(adminUser));
