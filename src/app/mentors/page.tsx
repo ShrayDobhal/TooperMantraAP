@@ -3,12 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
-import { api } from '@/lib/api';
-import { GraduationCap, Star, Users, Check, ChevronUp, ChevronDown, Plus, Trash2, Loader2, UserPlus } from 'lucide-react';
+import { mentorsApi, Mentor } from '@/api';
+import { GraduationCap, Star, Users, Check, ChevronUp, ChevronDown, Plus, Trash2, Loader2, UserPlus, AlertCircle, RefreshCw } from 'lucide-react';
 
 export default function MentorsPage() {
-  const [mentors, setMentors] = useState<any[]>([]);
+  const [mentors, setMentors] = useState<Mentor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
   const [saving, setSaving] = useState(false);
   const [savedMessage, setSavedMessage] = useState('');
 
@@ -30,18 +31,16 @@ export default function MentorsPage() {
 
   async function fetchMentors() {
     setLoading(true);
+    setErrorMsg('');
     try {
-      const res: any = await api.get('/mentors');
-      if (res.success && res.data?.items) {
-        setMentors(res.data.items);
+      const res = await mentorsApi.getMentors();
+      if (res && res.success) {
+        setMentors(res.data.items || []);
+      } else {
+        setErrorMsg('Failed to load mentor directory from backend API.');
       }
-    } catch (err) {
-      setMentors([
-        { id: '5d763287-9c28-4d4d-9aa6-8810dd0824fb', name: 'Ankit Sir', designation: 'AIR 17 | IIT Bombay', category: 'JEE', rating: 4.9, totalStudentsMentored: 1240, phone: '+919560722002' },
-        { id: '9a18f461-6d07-465a-8023-63041ef1ba3c', name: 'Shreyansh S', designation: 'AI Hackathon Winner', category: 'HACKATHON', rating: 4.88, totalStudentsMentored: 650, phone: '+919810123456' },
-        { id: '844339c2-8b0a-4921-b80c-3adbc9b094da', name: 'Riya Ma\'am', designation: 'AIR 22 | AIIMS Delhi', category: 'NEET', rating: 4.95, totalStudentsMentored: 980, phone: '+919999888777' },
-        { id: 'b880280e-b624-449b-ad2e-76277334f071', name: 'Arjun Sir', designation: 'IIM Ahmedabad', category: 'ENTREPRENEURSHIP', rating: 4.85, totalStudentsMentored: 420, phone: '+919717123456' },
-      ]);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Unable to fetch mentors from backend.');
     } finally {
       setLoading(false);
     }
@@ -51,6 +50,7 @@ export default function MentorsPage() {
     e.preventDefault();
     setAdding(true);
     setSavedMessage('');
+    setErrorMsg('');
 
     const payload = {
       name: newMentorName,
@@ -58,22 +58,18 @@ export default function MentorsPage() {
       category: newMentorCategory,
       phone: newMentorPhone,
       rating: parseFloat(newMentorRating) || 4.9,
-      totalStudentsMentored: 0,
     };
 
     try {
-      const res: any = await api.post('/admin/mentors', payload);
-      if (res.success && res.data) {
-        setMentors((prev) => [...prev, res.data]);
+      const res = await mentorsApi.createMentor(payload);
+      if (res && res.success) {
+        setSavedMessage(`🎉 Mentor ${newMentorName} added successfully! Credentials sent to ${newMentorPhone}.`);
+        fetchMentors();
       } else {
-        const newObj = { ...payload, id: `m_${Date.now()}` };
-        setMentors((prev) => [...prev, newObj]);
+        setErrorMsg('Failed to register new mentor.');
       }
-      setSavedMessage(`🎉 Mentor ${newMentorName} added successfully! Credentials sent to ${newMentorPhone}.`);
     } catch (err: any) {
-      const newObj = { ...payload, id: `m_${Date.now()}` };
-      setMentors((prev) => [...prev, newObj]);
-      setSavedMessage(`🎉 Mentor ${newMentorName} registered!`);
+      setErrorMsg(err.message || 'Failed to add mentor.');
     } finally {
       setAdding(false);
       setShowAddModal(false);
@@ -83,19 +79,18 @@ export default function MentorsPage() {
     }
   };
 
-  const handleDeleteMentor = async (mentor: any) => {
+  const handleDeleteMentor = async (mentor: Mentor) => {
     if (!confirm(`Are you sure you want to delete mentor "${mentor.name}"? This action cannot be undone.`)) {
       return;
     }
 
     setDeletingId(mentor.id);
     try {
-      await api.delete(`/admin/mentors/${mentor.id}`);
-      setSavedMessage(`Mentor "${mentor.name}" removed from database.`);
-      setMentors((prev) => prev.filter((m) => m.id !== mentor.id));
-    } catch (err: any) {
+      await mentorsApi.deleteMentor(mentor.id);
       setSavedMessage(`Mentor "${mentor.name}" removed.`);
-      setMentors((prev) => prev.filter((m) => m.id !== mentor.id));
+      fetchMentors();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to delete mentor.');
     } finally {
       setDeletingId(null);
     }
@@ -115,12 +110,13 @@ export default function MentorsPage() {
   const handleSaveOrder = async () => {
     setSaving(true);
     setSavedMessage('');
+    setErrorMsg('');
     try {
       const idsInOrder = mentors.map((m) => m.id);
-      await api.patch('/admin/mentors/shuffle', { mentorIdsInOrder: idsInOrder });
+      await mentorsApi.reorderMentors(idsInOrder);
       setSavedMessage('🎉 Mentor priority order saved and live on student mobile app!');
     } catch (err: any) {
-      setSavedMessage('🎉 Priority order updated locally!');
+      setErrorMsg(err.message || 'Failed to save mentor order.');
     } finally {
       setSaving(false);
     }
@@ -140,22 +136,44 @@ export default function MentorsPage() {
 
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setShowAddModal(true)}
-                className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white text-xs font-semibold rounded-lg shadow-2xs flex items-center gap-1.5 transition-all"
+                onClick={fetchMentors}
+                disabled={loading}
+                className="p-2 bg-white border border-slate-200 text-slate-600 hover:text-slate-900 rounded-lg shadow-2xs cursor-pointer"
+                title="Refresh Directory"
               >
-                <Plus className="w-4 h-4" />
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-orange-600' : ''}`} />
+              </button>
+
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white text-xs font-semibold rounded-lg shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <Plus className="w-4 h-4 text-orange-500" />
                 Add New Mentor
               </button>
+
               <button
                 onClick={handleSaveOrder}
                 disabled={saving}
-                className="px-4 py-2 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg shadow-2xs flex items-center gap-2 transition-all disabled:opacity-60"
+                className="px-4 py-2 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg shadow-2xs flex items-center gap-2 transition-all disabled:opacity-60 cursor-pointer"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                 {saving ? 'Saving Order...' : 'Save Live Priority Order'}
               </button>
             </div>
           </div>
+
+          {errorMsg && (
+            <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-semibold flex items-center justify-between shadow-2xs">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{errorMsg}</span>
+              </div>
+              <button onClick={fetchMentors} className="px-3 py-1 bg-rose-600 text-white rounded-md text-xs font-semibold hover:bg-rose-700">
+                Retry
+              </button>
+            </div>
+          )}
 
           {savedMessage && (
             <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-xs font-medium animate-in fade-in">
@@ -168,6 +186,12 @@ export default function MentorsPage() {
               <div className="h-20 skeleton"></div>
               <div className="h-20 skeleton"></div>
               <div className="h-20 skeleton"></div>
+            </div>
+          ) : mentors.length === 0 ? (
+            <div className="p-12 bg-white rounded-xl border border-slate-200 text-center text-slate-400 space-y-2">
+              <GraduationCap className="w-10 h-10 mx-auto text-slate-300" />
+              <p className="text-sm font-semibold text-slate-700">No mentors registered.</p>
+              <p className="text-xs text-slate-500">Click "Add New Mentor" to onboard expert mentors.</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -196,7 +220,7 @@ export default function MentorsPage() {
                         <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" /> {mentor.rating || 4.9}
                       </span>
                       <span className="flex items-center gap-1">
-                        <Users className="w-3.5 h-3.5 text-slate-400" /> {mentor.totalStudentsMentored || 1000}+
+                        <Users className="w-3.5 h-3.5 text-slate-400" /> {mentor.totalStudentsMentored || 0}+
                       </span>
                     </div>
 
@@ -205,7 +229,7 @@ export default function MentorsPage() {
                       <button
                         onClick={() => moveMentor(idx, 'up')}
                         disabled={idx === 0}
-                        className="p-1.5 bg-slate-50 hover:bg-slate-100 active:scale-[0.95] text-slate-600 disabled:opacity-30 rounded-md border border-slate-200 transition-all"
+                        className="p-1.5 bg-slate-50 hover:bg-slate-100 active:scale-[0.95] text-slate-600 disabled:opacity-30 rounded-md border border-slate-200 transition-all cursor-pointer"
                         title="Move Up Priority"
                       >
                         <ChevronUp className="w-4 h-4" />
@@ -213,7 +237,7 @@ export default function MentorsPage() {
                       <button
                         onClick={() => moveMentor(idx, 'down')}
                         disabled={idx === mentors.length - 1}
-                        className="p-1.5 bg-slate-50 hover:bg-slate-100 active:scale-[0.95] text-slate-600 disabled:opacity-30 rounded-md border border-slate-200 transition-all"
+                        className="p-1.5 bg-slate-50 hover:bg-slate-100 active:scale-[0.95] text-slate-600 disabled:opacity-30 rounded-md border border-slate-200 transition-all cursor-pointer"
                         title="Move Down Priority"
                       >
                         <ChevronDown className="w-4 h-4" />
@@ -223,7 +247,7 @@ export default function MentorsPage() {
                       <button
                         onClick={() => handleDeleteMentor(mentor)}
                         disabled={deletingId === mentor.id}
-                        className="p-1.5 bg-slate-50 hover:bg-rose-50 hover:text-rose-600 active:scale-[0.95] text-slate-400 rounded-md border border-slate-200 transition-all ml-2"
+                        className="p-1.5 bg-slate-50 hover:bg-rose-50 hover:text-rose-600 active:scale-[0.95] text-slate-400 rounded-md border border-slate-200 transition-all ml-2 cursor-pointer"
                         title="Delete Mentor"
                       >
                         {deletingId === mentor.id ? <Loader2 className="w-4 h-4 animate-spin text-rose-600" /> : <Trash2 className="w-4 h-4" />}
@@ -260,7 +284,7 @@ export default function MentorsPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Designation & AIR Rank</label>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Designation & Rank</label>
                     <input
                       type="text"
                       required
@@ -283,6 +307,7 @@ export default function MentorsPage() {
                         <option value="NEET">NEET</option>
                         <option value="HACKATHON">HACKATHON</option>
                         <option value="ENTREPRENEURSHIP">ENTREPRENEURSHIP</option>
+                        <option value="BOARDS">BOARDS</option>
                       </select>
                     </div>
 
@@ -298,7 +323,7 @@ export default function MentorsPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Mobile Number (For Login Authentication)</label>
+                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Mobile Number (Authentication)</label>
                     <input
                       type="text"
                       required

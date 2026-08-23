@@ -3,66 +3,52 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
-import { api } from '@/lib/api';
-import { MessageSquare, CheckCircle, Clock, Send, Image as ImageIcon, X, ExternalLink, Upload, Loader2 } from 'lucide-react';
+import { doubtsApi, DoubtTicket } from '@/api';
+import { MessageSquare, CheckCircle, Clock, Send, Image as ImageIcon, X, ExternalLink, Upload, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 
 export default function DoubtsPage() {
-  const [doubts, setDoubts] = useState<any[]>([]);
-  const [selectedDoubt, setSelectedDoubt] = useState<any>(null);
+  const [doubts, setDoubts] = useState<DoubtTicket[]>([]);
+  const [selectedDoubt, setSelectedDoubt] = useState<DoubtTicket | null>(null);
   const [solutionText, setSolutionText] = useState('');
   const [solutionImages, setSolutionImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    async function fetchDoubts() {
-      setLoading(true);
-      try {
-        const res: any = await api.get('/doubts/pool');
-        if (res.success && res.data?.items) {
-          setDoubts(res.data.items);
-        }
-      } catch (err) {
-        setDoubts([
-          {
-            id: 'd101',
-            subject: 'Physics',
-            topic: 'Ray Optics & Lenses',
-            questionText: 'Derive Lens Maker formula for convex lens with radii R1 and R2 when placed in air medium.',
-            images: ['https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=600&auto=format&fit=crop&q=80'],
-            status: 'OPEN',
-            student: { profile: { fullName: 'Rohan Sharma', targetExam: 'JEE' } },
-            createdAt: '2026-08-22T00:10:00.000Z',
-          },
-          {
-            id: 'd102',
-            subject: 'Organic Chemistry',
-            topic: 'Nucleophilic Substitution',
-            questionText: 'Explain why SN1 reaction results in racemization while SN2 reaction leads to Walden inversion.',
-            images: ['https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=600&auto=format&fit=crop&q=80'],
-            status: 'OPEN',
-            student: { profile: { fullName: 'Priya Verma', targetExam: 'NEET' } },
-            createdAt: '2026-08-22T00:15:00.000Z',
-          },
-        ]);
-      } finally {
-        setLoading(false);
+  const fetchDoubts = async () => {
+    setLoading(true);
+    setErrorMsg('');
+    try {
+      const res = await doubtsApi.getDoubtsPool();
+      if (res && res.success) {
+        setDoubts(res.data.items || []);
+      } else {
+        setErrorMsg('Failed to load pending doubts pool from backend API.');
       }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Unable to communication with doubts pool API.');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
     fetchDoubts();
   }, []);
 
-  const handleClaim = async (doubt: any) => {
+  const handleClaim = async (doubt: DoubtTicket) => {
     try {
-      await api.post(`/doubts/${doubt.id}/claim`);
-    } catch (e) {}
+      await doubtsApi.claimDoubt(doubt.id);
+    } catch (e: any) {
+      console.warn('Claim error:', e);
+    }
     setSelectedDoubt(doubt);
     setSolutionText('');
     setSolutionImages([]);
-    setStatusMsg(`Claimed ticket #${doubt.id}. Write solution below and attach handwritten answer photos.`);
+    setStatusMsg(`Claimed ticket #${doubt.id}. Write step-by-step solution below.`);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -89,22 +75,19 @@ export default function DoubtsPage() {
     if (!selectedDoubt) return;
 
     setSubmitting(true);
+    setErrorMsg('');
     try {
-      await api.post(`/doubts/${selectedDoubt.id}/resolve`, {
+      await doubtsApi.resolveDoubt(selectedDoubt.id, {
         solutionText,
         solutionImages,
       });
-      setStatusMsg(`🎉 Doubt #${selectedDoubt.id} resolved! Solution diagram sent to student.`);
+      setStatusMsg(`🎉 Doubt #${selectedDoubt.id} resolved! Solution pushed to student.`);
       setDoubts((prev) => prev.filter((d) => d.id !== selectedDoubt.id));
       setSelectedDoubt(null);
       setSolutionText('');
       setSolutionImages([]);
     } catch (err: any) {
-      setStatusMsg(`🎉 Solution submitted for doubt #${selectedDoubt.id}.`);
-      setDoubts((prev) => prev.filter((d) => d.id !== selectedDoubt.id));
-      setSelectedDoubt(null);
-      setSolutionText('');
-      setSolutionImages([]);
+      setErrorMsg(err.message || 'Failed to submit doubt resolution.');
     } finally {
       setSubmitting(false);
     }
@@ -116,10 +99,32 @@ export default function DoubtsPage() {
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
         <main className="p-8 space-y-6 flex-1 animate-in fade-in duration-300">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Doubt Resolution Queue</h1>
-            <p className="text-slate-500 text-xs mt-0.5">Browse pending student doubt tickets, claim tickets, and upload step-by-step handwritten diagram solutions.</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Doubt Resolution Queue</h1>
+              <p className="text-slate-500 text-xs mt-0.5">Browse pending student doubt tickets, claim tickets, and upload step-by-step handwritten diagram solutions.</p>
+            </div>
+            <button
+              onClick={fetchDoubts}
+              disabled={loading}
+              className="p-2 bg-white border border-slate-200 text-slate-600 hover:text-slate-900 rounded-lg shadow-2xs cursor-pointer"
+              title="Refresh Queue"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-orange-600' : ''}`} />
+            </button>
           </div>
+
+          {errorMsg && (
+            <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-semibold flex items-center justify-between shadow-2xs">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{errorMsg}</span>
+              </div>
+              <button onClick={fetchDoubts} className="px-3 py-1 bg-rose-600 text-white rounded-md text-xs font-semibold hover:bg-rose-700">
+                Retry
+              </button>
+            </div>
+          )}
 
           {statusMsg && (
             <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-xs font-medium animate-in fade-in">
@@ -187,7 +192,7 @@ export default function DoubtsPage() {
                     <div className="flex justify-end pt-1">
                       <button
                         onClick={() => handleClaim(d)}
-                        className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white rounded-md text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all"
+                        className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white rounded-md text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
                       >
                         <MessageSquare className="w-3.5 h-3.5" />
                         Claim Ticket
@@ -284,7 +289,7 @@ export default function DoubtsPage() {
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="w-full py-2.5 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white font-semibold rounded-lg shadow-2xs flex items-center justify-center gap-2 text-xs transition-all disabled:opacity-60"
+                    className="w-full py-2.5 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white font-semibold rounded-lg shadow-2xs flex items-center justify-center gap-2 text-xs transition-all disabled:opacity-60 cursor-pointer"
                   >
                     {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                     {submitting ? 'Submitting Solution...' : 'Submit Solution & Push Notification'}

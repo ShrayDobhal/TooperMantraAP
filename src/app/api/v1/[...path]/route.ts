@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const TARGET_BACKEND = 'http://187.127.111.105/api/v1';
+const TARGET_BACKEND = (process.env.BACKEND_API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.toppermantra.com/api/v1').replace(/\/$/, '');
 
 async function handleProxy(req: NextRequest, { params }: { params: { path: string[] } }) {
   const path = params.path ? params.path.join('/') : '';

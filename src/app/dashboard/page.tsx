@@ -3,37 +3,27 @@
 import React, { useEffect, useState } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
-import { api } from '@/lib/api';
-import { Users, GraduationCap, MessageSquare, DollarSign, TrendingUp, RefreshCw } from 'lucide-react';
+import { dashboardApi, DashboardStats } from '@/api';
+import { Users, GraduationCap, MessageSquare, DollarSign, TrendingUp, RefreshCw, AlertCircle } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState('');
 
   async function fetchStats() {
     setLoading(true);
+    setErrorMsg('');
     try {
-      const res: any = await api.get('/admin/dashboard/stats');
-      if (res.success && res.data) {
+      const res = await dashboardApi.getStats();
+      if (res && res.data) {
         setStats(res.data);
+      } else {
+        setErrorMsg('Unable to load dashboard statistics from backend API.');
       }
-    } catch (err) {
-      setStats({
-        totalStudents: 14250,
-        activeSubscriptions: 1240,
-        totalMentors: 48,
-        totalDoubtsResolved: 350,
-        doubtResolutionRatePercentage: 96.4,
-        totalRevenueInPaise: 124500000,
-        dauMauTrends: [
-          { date: 'Mon', dau: 1200, mau: 14000 },
-          { date: 'Tue', dau: 1350, mau: 14100 },
-          { date: 'Wed', dau: 1500, mau: 14150 },
-          { date: 'Thu', dau: 1620, mau: 14200 },
-          { date: 'Fri', dau: 1800, mau: 14250 },
-        ],
-      });
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to fetch dashboard metrics.');
     } finally {
       setLoading(false);
     }
@@ -64,6 +54,18 @@ export default function DashboardPage() {
             </button>
           </div>
 
+          {errorMsg && (
+            <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-semibold flex items-center justify-between shadow-2xs">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{errorMsg}</span>
+              </div>
+              <button onClick={fetchStats} className="px-3 py-1 bg-rose-600 text-white rounded-md text-xs font-semibold hover:bg-rose-700">
+                Retry
+              </button>
+            </div>
+          )}
+
           {/* Key Metrics Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="mnc-card p-5">
@@ -77,7 +79,7 @@ export default function DashboardPage() {
                 <div className="h-8 skeleton mt-2 w-28"></div>
               ) : (
                 <h3 className="text-2xl font-bold text-slate-900 mt-2">
-                  {stats?.totalStudents?.toLocaleString() || '14,250'}
+                  {stats?.totalStudents !== undefined ? stats.totalStudents.toLocaleString() : '0'}
                 </h3>
               )}
               <div className="mt-3 flex items-center gap-1 text-emerald-600 text-xs font-medium">
@@ -96,7 +98,7 @@ export default function DashboardPage() {
                 <div className="h-8 skeleton mt-2 w-32"></div>
               ) : (
                 <h3 className="text-2xl font-bold text-slate-900 mt-2">
-                  ₹ {((stats?.totalRevenueInPaise || 124500000) / 100).toLocaleString()}
+                  ₹ {stats?.totalRevenueInPaise !== undefined ? ((stats.totalRevenueInPaise || 0) / 100).toLocaleString() : '0'}
                 </h3>
               )}
               <p className="mt-3 text-slate-500 text-xs font-medium">B2C & B2B School Licenses</p>
@@ -112,7 +114,7 @@ export default function DashboardPage() {
               {loading ? (
                 <div className="h-8 skeleton mt-2 w-16"></div>
               ) : (
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{stats?.totalMentors || 48}</h3>
+                <h3 className="text-2xl font-bold text-slate-900 mt-2">{stats?.totalMentors ?? 0}</h3>
               )}
               <p className="mt-3 text-slate-500 text-xs font-medium">Verified Subject Experts</p>
             </div>
@@ -127,9 +129,9 @@ export default function DashboardPage() {
               {loading ? (
                 <div className="h-8 skeleton mt-2 w-20"></div>
               ) : (
-                <h3 className="text-2xl font-bold text-slate-900 mt-2">{stats?.doubtResolutionRatePercentage || 96.4}%</h3>
+                <h3 className="text-2xl font-bold text-slate-900 mt-2">{stats?.doubtResolutionRatePercentage ?? 0}%</h3>
               )}
-              <p className="mt-3 text-emerald-600 text-xs font-medium">{stats?.totalDoubtsResolved || 350} Doubts Solved</p>
+              <p className="mt-3 text-emerald-600 text-xs font-medium">{stats?.totalDoubtsResolved ?? 0} Doubts Solved</p>
             </div>
           </div>
 
