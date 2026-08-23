@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const BASE_URL = typeof window !== 'undefined'
   ? '/api/v1'
-  : (process.env.NEXT_PUBLIC_API_URL || 'https://api.toppermantra.com/api/v1');
+  : (process.env.NEXT_PUBLIC_API_URL || 'http://187.127.111.105/api/v1');
 
 export const api = axios.create({
   baseURL: BASE_URL,
