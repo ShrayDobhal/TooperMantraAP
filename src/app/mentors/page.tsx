@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
 import { mentorsApi, Mentor } from '@/api';
@@ -23,6 +23,8 @@ import {
   BookOpen,
   Award,
   Filter,
+  Upload,
+  X,
 } from 'lucide-react';
 
 const CATEGORIES = ['All', 'JEE', 'NEET', 'HACKATHON', 'ENTREPRENEURSHIP', 'CUET', 'BOARDS', 'DRONE', 'OTHER'];
@@ -37,6 +39,7 @@ export default function MentorsPage() {
 
   // Add Mentor Modal state
   const [showAddModal, setShowAddModal] = useState(false);
+  const [photoUploadMode, setPhotoUploadMode] = useState<'file' | 'url'>('file');
   const [newMentorName, setNewMentorName] = useState('');
   const [newMentorDesignation, setNewMentorDesignation] = useState('');
   const [newMentorOrganization, setNewMentorOrganization] = useState('');
@@ -44,13 +47,14 @@ export default function MentorsPage() {
   const [newMentorAvatarUrl, setNewMentorAvatarUrl] = useState('');
   const [newMentorBio, setNewMentorBio] = useState('');
   const [newMentorExpertise, setNewMentorExpertise] = useState('');
-  const [newMentorSubjects, setNewMentorSubjects] = useState('');
-  const [newMentorExams, setNewMentorExams] = useState('');
   const [newMentorPhone, setNewMentorPhone] = useState('');
   const [newMentorRating, setNewMentorRating] = useState('4.9');
   const [newMentorExperience, setNewMentorExperience] = useState('3');
   const [newMentorStudentsCount, setNewMentorStudentsCount] = useState('150');
   const [adding, setAdding] = useState(false);
+
+  // File input ref
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Delete Mentor Confirmation state
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -77,6 +81,28 @@ export default function MentorsPage() {
     }
   }
 
+  const handleImageFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please select a valid image file (PNG, JPG, WEBP).');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image file size must be under 5MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (reader.result) {
+        setNewMentorAvatarUrl(reader.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleAddMentor = async (e: React.FormEvent) => {
     e.preventDefault();
     setAdding(true);
@@ -86,12 +112,6 @@ export default function MentorsPage() {
     const expertiseArr = newMentorExpertise
       ? newMentorExpertise.split(',').map((s) => s.trim()).filter(Boolean)
       : [];
-    const subjectsArr = newMentorSubjects
-      ? newMentorSubjects.split(',').map((s) => s.trim()).filter(Boolean)
-      : [];
-    const examsArr = newMentorExams
-      ? newMentorExams.split(',').map((s) => s.trim()).filter(Boolean)
-      : [newMentorCategory];
 
     const payload = {
       name: newMentorName.trim(),
@@ -101,8 +121,8 @@ export default function MentorsPage() {
       avatarUrl: newMentorAvatarUrl.trim() || undefined,
       bio: newMentorBio.trim() || undefined,
       expertise: expertiseArr,
-      subjects: subjectsArr,
-      exams: examsArr,
+      subjects: [newMentorCategory],
+      exams: [newMentorCategory],
       phone: newMentorPhone.trim() || undefined,
       rating: parseFloat(newMentorRating) || 4.9,
       experienceYears: parseInt(newMentorExperience, 10) || 3,
@@ -135,12 +155,13 @@ export default function MentorsPage() {
     setNewMentorAvatarUrl('');
     setNewMentorBio('');
     setNewMentorExpertise('');
-    setNewMentorSubjects('');
-    setNewMentorExams('');
     setNewMentorPhone('');
     setNewMentorRating('4.9');
     setNewMentorExperience('3');
     setNewMentorStudentsCount('150');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleDeleteMentor = async (mentor: Mentor) => {
@@ -385,187 +406,258 @@ export default function MentorsPage() {
 
           {/* Add Mentor Modal */}
           {showAddModal && (
-            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in overflow-y-auto">
-              <div className="bg-white p-6 rounded-xl border border-slate-200 w-full max-w-lg space-y-4 shadow-xl my-8">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-orange-50 border border-orange-200 flex items-center justify-center text-orange-600">
-                      <UserPlus className="w-4 h-4" />
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+              <div className="bg-white rounded-2xl border border-slate-200 w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+                {/* Fixed Modal Header */}
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-center text-orange-600">
+                      <UserPlus className="w-5 h-5" />
                     </div>
                     <div>
                       <h3 className="text-base font-bold text-slate-900">Onboard New Mentor</h3>
-                      <p className="text-xs text-slate-500">Add subject expert details, profile photograph, and domain expertise.</p>
+                      <p className="text-xs text-slate-500">Add expert profile, photograph, and expertise domains.</p>
                     </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddModal(false);
+                      resetForm();
+                    }}
+                    className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
 
-                <form onSubmit={handleAddMentor} className="space-y-4">
-                  {/* Photo / Avatar Section with Live Preview */}
-                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                      Mentor Photograph / Profile Picture
-                    </label>
-                    <div className="flex items-center gap-3.5">
-                      <div className="w-16 h-16 rounded-xl bg-white border border-slate-300 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
-                        {newMentorAvatarUrl ? (
-                          <img
-                            src={newMentorAvatarUrl}
-                            alt="Avatar Preview"
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLElement).style.display = 'none';
-                            }}
-                          />
-                        ) : (
-                          <ImageIcon className="w-6 h-6 text-slate-300" />
-                        )}
+                {/* Scrollable Form Body */}
+                <form onSubmit={handleAddMentor} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                  <div className="p-6 overflow-y-auto flex-1 space-y-4">
+                    {/* Photo / Avatar Section with Device File Upload + URL Switcher */}
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                          Mentor Photograph / Profile Picture
+                        </label>
+                        <div className="flex items-center gap-1 bg-white border border-slate-200 p-0.5 rounded-lg text-[11px] font-semibold">
+                          <button
+                            type="button"
+                            onClick={() => setPhotoUploadMode('file')}
+                            className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                              photoUploadMode === 'file'
+                                ? 'bg-orange-600 text-white shadow-2xs'
+                                : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            Upload File
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPhotoUploadMode('url')}
+                            className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                              photoUploadMode === 'url'
+                                ? 'bg-orange-600 text-white shadow-2xs'
+                                : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            Paste URL
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex-1 space-y-1">
+
+                      <div className="flex items-center gap-4">
+                        <div className="w-18 h-18 rounded-2xl bg-white border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs relative group">
+                          {newMentorAvatarUrl ? (
+                            <>
+                              <img
+                                src={newMentorAvatarUrl}
+                                alt="Avatar Preview"
+                                className="w-full h-full object-cover"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setNewMentorAvatarUrl('')}
+                                className="absolute inset-0 bg-slate-900/60 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs font-semibold transition-opacity cursor-pointer"
+                                title="Remove Photo"
+                              >
+                                Remove
+                              </button>
+                            </>
+                          ) : (
+                            <ImageIcon className="w-7 h-7 text-slate-300" />
+                          )}
+                        </div>
+
+                        <div className="flex-1 space-y-1.5">
+                          {photoUploadMode === 'file' ? (
+                            <div>
+                              <label className="inline-flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-300 hover:border-orange-500 hover:text-orange-600 rounded-lg text-xs font-semibold text-slate-700 cursor-pointer shadow-2xs transition-all">
+                                <Upload className="w-4 h-4 text-orange-600" />
+                                <span>Choose Image from Device</span>
+                                <input
+                                  ref={fileInputRef}
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={handleImageFileSelect}
+                                  className="hidden"
+                                />
+                              </label>
+                              <p className="text-[11px] text-slate-400 mt-1">
+                                {newMentorAvatarUrl ? '✓ Photo selected & ready' : 'Select PNG, JPG, or WEBP photo from your computer'}
+                              </p>
+                            </div>
+                          ) : (
+                            <div>
+                              <input
+                                type="url"
+                                placeholder="Paste image URL (e.g. Bunny CDN / Unsplash / S3)"
+                                value={newMentorAvatarUrl}
+                                onChange={(e) => setNewMentorAvatarUrl(e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-900 text-xs focus:outline-none focus:border-slate-400 font-mono"
+                              />
+                              <p className="text-[11px] text-slate-400 mt-1">
+                                {newMentorAvatarUrl ? '✓ Live photo preview active' : 'Paste any direct image URL'}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Full Name *</label>
                         <input
-                          type="url"
-                          placeholder="Paste image URL (e.g. Bunny CDN / Unsplash / S3)"
-                          value={newMentorAvatarUrl}
-                          onChange={(e) => setNewMentorAvatarUrl(e.target.value)}
-                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-900 text-xs focus:outline-none focus:border-slate-400 font-mono"
+                          type="text"
+                          required
+                          placeholder="e.g. Dr. Varun Kumar"
+                          value={newMentorName}
+                          onChange={(e) => setNewMentorName(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-medium focus:outline-none focus:border-slate-400 text-xs"
                         />
-                        <p className="text-[11px] text-slate-400">
-                          {newMentorAvatarUrl ? '✓ Live photograph preview active' : 'Enter URL to see live photo preview'}
-                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Designation & Rank *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. AIR 12 | IIT Delhi"
+                          value={newMentorDesignation}
+                          onChange={(e) => setNewMentorDesignation(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-medium focus:outline-none focus:border-slate-400 text-xs"
+                        />
                       </div>
                     </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">College / Organization *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. IIT Bombay / AIIMS"
+                          value={newMentorOrganization}
+                          onChange={(e) => setNewMentorOrganization(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-medium focus:outline-none focus:border-slate-400 text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Category *</label>
+                        <select
+                          value={newMentorCategory}
+                          onChange={(e) => setNewMentorCategory(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-semibold focus:outline-none focus:border-slate-400 text-xs"
+                        >
+                          <option value="JEE">JEE</option>
+                          <option value="NEET">NEET</option>
+                          <option value="HACKATHON">HACKATHON</option>
+                          <option value="ENTREPRENEURSHIP">ENTREPRENEURSHIP</option>
+                          <option value="CUET">CUET</option>
+                          <option value="BOARDS">BOARDS</option>
+                          <option value="DRONE">DRONE</option>
+                          <option value="OTHER">OTHER</option>
+                        </select>
+                      </div>
+                    </div>
+
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Full Name *</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. Dr. Varun Kumar"
-                        value={newMentorName}
-                        onChange={(e) => setNewMentorName(e.target.value)}
+                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Mentor Biography</label>
+                      <textarea
+                        rows={2}
+                        placeholder="Brief background, achievements, and teaching methodology..."
+                        value={newMentorBio}
+                        onChange={(e) => setNewMentorBio(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-medium focus:outline-none focus:border-slate-400 text-xs"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Designation & Rank *</label>
+                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Areas of Expertise (Comma-separated)</label>
                       <input
                         type="text"
-                        required
-                        placeholder="e.g. AIR 12 | IIT Delhi"
-                        value={newMentorDesignation}
-                        onChange={(e) => setNewMentorDesignation(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-medium focus:outline-none focus:border-slate-400 text-xs"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">College / Organization *</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. IIT Bombay / AIIMS"
-                        value={newMentorOrganization}
-                        onChange={(e) => setNewMentorOrganization(e.target.value)}
+                        placeholder="e.g. Physical Chemistry, Inorganic Shortcuts, Speed Tricks"
+                        value={newMentorExpertise}
+                        onChange={(e) => setNewMentorExpertise(e.target.value)}
                         className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-medium focus:outline-none focus:border-slate-400 text-xs"
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Category *</label>
-                      <select
-                        value={newMentorCategory}
-                        onChange={(e) => setNewMentorCategory(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-semibold focus:outline-none focus:border-slate-400 text-xs"
-                      >
-                        <option value="JEE">JEE</option>
-                        <option value="NEET">NEET</option>
-                        <option value="HACKATHON">HACKATHON</option>
-                        <option value="ENTREPRENEURSHIP">ENTREPRENEURSHIP</option>
-                        <option value="CUET">CUET</option>
-                        <option value="BOARDS">BOARDS</option>
-                        <option value="DRONE">DRONE</option>
-                        <option value="OTHER">OTHER</option>
-                      </select>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Rating</label>
+                        <input
+                          type="text"
+                          value={newMentorRating}
+                          onChange={(e) => setNewMentorRating(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-semibold focus:outline-none focus:border-slate-400 text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Exp (Years)</label>
+                        <input
+                          type="number"
+                          value={newMentorExperience}
+                          onChange={(e) => setNewMentorExperience(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-semibold focus:outline-none focus:border-slate-400 text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Students</label>
+                        <input
+                          type="number"
+                          value={newMentorStudentsCount}
+                          onChange={(e) => setNewMentorStudentsCount(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-semibold focus:outline-none focus:border-slate-400 text-xs"
+                        />
+                      </div>
                     </div>
-                  </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Mentor Biography</label>
-                    <textarea
-                      rows={2}
-                      placeholder="Brief background, achievements, and teaching methodology..."
-                      value={newMentorBio}
-                      onChange={(e) => setNewMentorBio(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-medium focus:outline-none focus:border-slate-400 text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Areas of Expertise (Comma-separated)</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Physical Chemistry, Inorganic Shortcuts, Speed Tricks"
-                      value={newMentorExpertise}
-                      onChange={(e) => setNewMentorExpertise(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-medium focus:outline-none focus:border-slate-400 text-xs"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-3">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Rating</label>
+                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Mobile Number (Authentication)</label>
                       <input
                         type="text"
-                        value={newMentorRating}
-                        onChange={(e) => setNewMentorRating(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-semibold focus:outline-none focus:border-slate-400 text-xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Exp (Years)</label>
-                      <input
-                        type="number"
-                        value={newMentorExperience}
-                        onChange={(e) => setNewMentorExperience(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-semibold focus:outline-none focus:border-slate-400 text-xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Students</label>
-                      <input
-                        type="number"
-                        value={newMentorStudentsCount}
-                        onChange={(e) => setNewMentorStudentsCount(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-semibold focus:outline-none focus:border-slate-400 text-xs"
+                        placeholder="e.g. +91 9876543210"
+                        value={newMentorPhone}
+                        onChange={(e) => setNewMentorPhone(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-mono font-semibold focus:outline-none focus:border-slate-400 text-xs"
                       />
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Mobile Number (Authentication)</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. +91 9876543210"
-                      value={newMentorPhone}
-                      onChange={(e) => setNewMentorPhone(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-mono font-semibold focus:outline-none focus:border-slate-400 text-xs"
-                    />
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                  {/* Fixed Modal Footer */}
+                  <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-2 shrink-0">
                     <button
                       type="button"
                       onClick={() => {
                         setShowAddModal(false);
                         resetForm();
                       }}
-                      className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer"
+                      className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer shadow-2xs"
                     >
                       Cancel
                     </button>

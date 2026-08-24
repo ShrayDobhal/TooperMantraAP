@@ -21,8 +21,9 @@ import {
   Loader2,
   Film,
   Sparkles,
-  ExternalLink,
   Clock,
+  Upload,
+  X,
 } from 'lucide-react';
 
 const CATEGORIES = [
@@ -68,6 +69,7 @@ export default function LiveContentPage() {
 
   // Video Upload / Edit Modal State
   const [showVideoModal, setShowVideoModal] = useState(false);
+  const [thumbnailUploadMode, setThumbnailUploadMode] = useState<'file' | 'url'>('file');
   const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -85,6 +87,28 @@ export default function LiveContentPage() {
     thumbnailUrl: '',
     durationMinutes: 30,
   });
+
+  const handleThumbnailFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please select a valid image file (PNG, JPG, WEBP).');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image file size must be under 5MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (reader.result) {
+        setVideoForm((prev) => ({ ...prev, thumbnailUrl: reader.result as string }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Assign Schools Modal State
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -517,191 +541,261 @@ export default function LiveContentPage() {
 
           {/* UPLOAD / EDIT VIDEO MODAL */}
           {showVideoModal && (
-            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-              <div className="bg-white rounded-xl max-w-lg w-full p-6 border border-slate-200 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                    <Video className="w-4 h-4 text-orange-600" />
-                    {selectedVideo ? 'Edit Video & Metadata' : 'Upload Video to Central Library'}
-                  </h3>
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+              <div className="bg-white rounded-2xl border border-slate-200 w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+                {/* Fixed Header */}
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-center text-orange-600">
+                      <Video className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900">
+                        {selectedVideo ? 'Edit Video & Metadata' : 'Upload Video to Central Library'}
+                      </h3>
+                      <p className="text-xs text-slate-500">Configure streaming links, category & exam filters, and thumbnail poster.</p>
+                    </div>
+                  </div>
                   <button
+                    type="button"
                     onClick={() => setShowVideoModal(false)}
-                    className="text-slate-400 hover:text-slate-700 text-xs font-bold cursor-pointer"
+                    className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all cursor-pointer"
                   >
-                    ✕
+                    <X className="w-5 h-5" />
                   </button>
                 </div>
 
-                <form onSubmit={handleSaveVideo} className="space-y-3.5 text-xs">
-                  {/* Thumbnail Poster with Live Preview */}
-                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                    <label className="block font-semibold text-slate-700">Video Thumbnail Poster</label>
-                    <div className="flex items-center gap-3">
-                      <div className="w-24 h-16 rounded-lg bg-white border border-slate-300 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
-                        {videoForm.thumbnailUrl ? (
-                          <img
-                            src={videoForm.thumbnailUrl}
-                            alt="Poster Preview"
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLElement).style.display = 'none';
-                            }}
-                          />
-                        ) : (
-                          <ImageIcon className="w-6 h-6 text-slate-300" />
-                        )}
+                {/* Scrollable Form Body */}
+                <form onSubmit={handleSaveVideo} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                  <div className="p-6 overflow-y-auto flex-1 space-y-4 text-xs">
+                    {/* Thumbnail Poster with Device File Upload + URL Switcher */}
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                          Video Thumbnail Poster
+                        </label>
+                        <div className="flex items-center gap-1 bg-white border border-slate-200 p-0.5 rounded-lg text-[11px] font-semibold">
+                          <button
+                            type="button"
+                            onClick={() => setThumbnailUploadMode('file')}
+                            className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                              thumbnailUploadMode === 'file'
+                                ? 'bg-orange-600 text-white shadow-2xs'
+                                : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            Upload File
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setThumbnailUploadMode('url')}
+                            className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                              thumbnailUploadMode === 'url'
+                                ? 'bg-orange-600 text-white shadow-2xs'
+                                : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            Paste URL
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex-1 space-y-1">
+
+                      <div className="flex items-center gap-4">
+                        <div className="w-24 h-16 rounded-xl bg-white border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs relative group">
+                          {videoForm.thumbnailUrl ? (
+                            <>
+                              <img
+                                src={videoForm.thumbnailUrl}
+                                alt="Poster Preview"
+                                className="w-full h-full object-cover"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setVideoForm((prev) => ({ ...prev, thumbnailUrl: '' }))}
+                                className="absolute inset-0 bg-slate-900/60 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs font-semibold transition-opacity cursor-pointer"
+                                title="Remove Poster"
+                              >
+                                Remove
+                              </button>
+                            </>
+                          ) : (
+                            <ImageIcon className="w-6 h-6 text-slate-300" />
+                          )}
+                        </div>
+
+                        <div className="flex-1 space-y-1.5">
+                          {thumbnailUploadMode === 'file' ? (
+                            <div>
+                              <label className="inline-flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-300 hover:border-orange-500 hover:text-orange-600 rounded-lg text-xs font-semibold text-slate-700 cursor-pointer shadow-2xs transition-all">
+                                <Upload className="w-4 h-4 text-orange-600" />
+                                <span>Choose Image from Device</span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={handleThumbnailFileSelect}
+                                  className="hidden"
+                                />
+                              </label>
+                              <p className="text-[11px] text-slate-400 mt-1">
+                                {videoForm.thumbnailUrl ? '✓ Poster selected & preview active' : 'Select PNG, JPG, or WEBP poster from your computer'}
+                              </p>
+                            </div>
+                          ) : (
+                            <div>
+                              <input
+                                type="url"
+                                placeholder="Paste image URL (https://cdn...)"
+                                value={videoForm.thumbnailUrl}
+                                onChange={(e) => setVideoForm({ ...videoForm, thumbnailUrl: e.target.value })}
+                                className="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-900 text-xs focus:outline-none focus:border-slate-400 font-mono"
+                              />
+                              <p className="text-[11px] text-slate-400 mt-1">
+                                {videoForm.thumbnailUrl ? '✓ Live poster thumbnail preview' : 'Enter URL to preview poster'}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Video Title *</label>
+                      <input
+                        type="text"
+                        required
+                        value={videoForm.title}
+                        onChange={(e) => setVideoForm({ ...videoForm, title: e.target.value })}
+                        placeholder="e.g. JEE Physics — Newton's Laws of Motion"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium focus:bg-white focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="block font-semibold text-slate-700 mb-1">Category *</label>
+                        <select
+                          value={videoForm.category}
+                          onChange={(e) => setVideoForm({ ...videoForm, category: e.target.value })}
+                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium focus:outline-none"
+                        >
+                          {CATEGORIES.filter((c) => c !== 'All').map((c) => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold text-slate-700 mb-1">Target Exam</label>
+                        <select
+                          value={videoForm.exam}
+                          onChange={(e) => setVideoForm({ ...videoForm, exam: e.target.value })}
+                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium focus:outline-none"
+                        >
+                          {EXAMS.filter((ex) => ex !== 'All').map((ex) => (
+                            <option key={ex} value={ex}>{ex}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold text-slate-700 mb-1">Target Class</label>
+                        <select
+                          value={videoForm.classLevel}
+                          onChange={(e) => setVideoForm({ ...videoForm, classLevel: e.target.value })}
+                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium focus:outline-none"
+                        >
+                          {CLASSES.map((cl) => (
+                            <option key={cl.value} value={cl.value}>{cl.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Video Streaming URLs / Bunny Stream Integration */}
+                    <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                      <div className="flex items-center gap-1.5 font-semibold text-slate-800">
+                        <Sparkles className="w-3.5 h-3.5 text-orange-600" />
+                        <span>Video Stream Source & Playback</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block font-medium text-slate-600 mb-1">Bunny Stream Video ID</label>
+                          <input
+                            type="text"
+                            value={videoForm.bunnyVideoId}
+                            onChange={(e) => setVideoForm({ ...videoForm, bunnyVideoId: e.target.value })}
+                            placeholder="e.g. b82910fa-1234-5678"
+                            className="w-full p-2 bg-white border border-slate-200 rounded-lg font-mono text-xs"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block font-medium text-slate-600 mb-1">YouTube Video ID (Legacy)</label>
+                          <input
+                            type="text"
+                            value={videoForm.youtubeId}
+                            onChange={(e) => setVideoForm({ ...videoForm, youtubeId: e.target.value })}
+                            placeholder="e.g. dQw4w9WgXcQ"
+                            className="w-full p-2 bg-white border border-slate-200 rounded-lg font-mono text-xs"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block font-medium text-slate-600 mb-1">Direct HLS / MP4 Stream URL</label>
                         <input
                           type="url"
-                          placeholder="Poster image URL (https://cdn...)"
-                          value={videoForm.thumbnailUrl}
-                          onChange={(e) => setVideoForm({ ...videoForm, thumbnailUrl: e.target.value })}
-                          className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-mono"
+                          value={videoForm.videoUrl}
+                          onChange={(e) => setVideoForm({ ...videoForm, videoUrl: e.target.value })}
+                          placeholder="https://video.toppermantra.com/stream.m3u8"
+                          className="w-full p-2 bg-white border border-slate-200 rounded-lg font-mono text-xs"
                         />
-                        <p className="text-[10px] text-slate-400">
-                          {videoForm.thumbnailUrl ? '✓ Live poster thumbnail preview' : 'Enter URL to preview poster'}
-                        </p>
                       </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Video Title *</label>
-                    <input
-                      type="text"
-                      required
-                      value={videoForm.title}
-                      onChange={(e) => setVideoForm({ ...videoForm, title: e.target.value })}
-                      placeholder="e.g. JEE Physics — Newton's Laws of Motion"
-                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium focus:bg-white focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-3">
-                    <div>
-                      <label className="block font-semibold text-slate-700 mb-1">Category *</label>
-                      <select
-                        value={videoForm.category}
-                        onChange={(e) => setVideoForm({ ...videoForm, category: e.target.value })}
-                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium focus:outline-none"
-                      >
-                        {CATEGORIES.filter((c) => c !== 'All').map((c) => (
-                          <option key={c} value={c}>{c}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block font-semibold text-slate-700 mb-1">Target Exam</label>
-                      <select
-                        value={videoForm.exam}
-                        onChange={(e) => setVideoForm({ ...videoForm, exam: e.target.value })}
-                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium focus:outline-none"
-                      >
-                        {EXAMS.filter((ex) => ex !== 'All').map((ex) => (
-                          <option key={ex} value={ex}>{ex}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block font-semibold text-slate-700 mb-1">Target Class</label>
-                      <select
-                        value={videoForm.classLevel}
-                        onChange={(e) => setVideoForm({ ...videoForm, classLevel: e.target.value })}
-                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium focus:outline-none"
-                      >
-                        {CLASSES.map((cl) => (
-                          <option key={cl.value} value={cl.value}>{cl.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Video Streaming URLs / Bunny Stream Integration */}
-                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-                    <div className="flex items-center gap-1.5 font-semibold text-slate-800">
-                      <Sparkles className="w-3.5 h-3.5 text-orange-600" />
-                      <span>Video Stream Source & Playback</span>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block font-medium text-slate-600 mb-1">Bunny Stream Video ID</label>
+                        <label className="block font-semibold text-slate-700 mb-1">Duration (Minutes)</label>
                         <input
-                          type="text"
-                          value={videoForm.bunnyVideoId}
-                          onChange={(e) => setVideoForm({ ...videoForm, bunnyVideoId: e.target.value })}
-                          placeholder="e.g. b82910fa-1234-5678"
-                          className="w-full p-2 bg-white border border-slate-200 rounded-lg font-mono text-xs"
+                          type="number"
+                          min="1"
+                          value={videoForm.durationMinutes}
+                          onChange={(e) => setVideoForm({ ...videoForm, durationMinutes: parseInt(e.target.value, 10) || 30 })}
+                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
                         />
                       </div>
 
                       <div>
-                        <label className="block font-medium text-slate-600 mb-1">YouTube Video ID (Legacy)</label>
+                        <label className="block font-semibold text-slate-700 mb-1">Tags (Comma Separated)</label>
                         <input
                           type="text"
-                          value={videoForm.youtubeId}
-                          onChange={(e) => setVideoForm({ ...videoForm, youtubeId: e.target.value })}
-                          placeholder="e.g. dQw4w9WgXcQ"
-                          className="w-full p-2 bg-white border border-slate-200 rounded-lg font-mono text-xs"
+                          value={videoForm.tagsInput}
+                          onChange={(e) => setVideoForm({ ...videoForm, tagsInput: e.target.value })}
+                          placeholder="Physics, Mechanics, JEE"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="block font-medium text-slate-600 mb-1">Direct HLS / MP4 Stream URL</label>
-                      <input
-                        type="url"
-                        value={videoForm.videoUrl}
-                        onChange={(e) => setVideoForm({ ...videoForm, videoUrl: e.target.value })}
-                        placeholder="https://video.toppermantra.com/stream.m3u8"
-                        className="w-full p-2 bg-white border border-slate-200 rounded-lg font-mono text-xs"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block font-semibold text-slate-700 mb-1">Duration (Minutes)</label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={videoForm.durationMinutes}
-                        onChange={(e) => setVideoForm({ ...videoForm, durationMinutes: parseInt(e.target.value, 10) || 30 })}
-                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block font-semibold text-slate-700 mb-1">Tags (Comma Separated)</label>
-                      <input
-                        type="text"
-                        value={videoForm.tagsInput}
-                        onChange={(e) => setVideoForm({ ...videoForm, tagsInput: e.target.value })}
-                        placeholder="Physics, Mechanics, JEE"
+                      <label className="block font-semibold text-slate-700 mb-1">Description</label>
+                      <textarea
+                        rows={2}
+                        value={videoForm.description}
+                        onChange={(e) => setVideoForm({ ...videoForm, description: e.target.value })}
+                        placeholder="Video overview and chapter concepts..."
                         className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
                       />
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Description</label>
-                    <textarea
-                      rows={2}
-                      value={videoForm.description}
-                      onChange={(e) => setVideoForm({ ...videoForm, description: e.target.value })}
-                      placeholder="Video overview and chapter concepts..."
-                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
-                    />
-                  </div>
-
-                  <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+                  {/* Fixed Footer */}
+                  <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-2 shrink-0">
                     <button
                       type="button"
                       onClick={() => setShowVideoModal(false)}
-                      className="px-4 py-2 text-slate-600 hover:bg-slate-100 font-semibold rounded-lg cursor-pointer"
+                      className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer shadow-2xs"
                     >
                       Cancel
                     </button>
