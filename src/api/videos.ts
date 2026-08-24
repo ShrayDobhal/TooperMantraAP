@@ -139,6 +139,56 @@ export const videosApi = {
     return res;
   },
 
+  async initVideoUpload(title: string): Promise<{
+    success: boolean;
+    data: {
+      bunnyVideoId: string;
+      libraryId: string;
+      uploadUrl: string;
+      authorizationHeader: string;
+      cdnUrl: string;
+      embedUrl: string;
+      thumbnailUrl: string;
+    };
+  }> {
+    const res: any = await api.post('/upload/video', { title });
+    return res;
+  },
+
+  async uploadVideoFileToBunny(
+    uploadUrl: string,
+    accessKey: string,
+    file: File,
+    onProgress?: (percent: number) => void
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', uploadUrl);
+      xhr.setRequestHeader('AccessKey', accessKey);
+      xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+
+      if (xhr.upload && onProgress) {
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percent = Math.round((event.loaded / event.total) * 100);
+            onProgress(percent);
+          }
+        };
+      }
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+        } else {
+          reject(new Error(`Bunny Stream upload failed with status ${xhr.status}`));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Network error during direct video upload to Bunny CDN.'));
+      xhr.send(file);
+    });
+  },
+
   async assignVideoToSchools(videoId: string, schoolIds: string[]): Promise<{ success: boolean; data: any }> {
     const res: any = await api.post(`/admin/videos/${videoId}/schools`, { schoolIds });
     return res;

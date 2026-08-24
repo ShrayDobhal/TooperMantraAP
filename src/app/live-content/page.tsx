@@ -69,6 +69,10 @@ export default function LiveContentPage() {
 
   // Video Upload / Edit Modal State
   const [showVideoModal, setShowVideoModal] = useState(false);
+  const [videoSourceMode, setVideoSourceMode] = useState<'file' | 'manual'>('file');
+  const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [uploadStage, setUploadStage] = useState<string>('');
   const [thumbnailUploadMode, setThumbnailUploadMode] = useState<'file' | 'url'>('file');
   const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -87,6 +91,19 @@ export default function LiveContentPage() {
     thumbnailUrl: '',
     durationMinutes: 30,
   });
+
+  const handleVideoFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setSelectedVideoFile(file);
+
+    // Auto-fill title from filename if title is empty
+    if (!videoForm.title.trim()) {
+      const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+      setVideoForm((prev) => ({ ...prev, title: cleanName }));
+    }
+  };
 
   const handleThumbnailFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -160,6 +177,8 @@ export default function LiveContentPage() {
     e.preventDefault();
     setSubmitting(true);
     setErrorMsg('');
+    setUploadProgress(null);
+    setUploadStage('');
 
     const tagsArr = videoForm.tagsInput
       ? videoForm.tagsInput.split(',').map((t) => t.trim()).filter(Boolean)
@@ -167,36 +186,72 @@ export default function LiveContentPage() {
 
     const durationSec = Math.max(60, Number(videoForm.durationMinutes || 30) * 60);
 
-    const payload = {
-      title: videoForm.title.trim(),
-      description: videoForm.description.trim() || undefined,
-      category: videoForm.category.toUpperCase(),
-      exam: videoForm.exam.toUpperCase(),
-      classLevel: videoForm.classLevel,
-      tags: tagsArr,
-      youtubeId: videoForm.youtubeId.trim() || undefined,
-      bunnyVideoId: videoForm.bunnyVideoId.trim() || undefined,
-      videoUrl: videoForm.videoUrl.trim() || undefined,
-      thumbnailUrl: videoForm.thumbnailUrl.trim() || undefined,
-      durationSeconds: durationSec,
-      status: 'READY',
-    };
+    let finalBunnyId = videoForm.bunnyVideoId.trim() || undefined;
+    let finalVideoUrl = videoForm.videoUrl.trim() || undefined;
+    let finalThumbnailUrl = videoForm.thumbnailUrl.trim() || undefined;
 
     try {
+      // Step 1: If uploading a video file directly to Bunny Stream
+      if (videoSourceMode === 'file' && selectedVideoFile) {
+        setUploadStage('Initializing Bunny Stream video entry...');
+        const initRes = await videosApi.initVideoUpload(videoForm.title.trim());
+
+        if (initRes.success && initRes.data) {
+          finalBunnyId = initRes.data.bunnyVideoId;
+          finalVideoUrl = initRes.data.cdnUrl;
+          if (!finalThumbnailUrl && initRes.data.thumbnailUrl) {
+            finalThumbnailUrl = initRes.data.thumbnailUrl;
+          }
+
+          setUploadStage('Uploading video binary directly to Bunny CDN...');
+          await videosApi.uploadVideoFileToBunny(
+            initRes.data.uploadUrl,
+            initRes.data.authorizationHeader,
+            selectedVideoFile,
+            (pct) => {
+              setUploadProgress(pct);
+              setUploadStage(`Streaming to Bunny CDN (${pct}%)...`);
+            }
+          );
+          setUploadStage('Upload complete! Publishing video metadata...');
+        } else {
+          throw new Error('Failed to initialize Bunny Stream video entry on backend.');
+        }
+      }
+
+      const payload = {
+        title: videoForm.title.trim(),
+        description: videoForm.description.trim() || undefined,
+        category: videoForm.category.toUpperCase(),
+        exam: videoForm.exam.toUpperCase(),
+        classLevel: videoForm.classLevel,
+        tags: tagsArr,
+        youtubeId: videoForm.youtubeId.trim() || undefined,
+        bunnyVideoId: finalBunnyId,
+        videoUrl: finalVideoUrl,
+        thumbnailUrl: finalThumbnailUrl,
+        durationSeconds: durationSec,
+        status: 'READY',
+      };
+
       if (selectedVideo) {
         await videosApi.updateVideo(selectedVideo.id, payload);
-        setToastMsg(`✓ Video "${videoForm.title}" updated successfully!`);
+        setToastMsg(`🎉 Video "${videoForm.title}" updated successfully!`);
       } else {
         await videosApi.createVideo(payload);
-        setToastMsg(`✓ Video "${videoForm.title}" added to central library!`);
+        setToastMsg(`🎉 Video "${videoForm.title}" uploaded directly to Bunny Stream & published!`);
       }
+
       setShowVideoModal(false);
       setSelectedVideo(null);
+      setSelectedVideoFile(null);
       fetchVideosAndSchools();
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to save video content.');
+      setErrorMsg(err.message || 'Failed to save and publish video.');
     } finally {
       setSubmitting(false);
+      setUploadProgress(null);
+      setUploadStage('');
     }
   };
 
@@ -711,47 +766,147 @@ export default function LiveContentPage() {
                       </div>
                     </div>
 
-                    {/* Video Streaming URLs / Bunny Stream Integration */}
-                    <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-                      <div className="flex items-center gap-1.5 font-semibold text-slate-800">
-                        <Sparkles className="w-3.5 h-3.5 text-orange-600" />
-                        <span>Video Stream Source & Playback</span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block font-medium text-slate-600 mb-1">Bunny Stream Video ID</label>
-                          <input
-                            type="text"
-                            value={videoForm.bunnyVideoId}
-                            onChange={(e) => setVideoForm({ ...videoForm, bunnyVideoId: e.target.value })}
-                            placeholder="e.g. b82910fa-1234-5678"
-                            className="w-full p-2 bg-white text-slate-900 border border-slate-300 rounded-lg font-mono text-xs focus:border-slate-500 focus:outline-none"
-                          />
+                    {/* Video Source Selection (Direct File Upload to Bunny CDN vs Manual Video ID) */}
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 font-bold text-slate-800 uppercase tracking-wider text-xs">
+                          <Sparkles className="w-3.5 h-3.5 text-orange-600" />
+                          <span>Video Source & Playback</span>
                         </div>
-
-                        <div>
-                          <label className="block font-medium text-slate-600 mb-1">YouTube Video ID (Legacy)</label>
-                          <input
-                            type="text"
-                            value={videoForm.youtubeId}
-                            onChange={(e) => setVideoForm({ ...videoForm, youtubeId: e.target.value })}
-                            placeholder="e.g. dQw4w9WgXcQ"
-                            className="w-full p-2 bg-white text-slate-900 border border-slate-300 rounded-lg font-mono text-xs focus:border-slate-500 focus:outline-none"
-                          />
+                        <div className="flex items-center gap-1 bg-white border border-slate-200 p-0.5 rounded-lg text-[11px] font-semibold">
+                          <button
+                            type="button"
+                            onClick={() => setVideoSourceMode('file')}
+                            className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                              videoSourceMode === 'file'
+                                ? 'bg-orange-600 text-white shadow-2xs'
+                                : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            Direct Video File
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setVideoSourceMode('manual')}
+                            className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                              videoSourceMode === 'manual'
+                                ? 'bg-orange-600 text-white shadow-2xs'
+                                : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            Manual Video ID / URL
+                          </button>
                         </div>
                       </div>
 
-                      <div>
-                        <label className="block font-medium text-slate-600 mb-1">Direct HLS / MP4 Stream URL</label>
-                        <input
-                          type="url"
-                          value={videoForm.videoUrl}
-                          onChange={(e) => setVideoForm({ ...videoForm, videoUrl: e.target.value })}
-                          placeholder="https://video.toppermantra.com/stream.m3u8"
-                          className="w-full p-2 bg-white text-slate-900 border border-slate-300 rounded-lg font-mono text-xs focus:border-slate-500 focus:outline-none"
-                        />
-                      </div>
+                      {videoSourceMode === 'file' ? (
+                        <div className="space-y-2.5">
+                          {selectedVideoFile ? (
+                            <div className="bg-white border border-slate-200 rounded-xl p-3.5 flex items-center justify-between shadow-2xs">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-10 h-10 rounded-lg bg-orange-50 border border-orange-200 flex items-center justify-center text-orange-600 shrink-0">
+                                  <Video className="w-5 h-5" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-bold text-slate-900 text-xs truncate max-w-[280px]">
+                                    {selectedVideoFile.name}
+                                  </p>
+                                  <p className="text-[11px] text-slate-500">
+                                    {(selectedVideoFile.size / (1024 * 1024)).toFixed(1)} MB • Direct Bunny Stream Upload
+                                  </p>
+                                </div>
+                              </div>
+                              <label className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs cursor-pointer transition-colors shrink-0">
+                                <span>Change File</span>
+                                <input
+                                  type="file"
+                                  accept="video/mp4,video/quicktime,video/webm,video/x-matroska,.mp4,.mov,.mkv,.webm"
+                                  onChange={handleVideoFileSelect}
+                                  className="hidden"
+                                />
+                              </label>
+                            </div>
+                          ) : (
+                            <label className="border-2 border-dashed border-slate-300 hover:border-orange-500 bg-white hover:bg-orange-50/20 rounded-xl p-5 flex flex-col items-center justify-center text-center cursor-pointer transition-all group">
+                              <div className="w-11 h-11 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                                <Upload className="w-5 h-5" />
+                              </div>
+                              <p className="text-xs font-bold text-slate-800">
+                                Click to select Video File from Computer
+                              </p>
+                              <p className="text-[11px] text-slate-400 mt-0.5">
+                                Supports .mp4, .mov, .mkv, .webm (Direct high-speed Bunny CDN upload)
+                              </p>
+                              <input
+                                type="file"
+                                accept="video/mp4,video/quicktime,video/webm,video/x-matroska,.mp4,.mov,.mkv,.webm"
+                                onChange={handleVideoFileSelect}
+                                className="hidden"
+                              />
+                            </label>
+                          )}
+
+                          {/* Upload Progress Bar when uploading */}
+                          {uploadStage && (
+                            <div className="bg-white p-3 rounded-lg border border-orange-200 space-y-1.5">
+                              <div className="flex items-center justify-between text-xs font-semibold">
+                                <span className="text-orange-700 flex items-center gap-1.5">
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  {uploadStage}
+                                </span>
+                                {uploadProgress !== null && (
+                                  <span className="font-mono text-orange-800">{uploadProgress}%</span>
+                                )}
+                              </div>
+                              {uploadProgress !== null && (
+                                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                                  <div
+                                    className="h-full bg-orange-600 rounded-full transition-all duration-200"
+                                    style={{ width: `${uploadProgress}%` }}
+                                  ></div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block font-medium text-slate-600 mb-1">Bunny Stream Video ID</label>
+                              <input
+                                type="text"
+                                value={videoForm.bunnyVideoId}
+                                onChange={(e) => setVideoForm({ ...videoForm, bunnyVideoId: e.target.value })}
+                                placeholder="e.g. b82910fa-1234-5678"
+                                className="w-full p-2 bg-white text-slate-900 border border-slate-300 rounded-lg font-mono text-xs focus:border-slate-500 focus:outline-none"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block font-medium text-slate-600 mb-1">YouTube Video ID (Legacy)</label>
+                              <input
+                                type="text"
+                                value={videoForm.youtubeId}
+                                onChange={(e) => setVideoForm({ ...videoForm, youtubeId: e.target.value })}
+                                placeholder="e.g. dQw4w9WgXcQ"
+                                className="w-full p-2 bg-white text-slate-900 border border-slate-300 rounded-lg font-mono text-xs focus:border-slate-500 focus:outline-none"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block font-medium text-slate-600 mb-1">Direct HLS / MP4 Stream URL</label>
+                            <input
+                              type="url"
+                              value={videoForm.videoUrl}
+                              onChange={(e) => setVideoForm({ ...videoForm, videoUrl: e.target.value })}
+                              placeholder="https://video.toppermantra.com/stream.m3u8"
+                              className="w-full p-2 bg-white text-slate-900 border border-slate-300 rounded-lg font-mono text-xs focus:border-slate-500 focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
