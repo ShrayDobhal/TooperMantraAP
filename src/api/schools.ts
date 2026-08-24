@@ -54,8 +54,13 @@ export const schoolsApi = {
     return res;
   },
 
-  async generateLicense(schoolId: string, payload: { totalSeats: number; prefix?: string; validUntil?: string }): Promise<{ success: boolean; data: SchoolLicense }> {
-    const res: any = await api.post(`/admin/schools/${schoolId}/generate-coupons`, payload);
+  async generateLicense(schoolId: string, payload: { totalSeats: number; prefix?: string; validUntil?: string }): Promise<{ success: boolean; data: any }> {
+    const validUntil = payload.validUntil || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+    const res: any = await api.post(`/admin/schools/${schoolId}/generate-coupons`, {
+      totalSeats: payload.totalSeats,
+      prefix: payload.prefix || undefined,
+      validUntil,
+    });
     return res;
   },
 

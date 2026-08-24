@@ -91,15 +91,16 @@ export default function SchoolsPage() {
     setErrorMsg('');
 
     try {
+      const validUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
       const res = await schoolsApi.generateLicense(selectedSchool.id, {
         totalSeats: Number(seatCount),
-        prefix: codePrefix ? `TOPPER-${codePrefix.toUpperCase()}` : `TOPPER-${selectedSchool.code.toUpperCase()}`,
-        validUntil: '2026-12-31T23:59:59.000Z',
+        prefix: codePrefix ? codePrefix.toUpperCase().replace(/^TOPPER-/, '') : undefined,
+        validUntil,
       });
 
       if (res && res.success && res.data) {
         setGeneratedCode(res.data.licenseCode);
-        setToastMsg(`License generated for ${selectedSchool.name}!`);
+        setToastMsg(`✓ Access code ${res.data.licenseCode} generated with ${seatCount} seats for ${selectedSchool.name}!`);
         await fetchSchools();
       } else {
         setErrorMsg('Failed to generate license from backend API.');
@@ -108,17 +109,6 @@ export default function SchoolsPage() {
       setErrorMsg(err.message || 'License generation failed.');
     } finally {
       setGeneratingLicense(false);
-    }
-  };
-
-  const handleToggleStatus = async (school: School) => {
-    const nextStatus = school.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
-    try {
-      await schoolsApi.updateSchoolStatus(school.id, nextStatus);
-      setToastMsg(`School status updated to ${nextStatus}.`);
-      fetchSchools();
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to update school status.');
     }
   };
 
@@ -215,17 +205,15 @@ export default function SchoolsPage() {
                         <div>
                           <div className="flex items-center gap-2">
                             <h3 className="text-base font-bold text-slate-900">{s.name}</h3>
-                            <button
-                              onClick={() => handleToggleStatus(s)}
-                              className={`px-2.5 py-0.5 text-xs rounded-full font-bold uppercase cursor-pointer border ${
+                            <span
+                              className={`px-2.5 py-0.5 text-[11px] rounded-full font-bold uppercase border ${
                                 s.status === 'ACTIVE'
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-rose-50 hover:text-rose-700'
-                                  : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-emerald-50 hover:text-emerald-700'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : 'bg-rose-50 text-rose-700 border-rose-200'
                               }`}
-                              title="Click to toggle school status"
                             >
                               {s.status || 'ACTIVE'}
-                            </button>
+                            </span>
                           </div>
                           <p className="text-xs text-slate-500 mt-0.5">
                             School Code: <span className="font-mono font-bold text-slate-800">{s.code}</span>
