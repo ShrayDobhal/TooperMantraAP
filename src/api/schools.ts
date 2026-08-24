@@ -8,6 +8,8 @@ export interface SchoolLicense {
   remainingSeats?: number;
   validUntil?: string;
   isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface School {
@@ -16,6 +18,8 @@ export interface School {
   code: string;
   city?: string;
   state?: string;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
   status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
   totalSeats?: number;
   allocatedSeats?: number;
@@ -24,6 +28,8 @@ export interface School {
   assignedVideosCount?: number;
   missingVideosCount?: number;
   totalCatalogVideosCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export const schoolsApi = {
