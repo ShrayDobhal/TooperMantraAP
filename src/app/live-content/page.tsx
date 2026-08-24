@@ -541,7 +541,7 @@ export default function LiveContentPage() {
 
           {/* UPLOAD / EDIT VIDEO MODAL */}
           {showVideoModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 animate-in fade-in duration-200">
               <div className="bg-white rounded-2xl border border-slate-200 w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
                 {/* Fixed Header */}
                 <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
@@ -647,7 +647,7 @@ export default function LiveContentPage() {
                                 placeholder="Paste image URL (https://cdn...)"
                                 value={videoForm.thumbnailUrl}
                                 onChange={(e) => setVideoForm({ ...videoForm, thumbnailUrl: e.target.value })}
-                                className="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-900 text-xs focus:outline-none focus:border-slate-400 font-mono"
+                                className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2 text-xs focus:outline-none focus:border-slate-500 font-mono"
                               />
                               <p className="text-[11px] text-slate-400 mt-1">
                                 {videoForm.thumbnailUrl ? '✓ Live poster thumbnail preview' : 'Enter URL to preview poster'}
@@ -666,7 +666,7 @@ export default function LiveContentPage() {
                         value={videoForm.title}
                         onChange={(e) => setVideoForm({ ...videoForm, title: e.target.value })}
                         placeholder="e.g. JEE Physics — Newton's Laws of Motion"
-                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium focus:bg-white focus:outline-none"
+                        className="w-full p-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg font-medium focus:border-slate-500 focus:outline-none placeholder:text-slate-400"
                       />
                     </div>
 
@@ -676,10 +676,10 @@ export default function LiveContentPage() {
                         <select
                           value={videoForm.category}
                           onChange={(e) => setVideoForm({ ...videoForm, category: e.target.value })}
-                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium focus:outline-none"
+                          className="w-full p-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg font-semibold focus:border-slate-500 focus:outline-none cursor-pointer"
                         >
                           {CATEGORIES.filter((c) => c !== 'All').map((c) => (
-                            <option key={c} value={c}>{c}</option>
+                            <option key={c} value={c} className="text-slate-900 bg-white">{c}</option>
                           ))}
                         </select>
                       </div>
@@ -689,10 +689,10 @@ export default function LiveContentPage() {
                         <select
                           value={videoForm.exam}
                           onChange={(e) => setVideoForm({ ...videoForm, exam: e.target.value })}
-                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium focus:outline-none"
+                          className="w-full p-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg font-semibold focus:border-slate-500 focus:outline-none cursor-pointer"
                         >
                           {EXAMS.filter((ex) => ex !== 'All').map((ex) => (
-                            <option key={ex} value={ex}>{ex}</option>
+                            <option key={ex} value={ex} className="text-slate-900 bg-white">{ex}</option>
                           ))}
                         </select>
                       </div>
@@ -702,10 +702,10 @@ export default function LiveContentPage() {
                         <select
                           value={videoForm.classLevel}
                           onChange={(e) => setVideoForm({ ...videoForm, classLevel: e.target.value })}
-                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium focus:outline-none"
+                          className="w-full p-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg font-semibold focus:border-slate-500 focus:outline-none cursor-pointer"
                         >
                           {CLASSES.map((cl) => (
-                            <option key={cl.value} value={cl.value}>{cl.label}</option>
+                            <option key={cl.value} value={cl.value} className="text-slate-900 bg-white">{cl.label}</option>
                           ))}
                         </select>
                       </div>
@@ -726,7 +726,7 @@ export default function LiveContentPage() {
                             value={videoForm.bunnyVideoId}
                             onChange={(e) => setVideoForm({ ...videoForm, bunnyVideoId: e.target.value })}
                             placeholder="e.g. b82910fa-1234-5678"
-                            className="w-full p-2 bg-white border border-slate-200 rounded-lg font-mono text-xs"
+                            className="w-full p-2 bg-white text-slate-900 border border-slate-300 rounded-lg font-mono text-xs focus:border-slate-500 focus:outline-none"
                           />
                         </div>
 
@@ -737,7 +737,7 @@ export default function LiveContentPage() {
                             value={videoForm.youtubeId}
                             onChange={(e) => setVideoForm({ ...videoForm, youtubeId: e.target.value })}
                             placeholder="e.g. dQw4w9WgXcQ"
-                            className="w-full p-2 bg-white border border-slate-200 rounded-lg font-mono text-xs"
+                            className="w-full p-2 bg-white text-slate-900 border border-slate-300 rounded-lg font-mono text-xs focus:border-slate-500 focus:outline-none"
                           />
                         </div>
                       </div>
@@ -749,7 +749,7 @@ export default function LiveContentPage() {
                           value={videoForm.videoUrl}
                           onChange={(e) => setVideoForm({ ...videoForm, videoUrl: e.target.value })}
                           placeholder="https://video.toppermantra.com/stream.m3u8"
-                          className="w-full p-2 bg-white border border-slate-200 rounded-lg font-mono text-xs"
+                          className="w-full p-2 bg-white text-slate-900 border border-slate-300 rounded-lg font-mono text-xs focus:border-slate-500 focus:outline-none"
                         />
                       </div>
                     </div>
@@ -762,7 +762,7 @@ export default function LiveContentPage() {
                           min="1"
                           value={videoForm.durationMinutes}
                           onChange={(e) => setVideoForm({ ...videoForm, durationMinutes: parseInt(e.target.value, 10) || 30 })}
-                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
+                          className="w-full p-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg font-semibold focus:border-slate-500 focus:outline-none"
                         />
                       </div>
 
@@ -773,7 +773,7 @@ export default function LiveContentPage() {
                           value={videoForm.tagsInput}
                           onChange={(e) => setVideoForm({ ...videoForm, tagsInput: e.target.value })}
                           placeholder="Physics, Mechanics, JEE"
-                          className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
+                          className="w-full p-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg font-medium focus:border-slate-500 focus:outline-none placeholder:text-slate-400"
                         />
                       </div>
                     </div>
@@ -785,7 +785,7 @@ export default function LiveContentPage() {
                         value={videoForm.description}
                         onChange={(e) => setVideoForm({ ...videoForm, description: e.target.value })}
                         placeholder="Video overview and chapter concepts..."
-                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
+                        className="w-full p-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg font-medium focus:border-slate-500 focus:outline-none placeholder:text-slate-400"
                       />
                     </div>
                   </div>
@@ -815,8 +815,8 @@ export default function LiveContentPage() {
 
           {/* ASSIGN SCHOOLS MODAL */}
           {showAssignModal && assigningVideo && (
-            <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-              <div className="bg-white rounded-xl max-w-md w-full p-6 border border-slate-200 shadow-xl space-y-4 max-h-[85vh] flex flex-col">
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 animate-in fade-in duration-200">
+              <div className="bg-white rounded-2xl max-w-md w-full p-6 border border-slate-200 shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
                   <div className="flex items-center gap-2">
                     <SchoolIcon className="w-5 h-5 text-orange-600" />

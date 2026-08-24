@@ -406,7 +406,7 @@ export default function MentorsPage() {
 
           {/* Add Mentor Modal */}
           {showAddModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 animate-in fade-in duration-200">
               <div className="bg-white rounded-2xl border border-slate-200 w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
                 {/* Fixed Modal Header */}
                 <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
@@ -514,7 +514,7 @@ export default function MentorsPage() {
                                 placeholder="Paste image URL (e.g. Bunny CDN / Unsplash / S3)"
                                 value={newMentorAvatarUrl}
                                 onChange={(e) => setNewMentorAvatarUrl(e.target.value)}
-                                className="w-full bg-white border border-slate-200 rounded-lg p-2 text-slate-900 text-xs focus:outline-none focus:border-slate-400 font-mono"
+                                className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2 text-xs focus:outline-none focus:border-slate-500 font-mono"
                               />
                               <p className="text-[11px] text-slate-400 mt-1">
                                 {newMentorAvatarUrl ? '✓ Live photo preview active' : 'Paste any direct image URL'}
@@ -534,7 +534,7 @@ export default function MentorsPage() {
                           placeholder="e.g. Dr. Varun Kumar"
                           value={newMentorName}
                           onChange={(e) => setNewMentorName(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-medium focus:outline-none focus:border-slate-400 text-xs"
+                          className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 font-medium focus:outline-none focus:border-slate-500 text-xs placeholder:text-slate-400"
                         />
                       </div>
 
@@ -546,7 +546,7 @@ export default function MentorsPage() {
                           placeholder="e.g. AIR 12 | IIT Delhi"
                           value={newMentorDesignation}
                           onChange={(e) => setNewMentorDesignation(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-medium focus:outline-none focus:border-slate-400 text-xs"
+                          className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 font-medium focus:outline-none focus:border-slate-500 text-xs placeholder:text-slate-400"
                         />
                       </div>
                     </div>
@@ -560,7 +560,7 @@ export default function MentorsPage() {
                           placeholder="e.g. IIT Bombay / AIIMS"
                           value={newMentorOrganization}
                           onChange={(e) => setNewMentorOrganization(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-medium focus:outline-none focus:border-slate-400 text-xs"
+                          className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 font-medium focus:outline-none focus:border-slate-500 text-xs placeholder:text-slate-400"
                         />
                       </div>
 
@@ -569,16 +569,16 @@ export default function MentorsPage() {
                         <select
                           value={newMentorCategory}
                           onChange={(e) => setNewMentorCategory(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-semibold focus:outline-none focus:border-slate-400 text-xs"
+                          className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 font-semibold focus:outline-none focus:border-slate-500 text-xs cursor-pointer"
                         >
-                          <option value="JEE">JEE</option>
-                          <option value="NEET">NEET</option>
-                          <option value="HACKATHON">HACKATHON</option>
-                          <option value="ENTREPRENEURSHIP">ENTREPRENEURSHIP</option>
-                          <option value="CUET">CUET</option>
-                          <option value="BOARDS">BOARDS</option>
-                          <option value="DRONE">DRONE</option>
-                          <option value="OTHER">OTHER</option>
+                          <option value="JEE" className="text-slate-900 bg-white">JEE</option>
+                          <option value="NEET" className="text-slate-900 bg-white">NEET</option>
+                          <option value="HACKATHON" className="text-slate-900 bg-white">HACKATHON</option>
+                          <option value="ENTREPRENEURSHIP" className="text-slate-900 bg-white">ENTREPRENEURSHIP</option>
+                          <option value="CUET" className="text-slate-900 bg-white">CUET</option>
+                          <option value="BOARDS" className="text-slate-900 bg-white">BOARDS</option>
+                          <option value="DRONE" className="text-slate-900 bg-white">DRONE</option>
+                          <option value="OTHER" className="text-slate-900 bg-white">OTHER</option>
                         </select>
                       </div>
                     </div>
@@ -590,7 +590,7 @@ export default function MentorsPage() {
                         placeholder="Brief background, achievements, and teaching methodology..."
                         value={newMentorBio}
                         onChange={(e) => setNewMentorBio(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-medium focus:outline-none focus:border-slate-400 text-xs"
+                        className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 font-medium focus:outline-none focus:border-slate-500 text-xs placeholder:text-slate-400"
                       />
                     </div>
 
@@ -601,7 +601,7 @@ export default function MentorsPage() {
                         placeholder="e.g. Physical Chemistry, Inorganic Shortcuts, Speed Tricks"
                         value={newMentorExpertise}
                         onChange={(e) => setNewMentorExpertise(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-medium focus:outline-none focus:border-slate-400 text-xs"
+                        className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 font-medium focus:outline-none focus:border-slate-500 text-xs placeholder:text-slate-400"
                       />
                     </div>
 
@@ -612,7 +612,7 @@ export default function MentorsPage() {
                           type="text"
                           value={newMentorRating}
                           onChange={(e) => setNewMentorRating(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-semibold focus:outline-none focus:border-slate-400 text-xs"
+                          className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 font-semibold focus:outline-none focus:border-slate-500 text-xs"
                         />
                       </div>
 
@@ -622,7 +622,7 @@ export default function MentorsPage() {
                           type="number"
                           value={newMentorExperience}
                           onChange={(e) => setNewMentorExperience(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-semibold focus:outline-none focus:border-slate-400 text-xs"
+                          className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 font-semibold focus:outline-none focus:border-slate-500 text-xs"
                         />
                       </div>
 
@@ -632,7 +632,7 @@ export default function MentorsPage() {
                           type="number"
                           value={newMentorStudentsCount}
                           onChange={(e) => setNewMentorStudentsCount(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-semibold focus:outline-none focus:border-slate-400 text-xs"
+                          className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 font-semibold focus:outline-none focus:border-slate-500 text-xs"
                         />
                       </div>
                     </div>
@@ -644,7 +644,7 @@ export default function MentorsPage() {
                         placeholder="e.g. +91 9876543210"
                         value={newMentorPhone}
                         onChange={(e) => setNewMentorPhone(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-slate-900 font-mono font-semibold focus:outline-none focus:border-slate-400 text-xs"
+                        className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 font-mono font-semibold focus:outline-none focus:border-slate-500 text-xs placeholder:text-slate-400"
                       />
                     </div>
                   </div>

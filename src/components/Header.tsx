@@ -26,7 +26,7 @@ export function Header() {
   }, []);
 
   return (
-    <header className="h-14 border-b border-slate-200 bg-white/95 backdrop-blur-xs px-6 flex items-center justify-between sticky top-0 z-30">
+    <header className="h-14 border-b border-slate-200 bg-white px-6 flex items-center justify-between sticky top-0 z-30 shadow-2xs">
       {/* Search Input */}
       <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 w-72 focus-within:border-slate-400 focus-within:bg-white transition-all">
         <Search className="w-3.5 h-3.5 text-slate-400" />
