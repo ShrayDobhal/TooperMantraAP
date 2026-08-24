@@ -65,7 +65,12 @@ export const schoolsApi = {
   },
 
   async assignVideosToSchool(schoolId: string, videoIds: string[]): Promise<{ success: boolean; data: any }> {
-    const res: any = await api.post(`/admin/schools/${schoolId}/assign-videos`, { videoIds });
+    const res: any = await api.post(`/admin/schools/${schoolId}/videos`, { videoIds });
+    return res;
+  },
+
+  async getVideosForSchool(schoolId: string): Promise<{ success: boolean; data: any }> {
+    const res: any = await api.get(`/admin/schools/${schoolId}/videos`);
     return res;
   },
 };

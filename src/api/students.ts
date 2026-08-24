@@ -12,6 +12,7 @@ export interface StudentUser {
     targetExam?: string;
     studyMode?: string;
     city?: string;
+    schoolOrCollege?: string;
     schoolName?: string;
     schoolCode?: string;
   };

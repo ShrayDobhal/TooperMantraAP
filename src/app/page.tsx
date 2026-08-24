@@ -50,7 +50,10 @@ export default function LoginPage() {
         let jwtToken = '';
         let backendUser: any = null;
         try {
-          const otpRes = await authApi.verifyOtp('9999999999', '123456');
+          let otpRes = await authApi.verifyOtp('9999999999', '123456').catch(() => null);
+          if (!otpRes?.data?.tokens?.accessToken) {
+            otpRes = await authApi.verifyOtp('9999999999', '000000').catch(() => null);
+          }
           if (otpRes?.data?.tokens?.accessToken) {
             jwtToken = otpRes.data.tokens.accessToken;
             backendUser = otpRes.data.user;

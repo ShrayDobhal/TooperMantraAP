@@ -6,11 +6,9 @@ import { Header } from '@/components/Header';
 import { videosApi, VideoItem, schoolsApi, School } from '@/api';
 import {
   Video,
-  Radio,
   Plus,
   Trash2,
   Edit3,
-  ExternalLink,
   Search,
   Image as ImageIcon,
   CheckCircle2,
@@ -20,12 +18,15 @@ import {
   CheckSquare,
   Square,
   Tag,
-  BookOpen,
-  GraduationCap,
   Loader2,
+  Film,
+  Sparkles,
+  ExternalLink,
+  Clock,
 } from 'lucide-react';
 
 const CATEGORIES = [
+  'All',
   'Academic',
   'Hackathon',
   'Drone',
@@ -39,9 +40,17 @@ const CATEGORIES = [
   'Other',
 ];
 
-const EXAMS = ['JEE', 'NEET', 'CUET', 'Boards', 'Other'];
+const EXAMS = ['All', 'JEE', 'NEET', 'CUET', 'Boards', 'Other'];
 
-const CLASSES = ['Class 9', 'Class 10', 'Class 11', 'Class 12', 'Dropper', 'College', 'All'];
+const CLASSES = [
+  { label: 'All Classes', value: 'ALL' },
+  { label: 'Class 9', value: 'CLASS_9' },
+  { label: 'Class 10', value: 'CLASS_10' },
+  { label: 'Class 11', value: 'CLASS_11' },
+  { label: 'Class 12', value: 'CLASS_12' },
+  { label: 'Dropper', value: 'DROPPER' },
+  { label: 'College', value: 'COLLEGE' },
+];
 
 export default function LiveContentPage() {
   const [videos, setVideos] = useState<VideoItem[]>([]);
@@ -52,9 +61,9 @@ export default function LiveContentPage() {
 
   // Filters
   const [search, setSearch] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [examFilter, setExamFilter] = useState('');
-  const [classFilter, setClassFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('All');
+  const [examFilter, setExamFilter] = useState('All');
+  const [classFilter, setClassFilter] = useState('ALL');
   const [schoolFilter, setSchoolFilter] = useState('');
 
   // Video Upload / Edit Modal State
@@ -68,12 +77,13 @@ export default function LiveContentPage() {
     description: '',
     category: 'Academic',
     exam: 'JEE',
-    targetClass: 'Class 12',
+    classLevel: 'CLASS_12',
     tagsInput: '',
     youtubeId: '',
+    bunnyVideoId: '',
     videoUrl: '',
     thumbnailUrl: '',
-    durationSeconds: 1200,
+    durationMinutes: 30,
   });
 
   // Assign Schools Modal State
@@ -86,22 +96,25 @@ export default function LiveContentPage() {
     setLoading(true);
     setErrorMsg('');
     try {
-      const [vRes, sRes] = await Promise.all([
+      const [vRes, sRes] = await Promise.allSettled([
         videosApi.getVideos({
           search,
-          category: categoryFilter,
-          exam: examFilter,
-          targetClass: classFilter,
-          schoolId: schoolFilter,
+          category: categoryFilter !== 'All' ? categoryFilter : undefined,
+          exam: examFilter !== 'All' ? examFilter : undefined,
+          classLevel: classFilter !== 'ALL' ? classFilter : undefined,
+          schoolId: schoolFilter || undefined,
         }),
         schoolsApi.getSchools(),
       ]);
 
-      if (vRes && vRes.success) {
-        setVideos(vRes.data.items || []);
+      if (vRes.status === 'fulfilled' && vRes.value.success) {
+        setVideos(vRes.value.data.items || []);
+      } else if (vRes.status === 'rejected') {
+        setErrorMsg(vRes.reason?.message || 'Failed to fetch videos catalog.');
       }
-      if (sRes && sRes.success) {
-        setSchools(sRes.data || []);
+
+      if (sRes.status === 'fulfilled' && sRes.value.success) {
+        setSchools(sRes.value.data || []);
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to load video catalog from backend server.');
@@ -128,26 +141,30 @@ export default function LiveContentPage() {
       ? videoForm.tagsInput.split(',').map((t) => t.trim()).filter(Boolean)
       : [];
 
+    const durationSec = Math.max(60, Number(videoForm.durationMinutes || 30) * 60);
+
     const payload = {
-      title: videoForm.title,
-      description: videoForm.description,
-      category: videoForm.category,
-      exam: videoForm.exam,
-      targetClass: videoForm.targetClass,
+      title: videoForm.title.trim(),
+      description: videoForm.description.trim() || undefined,
+      category: videoForm.category.toUpperCase(),
+      exam: videoForm.exam.toUpperCase(),
+      classLevel: videoForm.classLevel,
       tags: tagsArr,
-      youtubeId: videoForm.youtubeId,
-      videoUrl: videoForm.videoUrl,
-      thumbnailUrl: videoForm.thumbnailUrl,
-      durationSeconds: Number(videoForm.durationSeconds),
+      youtubeId: videoForm.youtubeId.trim() || undefined,
+      bunnyVideoId: videoForm.bunnyVideoId.trim() || undefined,
+      videoUrl: videoForm.videoUrl.trim() || undefined,
+      thumbnailUrl: videoForm.thumbnailUrl.trim() || undefined,
+      durationSeconds: durationSec,
+      status: 'READY',
     };
 
     try {
       if (selectedVideo) {
         await videosApi.updateVideo(selectedVideo.id, payload);
-        setToastMsg(`Video "${videoForm.title}" updated successfully!`);
+        setToastMsg(`✓ Video "${videoForm.title}" updated successfully!`);
       } else {
         await videosApi.createVideo(payload);
-        setToastMsg(`Video "${videoForm.title}" uploaded & published successfully!`);
+        setToastMsg(`✓ Video "${videoForm.title}" added to central library!`);
       }
       setShowVideoModal(false);
       setSelectedVideo(null);
@@ -164,7 +181,7 @@ export default function LiveContentPage() {
 
     try {
       await videosApi.deleteVideo(id);
-      setToastMsg(`Video deleted.`);
+      setToastMsg(`✓ Video "${title}" removed.`);
       fetchVideosAndSchools();
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to delete video.');
@@ -190,7 +207,7 @@ export default function LiveContentPage() {
 
     try {
       await videosApi.assignVideoToSchools(assigningVideo.id, selectedSchoolIds);
-      setToastMsg(`School access updated for "${assigningVideo.title}"!`);
+      setToastMsg(`✓ School assignments updated for "${assigningVideo.title}"!`);
       setShowAssignModal(false);
       setAssigningVideo(null);
       fetchVideosAndSchools();
@@ -215,7 +232,7 @@ export default function LiveContentPage() {
                 Central Video Library & School Content Control
               </h1>
               <p className="text-slate-500 text-xs mt-0.5">
-                Upload video lectures, set category metadata, target specific exams & classes, and assign videos to partner schools.
+                Upload video lectures with Bunny Stream / CDN streams, manage exam & category metadata, and assign content to partner schools.
               </p>
             </div>
 
@@ -237,16 +254,17 @@ export default function LiveContentPage() {
                     description: '',
                     category: 'Academic',
                     exam: 'JEE',
-                    targetClass: 'Class 12',
-                    tagsInput: 'Physics, Mechanics',
+                    classLevel: 'CLASS_12',
+                    tagsInput: '',
                     youtubeId: '',
+                    bunnyVideoId: '',
                     videoUrl: '',
                     thumbnailUrl: '',
-                    durationSeconds: 1200,
+                    durationMinutes: 30,
                   });
                   setShowVideoModal(true);
                 }}
-                className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold rounded-lg shadow-2xs flex items-center gap-2 transition-all cursor-pointer"
+                className="px-4 py-2 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg shadow-2xs flex items-center gap-2 transition-all cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 Upload New Video
@@ -260,14 +278,14 @@ export default function LiveContentPage() {
                 <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
                 <span>{errorMsg}</span>
               </div>
-              <button onClick={fetchVideosAndSchools} className="px-3 py-1 bg-rose-600 text-white rounded-md text-xs font-semibold hover:bg-rose-700">
+              <button onClick={fetchVideosAndSchools} className="px-3 py-1 bg-rose-600 text-white rounded-md text-xs font-semibold hover:bg-rose-700 cursor-pointer">
                 Retry
               </button>
             </div>
           )}
 
           {toastMsg && (
-            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700 text-xs font-semibold flex items-center gap-2">
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-700 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
               <span>{toastMsg}</span>
             </div>
@@ -292,9 +310,8 @@ export default function LiveContentPage() {
                 onChange={(e) => setCategoryFilter(e.target.value)}
                 className="w-full py-2 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none"
               >
-                <option value="">All Categories</option>
                 {CATEGORIES.map((c) => (
-                  <option key={c} value={c}>{c}</option>
+                  <option key={c} value={c}>{c === 'All' ? 'All Categories' : c}</option>
                 ))}
               </select>
             </div>
@@ -305,9 +322,8 @@ export default function LiveContentPage() {
                 onChange={(e) => setExamFilter(e.target.value)}
                 className="w-full py-2 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none"
               >
-                <option value="">All Exams</option>
                 {EXAMS.map((ex) => (
-                  <option key={ex} value={ex}>{ex}</option>
+                  <option key={ex} value={ex}>{ex === 'All' ? 'All Exams' : ex}</option>
                 ))}
               </select>
             </div>
@@ -318,9 +334,8 @@ export default function LiveContentPage() {
                 onChange={(e) => setClassFilter(e.target.value)}
                 className="w-full py-2 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none"
               >
-                <option value="">All Classes</option>
                 {CLASSES.map((cl) => (
-                  <option key={cl} value={cl}>{cl}</option>
+                  <option key={cl.value} value={cl.value}>{cl.label}</option>
                 ))}
               </select>
             </div>
@@ -331,7 +346,7 @@ export default function LiveContentPage() {
                 onChange={(e) => setSchoolFilter(e.target.value)}
                 className="w-full py-2 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none"
               >
-                <option value="">All Schools</option>
+                <option value="">All Partner Schools</option>
                 {schools.map((sch) => (
                   <option key={sch.id} value={sch.id}>{sch.name}</option>
                 ))}
@@ -350,27 +365,30 @@ export default function LiveContentPage() {
             <div className="p-12 bg-white rounded-xl border border-slate-200 text-center text-slate-400 space-y-2">
               <Video className="w-10 h-10 mx-auto text-slate-300" />
               <p className="text-sm font-semibold text-slate-700">No videos found matching filters.</p>
-              <p className="text-xs text-slate-500">Click "Upload New Video" to add video lectures to the central library.</p>
+              <p className="text-xs text-slate-500">Click &quot;Upload New Video&quot; to add video lectures to the central library.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {videos.map((v) => {
                 const assignedCount = v.assignedSchools?.length || 0;
                 return (
-                  <div key={v.id} className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden flex flex-col justify-between">
+                  <div key={v.id} className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden flex flex-col justify-between hover:border-slate-300 transition-all">
                     <div>
                       {/* Video Thumbnail Header */}
-                      <div className="relative h-44 bg-slate-900 group">
+                      <div className="relative h-44 bg-slate-900 group overflow-hidden">
                         {v.thumbnailUrl ? (
                           <img
                             src={v.thumbnailUrl}
                             alt={v.title}
-                            className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
                           />
                         ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 gap-1">
-                            <ImageIcon className="w-8 h-8" />
-                            <span className="text-[11px]">No Thumbnail Set</span>
+                          <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 gap-1 bg-gradient-to-br from-slate-900 to-slate-800">
+                            <Film className="w-8 h-8 text-slate-600" />
+                            <span className="text-[11px] text-slate-400">Topper Mantra Video</span>
                           </div>
                         )}
 
@@ -380,15 +398,41 @@ export default function LiveContentPage() {
 
                         {v.exam && (
                           <span className="absolute top-2.5 right-2.5 px-2.5 py-1 bg-orange-600 text-white font-bold text-[10px] rounded-md shadow-2xs">
-                            {v.exam} • {v.targetClass || 'All'}
+                            {v.exam} • {v.classLevel || v.targetClass || 'All'}
                           </span>
                         )}
+
+                        {v.durationSeconds && v.durationSeconds > 0 ? (
+                          <span className="absolute bottom-2.5 right-2.5 px-2 py-0.5 bg-black/70 text-white font-mono text-[10px] rounded flex items-center gap-1 backdrop-blur-xs">
+                            <Clock className="w-2.5 h-2.5" />
+                            {Math.round(v.durationSeconds / 60)} min
+                          </span>
+                        ) : null}
                       </div>
 
                       {/* Video Info Content */}
                       <div className="p-4 space-y-2">
                         <h4 className="font-bold text-slate-900 text-sm line-clamp-2 leading-snug">{v.title}</h4>
                         <p className="text-xs text-slate-500 line-clamp-2">{v.description || 'No description provided.'}</p>
+
+                        {/* Stream / Provider Badge */}
+                        <div className="flex items-center gap-2 pt-1 flex-wrap">
+                          {v.bunnyVideoId && (
+                            <span className="text-[10px] bg-orange-50 text-orange-700 border border-orange-200 px-2 py-0.5 rounded font-bold">
+                              Bunny Stream
+                            </span>
+                          )}
+                          {v.youtubeId && (
+                            <span className="text-[10px] bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded font-bold">
+                              YouTube
+                            </span>
+                          )}
+                          {v.videoUrl && !v.bunnyVideoId && (
+                            <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded font-bold">
+                              HLS / CDN Stream
+                            </span>
+                          )}
+                        </div>
 
                         {/* Tags Badges */}
                         {v.tags && v.tags.length > 0 && (
@@ -398,6 +442,23 @@ export default function LiveContentPage() {
                                 <Tag className="w-2.5 h-2.5 text-slate-400" /> {tag}
                               </span>
                             ))}
+                          </div>
+                        )}
+
+                        {/* Assigned Schools Pill Preview */}
+                        {v.assignedSchoolsDetails && v.assignedSchoolsDetails.length > 0 && (
+                          <div className="pt-2 border-t border-slate-100 flex items-center gap-1 flex-wrap">
+                            <span className="text-[10px] text-slate-400 font-semibold">Schools:</span>
+                            {v.assignedSchoolsDetails.slice(0, 2).map((sch) => (
+                              <span key={sch.id} className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded font-medium truncate max-w-[120px]">
+                                {sch.name}
+                              </span>
+                            ))}
+                            {v.assignedSchoolsDetails.length > 2 && (
+                              <span className="text-[10px] text-slate-500 font-semibold">
+                                +{v.assignedSchoolsDetails.length - 2} more
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>
@@ -423,12 +484,13 @@ export default function LiveContentPage() {
                                 description: v.description || '',
                                 category: v.category || 'Academic',
                                 exam: v.exam || 'JEE',
-                                targetClass: v.targetClass || 'Class 12',
+                                classLevel: v.classLevel || v.targetClass || 'CLASS_12',
                                 tagsInput: v.tags?.join(', ') || '',
                                 youtubeId: v.youtubeId || '',
+                                bunnyVideoId: v.bunnyVideoId || '',
                                 videoUrl: v.videoUrl || '',
                                 thumbnailUrl: v.thumbnailUrl || '',
-                                durationSeconds: v.durationSeconds || 1200,
+                                durationMinutes: Math.round((v.durationSeconds || 1200) / 60),
                               });
                               setShowVideoModal(true);
                             }}
@@ -460,7 +522,7 @@ export default function LiveContentPage() {
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
                     <Video className="w-4 h-4 text-orange-600" />
-                    {selectedVideo ? 'Edit Video & Metadata' : 'Upload Video to Library'}
+                    {selectedVideo ? 'Edit Video & Metadata' : 'Upload Video to Central Library'}
                   </h3>
                   <button
                     onClick={() => setShowVideoModal(false)}
@@ -471,6 +533,39 @@ export default function LiveContentPage() {
                 </div>
 
                 <form onSubmit={handleSaveVideo} className="space-y-3.5 text-xs">
+                  {/* Thumbnail Poster with Live Preview */}
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                    <label className="block font-semibold text-slate-700">Video Thumbnail Poster</label>
+                    <div className="flex items-center gap-3">
+                      <div className="w-24 h-16 rounded-lg bg-white border border-slate-300 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
+                        {videoForm.thumbnailUrl ? (
+                          <img
+                            src={videoForm.thumbnailUrl}
+                            alt="Poster Preview"
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <ImageIcon className="w-6 h-6 text-slate-300" />
+                        )}
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        <input
+                          type="url"
+                          placeholder="Poster image URL (https://cdn...)"
+                          value={videoForm.thumbnailUrl}
+                          onChange={(e) => setVideoForm({ ...videoForm, thumbnailUrl: e.target.value })}
+                          className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-mono"
+                        />
+                        <p className="text-[10px] text-slate-400">
+                          {videoForm.thumbnailUrl ? '✓ Live poster thumbnail preview' : 'Enter URL to preview poster'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">Video Title *</label>
                     <input
@@ -491,7 +586,7 @@ export default function LiveContentPage() {
                         onChange={(e) => setVideoForm({ ...videoForm, category: e.target.value })}
                         className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium focus:outline-none"
                       >
-                        {CATEGORIES.map((c) => (
+                        {CATEGORIES.filter((c) => c !== 'All').map((c) => (
                           <option key={c} value={c}>{c}</option>
                         ))}
                       </select>
@@ -504,7 +599,7 @@ export default function LiveContentPage() {
                         onChange={(e) => setVideoForm({ ...videoForm, exam: e.target.value })}
                         className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium focus:outline-none"
                       >
-                        {EXAMS.map((ex) => (
+                        {EXAMS.filter((ex) => ex !== 'All').map((ex) => (
                           <option key={ex} value={ex}>{ex}</option>
                         ))}
                       </select>
@@ -513,61 +608,82 @@ export default function LiveContentPage() {
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">Target Class</label>
                       <select
-                        value={videoForm.targetClass}
-                        onChange={(e) => setVideoForm({ ...videoForm, targetClass: e.target.value })}
+                        value={videoForm.classLevel}
+                        onChange={(e) => setVideoForm({ ...videoForm, classLevel: e.target.value })}
                         className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium focus:outline-none"
                       >
                         {CLASSES.map((cl) => (
-                          <option key={cl} value={cl}>{cl}</option>
+                          <option key={cl.value} value={cl.value}>{cl.label}</option>
                         ))}
                       </select>
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Tags (Comma Separated)</label>
-                    <input
-                      type="text"
-                      value={videoForm.tagsInput}
-                      onChange={(e) => setVideoForm({ ...videoForm, tagsInput: e.target.value })}
-                      placeholder="Physics, Mechanics, JEE Advanced"
-                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium focus:bg-white focus:outline-none"
-                    />
-                  </div>
+                  {/* Video Streaming URLs / Bunny Stream Integration */}
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                    <div className="flex items-center gap-1.5 font-semibold text-slate-800">
+                      <Sparkles className="w-3.5 h-3.5 text-orange-600" />
+                      <span>Video Stream Source & Playback</span>
+                    </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block font-semibold text-slate-700 mb-1">YouTube Video ID (Optional)</label>
-                      <input
-                        type="text"
-                        value={videoForm.youtubeId}
-                        onChange={(e) => setVideoForm({ ...videoForm, youtubeId: e.target.value })}
-                        placeholder="e.g. dQw4w9WgXcQ"
-                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-mono font-semibold"
-                      />
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-medium text-slate-600 mb-1">Bunny Stream Video ID</label>
+                        <input
+                          type="text"
+                          value={videoForm.bunnyVideoId}
+                          onChange={(e) => setVideoForm({ ...videoForm, bunnyVideoId: e.target.value })}
+                          placeholder="e.g. b82910fa-1234-5678"
+                          className="w-full p-2 bg-white border border-slate-200 rounded-lg font-mono text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-medium text-slate-600 mb-1">YouTube Video ID (Legacy)</label>
+                        <input
+                          type="text"
+                          value={videoForm.youtubeId}
+                          onChange={(e) => setVideoForm({ ...videoForm, youtubeId: e.target.value })}
+                          placeholder="e.g. dQw4w9WgXcQ"
+                          className="w-full p-2 bg-white border border-slate-200 rounded-lg font-mono text-xs"
+                        />
+                      </div>
                     </div>
 
                     <div>
-                      <label className="block font-semibold text-slate-700 mb-1">Stream / MP4 URL</label>
+                      <label className="block font-medium text-slate-600 mb-1">Direct HLS / MP4 Stream URL</label>
                       <input
                         type="url"
                         value={videoForm.videoUrl}
                         onChange={(e) => setVideoForm({ ...videoForm, videoUrl: e.target.value })}
-                        placeholder="https://cdn.toppermantra.com/video.mp4"
-                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
+                        placeholder="https://video.toppermantra.com/stream.m3u8"
+                        className="w-full p-2 bg-white border border-slate-200 rounded-lg font-mono text-xs"
                       />
                     </div>
                   </div>
 
-                  <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Thumbnail Poster URL</label>
-                    <input
-                      type="url"
-                      value={videoForm.thumbnailUrl}
-                      onChange={(e) => setVideoForm({ ...videoForm, thumbnailUrl: e.target.value })}
-                      placeholder="https://cdn.toppermantra.com/thumbnails/v1.jpg"
-                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
-                    />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Duration (Minutes)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={videoForm.durationMinutes}
+                        onChange={(e) => setVideoForm({ ...videoForm, durationMinutes: parseInt(e.target.value, 10) || 30 })}
+                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Tags (Comma Separated)</label>
+                      <input
+                        type="text"
+                        value={videoForm.tagsInput}
+                        onChange={(e) => setVideoForm({ ...videoForm, tagsInput: e.target.value })}
+                        placeholder="Physics, Mechanics, JEE"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg font-medium"
+                      />
+                    </div>
                   </div>
 
                   <div>
@@ -592,10 +708,10 @@ export default function LiveContentPage() {
                     <button
                       type="submit"
                       disabled={submitting}
-                      className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-lg shadow-2xs disabled:opacity-60 cursor-pointer flex items-center gap-1.5"
+                      className="px-4 py-2 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white font-semibold rounded-lg shadow-2xs disabled:opacity-60 cursor-pointer flex items-center gap-1.5"
                     >
                       {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                      {submitting ? 'Saving...' : 'Publish Video'}
+                      {submitting ? 'Saving...' : selectedVideo ? 'Update Video' : 'Publish Video'}
                     </button>
                   </div>
                 </form>
@@ -615,14 +731,15 @@ export default function LiveContentPage() {
                       <p className="text-xs text-slate-500 truncate max-w-[280px]">{assigningVideo.title}</p>
                     </div>
                   </div>
-                  <button onClick={() => setShowAssignModal(false)} className="text-slate-400 hover:text-slate-700 text-xs font-bold">
+                  <button onClick={() => setShowAssignModal(false)} className="text-slate-400 hover:text-slate-700 text-xs font-bold cursor-pointer">
                     ✕
                   </button>
                 </div>
 
-                <p className="text-xs text-slate-600 shrink-0">
-                  Select institutional partner schools authorized to access this video content on the mobile app:
-                </p>
+                <div className="flex items-center justify-between text-xs text-slate-600 shrink-0">
+                  <span>Select partner schools:</span>
+                  <span className="font-semibold text-orange-600">{selectedSchoolIds.length} Selected</span>
+                </div>
 
                 <div className="space-y-2 overflow-y-auto flex-1 pr-1 border border-slate-100 rounded-lg p-2 bg-slate-50/50">
                   {schools.length === 0 ? (
@@ -636,7 +753,7 @@ export default function LiveContentPage() {
                           onClick={() => toggleSchoolSelection(sch.id)}
                           className={`p-3 rounded-lg border text-xs flex items-center justify-between cursor-pointer transition-all ${
                             isSelected
-                              ? 'bg-orange-50/60 border-orange-300 text-slate-900 font-semibold'
+                              ? 'bg-orange-50/70 border-orange-300 text-slate-900 font-semibold'
                               : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
                           }`}
                         >
@@ -667,7 +784,7 @@ export default function LiveContentPage() {
                     type="button"
                     onClick={handleSaveAssignments}
                     disabled={savingAssignments}
-                    className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold rounded-lg shadow-2xs disabled:opacity-60 flex items-center gap-1.5 transition-all cursor-pointer"
+                    className="px-4 py-2 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg shadow-2xs disabled:opacity-60 flex items-center gap-1.5 transition-all cursor-pointer"
                   >
                     {savingAssignments && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                     {savingAssignments ? 'Saving...' : 'Save School Access'}

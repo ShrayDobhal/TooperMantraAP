@@ -53,6 +53,7 @@ export default function StudentsPage() {
     (s) =>
       s.phone?.includes(search) ||
       s.profile?.fullName?.toLowerCase().includes(search.toLowerCase()) ||
+      s.profile?.schoolOrCollege?.toLowerCase().includes(search.toLowerCase()) ||
       s.profile?.schoolName?.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -137,8 +138,8 @@ export default function StudentsPage() {
                       <td className="font-mono text-slate-700 text-xs">{student.phone}</td>
                       <td className="text-slate-700 font-medium">{student.profile?.targetExam || 'General'}</td>
                       <td className="text-slate-600 text-xs">
-                        {student.profile?.schoolName ? (
-                          <span className="font-semibold text-slate-800">{student.profile.schoolName}</span>
+                        {student.profile?.schoolOrCollege || student.profile?.schoolName ? (
+                          <span className="font-semibold text-slate-800">{student.profile.schoolOrCollege || student.profile.schoolName}</span>
                         ) : (
                           student.profile?.studyMode || 'B2C Self Study'
                         )}

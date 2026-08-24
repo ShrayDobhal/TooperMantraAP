@@ -3,17 +3,29 @@ import { api } from '@/lib/api';
 export interface Mentor {
   id: string;
   name: string;
+  avatarUrl?: string | null;
   designation: string;
+  organizationOrCollege?: string;
+  bio?: string;
   category: string;
   phone?: string;
   rating?: number;
+  reviewCount?: number;
+  experienceYears?: number;
   totalStudentsMentored?: number;
+  expertise?: string[];
+  subjects?: string[];
+  exams?: string[];
+  availability?: string;
+  status?: string;
   priorityOrder?: number;
+  createdAt?: string;
 }
 
 export const mentorsApi = {
-  async getMentors(): Promise<{ success: boolean; data: { items: Mentor[] } }> {
-    const res: any = await api.get('/admin/mentors');
+  async getMentors(category?: string): Promise<{ success: boolean; data: { items: Mentor[] } }> {
+    const url = category ? `/mentors?category=${encodeURIComponent(category)}` : '/mentors';
+    const res: any = await api.get(url);
     if (Array.isArray(res)) {
       return { success: true, data: { items: res } };
     }
@@ -24,8 +36,29 @@ export const mentorsApi = {
     return { success: true, data: { items: [] } };
   },
 
-  async createMentor(payload: { name: string; designation: string; category: string; phone: string; rating?: number }): Promise<{ success: boolean; data: Mentor }> {
+  async createMentor(payload: {
+    name: string;
+    designation: string;
+    organizationOrCollege: string;
+    category: string;
+    avatarUrl?: string;
+    bio?: string;
+    phone?: string;
+    rating?: number;
+    experienceYears?: number;
+    totalStudentsMentored?: number;
+    expertise?: string[];
+    subjects?: string[];
+    exams?: string[];
+    availability?: string;
+    status?: string;
+  }): Promise<{ success: boolean; data: Mentor }> {
     const res: any = await api.post('/admin/mentors', payload);
+    return res;
+  },
+
+  async updateMentor(id: string, payload: Partial<Mentor>): Promise<{ success: boolean; data: Mentor }> {
+    const res: any = await api.patch(`/admin/mentors/${id}`, payload);
     return res;
   },
 
