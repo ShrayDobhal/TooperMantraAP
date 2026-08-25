@@ -31,6 +31,8 @@ export default function SchoolsPage() {
   // Details Modal
   const [detailsSchool, setDetailsSchool] = useState<School | null>(null);
 
+  const [isMentor, setIsMentor] = useState(false);
+
   const fetchSchools = async () => {
     setLoading(true);
     setErrorMsg('');
@@ -50,6 +52,12 @@ export default function SchoolsPage() {
 
   useEffect(() => {
     fetchSchools();
+    if (typeof window !== 'undefined') {
+      const r = localStorage.getItem('tm_role');
+      if (r === 'MENTOR') {
+        setIsMentor(true);
+      }
+    }
   }, []);
 
   const handleCreateSchool = async (e: React.FormEvent) => {
@@ -166,9 +174,13 @@ export default function SchoolsPage() {
         <main className="p-8 space-y-6 flex-1 animate-in fade-in duration-300">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Institutional School Licenses</h1>
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+                {isMentor ? 'School Communities' : 'Institutional School Licenses'}
+              </h1>
               <p className="text-slate-500 text-xs mt-0.5">
-                Manage partner school accounts, monitor membership activation & expiry dates, and generate bulk access coupon batches.
+                {isMentor
+                  ? 'Browse partner school communities, assigned video curriculum, and active student membership rosters.'
+                  : 'Manage partner school accounts, monitor membership activation & expiry dates, and generate bulk access coupon batches.'}
               </p>
             </div>
 
@@ -182,13 +194,15 @@ export default function SchoolsPage() {
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-orange-600' : ''}`} />
               </button>
 
-              <button
-                onClick={() => setShowAddSchoolModal(true)}
-                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-2xs flex items-center gap-2 transition-all cursor-pointer"
-              >
-                <Plus className="w-4 h-4 text-orange-500" />
-                Register New School
-              </button>
+              {!isMentor && (
+                <button
+                  onClick={() => setShowAddSchoolModal(true)}
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-2xs flex items-center gap-2 transition-all cursor-pointer"
+                >
+                  <Plus className="w-4 h-4 text-orange-500" />
+                  Register New School
+                </button>
+              )}
             </div>
           </div>
 
@@ -335,8 +349,8 @@ export default function SchoolsPage() {
 
                           {/* School Metadata & Dates */}
                           <div className="flex items-center gap-2 flex-wrap text-xs text-slate-500 mt-1">
-                            <span>Code: <strong className="font-mono text-slate-800">{s.code}</strong></span>
-                            {s.city && <span>• {s.city}{s.state ? `, ${s.state}` : ''}</span>}
+                            {!isMentor && <span>Code: <strong className="font-mono text-slate-800">{s.code}</strong></span>}
+                            {s.city && <span>{!isMentor && '• '}{s.city}{s.state ? `, ${s.state}` : ''}</span>}
                             <span>• Partner Since: <strong className="text-slate-700">{formatDate(s.createdAt)}</strong></span>
                           </div>
                         </div>
@@ -374,17 +388,19 @@ export default function SchoolsPage() {
                           </div>
                         ) : null}
 
-                        <button
-                          onClick={() => {
-                            setSelectedSchool(s);
-                            setCodePrefix(s.code);
-                            setShowLicenseModal(true);
-                          }}
-                          className="px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
-                        >
-                          <Key className="w-3.5 h-3.5" />
-                          Generate Code
-                        </button>
+                        {!isMentor && (
+                          <button
+                            onClick={() => {
+                              setSelectedSchool(s);
+                              setCodePrefix(s.code);
+                              setShowLicenseModal(true);
+                            }}
+                            className="px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+                          >
+                            <Key className="w-3.5 h-3.5" />
+                            Generate Code
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -408,87 +424,89 @@ export default function SchoolsPage() {
                       </div>
                     </div>
 
-                    {/* Active Licenses List */}
-                    {s.licenses && s.licenses.length > 0 ? (
-                      <div className="space-y-2.5">
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                            Issued Access Coupon Batches ({s.licenses.length})
-                          </p>
-                          <span className="text-[11px] text-slate-400">
-                            Each coupon grants mobile app access to its batch seat capacity
-                          </span>
-                        </div>
+                    {/* Active Licenses List (Only shown to Admin) */}
+                    {!isMentor && (
+                      s.licenses && s.licenses.length > 0 ? (
+                        <div className="space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                              Issued Access Coupon Batches ({s.licenses.length})
+                            </p>
+                            <span className="text-[11px] text-slate-400">
+                              Each coupon grants mobile app access to its batch seat capacity
+                            </span>
+                          </div>
 
-                        <div className="grid grid-cols-1 gap-2.5">
-                          {s.licenses.map((lic, idx) => {
-                            const pct = lic.totalSeats > 0 ? Math.round((lic.allocatedSeats / lic.totalSeats) * 100) : 0;
-                            const licDays = getDaysRemaining(lic.validUntil);
-                            const isLicActive = lic.isActive !== false && (licDays === null || licDays > 0);
+                          <div className="grid grid-cols-1 gap-2.5">
+                            {s.licenses.map((lic, idx) => {
+                              const pct = lic.totalSeats > 0 ? Math.round((lic.allocatedSeats / lic.totalSeats) * 100) : 0;
+                              const licDays = getDaysRemaining(lic.validUntil);
+                              const isLicActive = lic.isActive !== false && (licDays === null || licDays > 0);
 
-                            return (
-                              <div key={idx} className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-2 hover:border-slate-300 transition-colors shadow-2xs">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                  {/* Code & Copy Button */}
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-mono text-slate-900 font-bold tracking-wider text-xs bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
-                                      {lic.licenseCode}
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={() => copyToClipboard(lic.licenseCode)}
-                                      className="px-2 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-md text-[11px] font-semibold text-slate-600 flex items-center gap-1 transition-all cursor-pointer"
-                                      title="Copy coupon code"
-                                    >
-                                      {copiedCode === lic.licenseCode ? (
-                                        <>
-                                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                          <span className="text-emerald-600 font-bold">Copied!</span>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <Copy className="w-3 h-3 text-slate-400" />
-                                          <span>Copy</span>
-                                        </>
-                                      )}
-                                    </button>
-                                  </div>
-
-                                  {/* Expiry & Seat Breakdown */}
-                                  <div className="flex items-center gap-3 text-xs flex-wrap">
-                                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
-                                      isLicActive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
-                                    }`}>
-                                      {isLicActive ? 'Valid Batch' : 'Expired'}
-                                    </span>
-
-                                    {lic.validUntil && (
-                                      <span className="text-slate-500 text-[11px]">
-                                        Expires: <strong>{formatDate(lic.validUntil)}</strong>
-                                        {licDays !== null && ` (${licDays > 0 ? `${licDays}d left` : 'Expired'})`}
+                              return (
+                                <div key={idx} className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-2 hover:border-slate-300 transition-colors shadow-2xs">
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                    {/* Code & Copy Button */}
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-mono text-slate-900 font-bold tracking-wider text-xs bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+                                        {lic.licenseCode}
                                       </span>
-                                    )}
+                                      <button
+                                        type="button"
+                                        onClick={() => copyToClipboard(lic.licenseCode)}
+                                        className="px-2 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-md text-[11px] font-semibold text-slate-600 flex items-center gap-1 transition-all cursor-pointer"
+                                        title="Copy coupon code"
+                                      >
+                                        {copiedCode === lic.licenseCode ? (
+                                          <>
+                                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                            <span className="text-emerald-600 font-bold">Copied!</span>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Copy className="w-3 h-3 text-slate-400" />
+                                            <span>Copy</span>
+                                          </>
+                                        )}
+                                      </button>
+                                    </div>
 
-                                    <span className="text-slate-700 font-semibold text-xs">
-                                      {lic.allocatedSeats} / {lic.totalSeats} seats ({pct}%)
-                                    </span>
+                                    {/* Expiry & Seat Breakdown */}
+                                    <div className="flex items-center gap-3 text-xs flex-wrap">
+                                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
+                                        isLicActive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
+                                      }`}>
+                                        {isLicActive ? 'Valid Batch' : 'Expired'}
+                                      </span>
+
+                                      {lic.validUntil && (
+                                        <span className="text-slate-500 text-[11px]">
+                                          Expires: <strong>{formatDate(lic.validUntil)}</strong>
+                                          {licDays !== null && ` (${licDays > 0 ? `${licDays}d left` : 'Expired'})`}
+                                        </span>
+                                      )}
+
+                                      <span className="text-slate-700 font-semibold text-xs">
+                                        {lic.allocatedSeats} / {lic.totalSeats} seats ({pct}%)
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Capacity Bar */}
+                                  <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                                    <div
+                                      className="h-full bg-orange-600 rounded-full transition-all duration-300"
+                                      style={{ width: `${pct}%` }}
+                                    ></div>
                                   </div>
                                 </div>
-
-                                {/* Capacity Bar */}
-                                <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
-                                  <div
-                                    className="h-full bg-orange-600 rounded-full transition-all duration-300"
-                                    style={{ width: `${pct}%` }}
-                                  ></div>
-                                </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-slate-400 italic">No access codes generated yet. Click "Generate Code" above.</p>
+                      ) : (
+                        <p className="text-xs text-slate-400 italic">No access codes generated yet. Click "Generate Code" above.</p>
+                      )
                     )}
                   </div>
                 );
