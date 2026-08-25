@@ -96,9 +96,9 @@ export default function DoubtsPage() {
   const [activeTab, setActiveTab] = useState<'available' | 'my' | 'in_progress' | 'resolved' | 'history'>('available');
 
   const filteredDoubts = doubts.filter((d) => {
-    if (activeTab === 'available') return d.status === 'PENDING' || !d.status;
-    if (activeTab === 'my') return d.claimedBy || selectedDoubt?.id === d.id;
-    if (activeTab === 'in_progress') return d.status === 'CLAIMED' || d.status === 'IN_PROGRESS';
+    if (activeTab === 'available') return d.status === 'OPEN' || !d.status;
+    if (activeTab === 'my') return selectedDoubt?.id === d.id;
+    if (activeTab === 'in_progress') return d.status === 'CLAIMED';
     if (activeTab === 'resolved') return d.status === 'RESOLVED';
     if (activeTab === 'history') return true;
     return true;
@@ -136,7 +136,7 @@ export default function DoubtsPage() {
                   : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
-              New / Available ({doubts.filter(d => d.status === 'PENDING' || !d.status).length})
+              New / Available ({doubts.filter(d => d.status === 'OPEN' || !d.status).length})
             </button>
             <button
               type="button"
