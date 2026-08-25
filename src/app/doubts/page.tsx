@@ -93,6 +93,17 @@ export default function DoubtsPage() {
     }
   };
 
+  const [activeTab, setActiveTab] = useState<'available' | 'my' | 'in_progress' | 'resolved' | 'history'>('available');
+
+  const filteredDoubts = doubts.filter((d) => {
+    if (activeTab === 'available') return d.status === 'PENDING' || !d.status;
+    if (activeTab === 'my') return d.claimedBy || selectedDoubt?.id === d.id;
+    if (activeTab === 'in_progress') return d.status === 'CLAIMED' || d.status === 'IN_PROGRESS';
+    if (activeTab === 'resolved') return d.status === 'RESOLVED';
+    if (activeTab === 'history') return true;
+    return true;
+  });
+
   return (
     <div className="flex min-h-screen bg-slate-50">
       <Sidebar />
@@ -111,6 +122,65 @@ export default function DoubtsPage() {
               title="Refresh Queue"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-orange-600' : ''}`} />
+            </button>
+          </div>
+
+          {/* Sub-Tabs Bar */}
+          <div className="flex items-center gap-1.5 p-1 bg-white border border-slate-200 rounded-xl text-xs font-semibold shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setActiveTab('available')}
+              className={`px-3 py-1.5 rounded-lg transition-all ${
+                activeTab === 'available'
+                  ? 'bg-orange-600 text-white shadow-2xs font-bold'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              New / Available ({doubts.filter(d => d.status === 'PENDING' || !d.status).length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('my')}
+              className={`px-3 py-1.5 rounded-lg transition-all ${
+                activeTab === 'my'
+                  ? 'bg-orange-600 text-white shadow-2xs font-bold'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              My Doubts
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('in_progress')}
+              className={`px-3 py-1.5 rounded-lg transition-all ${
+                activeTab === 'in_progress'
+                  ? 'bg-orange-600 text-white shadow-2xs font-bold'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              In Progress
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('resolved')}
+              className={`px-3 py-1.5 rounded-lg transition-all ${
+                activeTab === 'resolved'
+                  ? 'bg-orange-600 text-white shadow-2xs font-bold'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              Resolved
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('history')}
+              className={`px-3 py-1.5 rounded-lg transition-all ${
+                activeTab === 'history'
+                  ? 'bg-orange-600 text-white shadow-2xs font-bold'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              History
             </button>
           </div>
 
@@ -137,7 +207,7 @@ export default function DoubtsPage() {
             <div className="space-y-3">
               <h3 className="text-sm font-bold text-slate-900 flex items-center justify-between">
                 <span className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-slate-500" /> Pending Doubts Pool ({doubts.length})
+                  <Clock className="w-4 h-4 text-slate-500" /> Pending Doubts Pool ({filteredDoubts.length})
                 </span>
                 {loading && <Loader2 className="w-4 h-4 animate-spin text-orange-600" />}
               </h3>

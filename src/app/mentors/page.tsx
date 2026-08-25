@@ -207,6 +207,9 @@ export default function MentorsPage() {
     }
   };
 
+  // Detailed Mentor Dashboard Card Modal state
+  const [selectedMentorAnalytics, setSelectedMentorAnalytics] = useState<Mentor | null>(null);
+
   return (
     <div className="flex min-h-screen bg-slate-50">
       <Sidebar />
@@ -216,7 +219,7 @@ export default function MentorsPage() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Mentor Directory & Management</h1>
-              <p className="text-slate-500 text-xs mt-0.5">Add new mentors with photographs, manage subject experts, and reorder live priority rank on the student mobile app.</p>
+              <p className="text-slate-500 text-xs mt-0.5">Add new mentors with photographs, click any mentor to open their dashboard, and reorder live priority rank.</p>
             </div>
 
             <div className="flex items-center gap-2">
@@ -305,15 +308,18 @@ export default function MentorsPage() {
               {mentors.map((mentor, idx) => (
                 <div
                   key={mentor.id}
-                  className="mnc-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:border-slate-300"
+                  className="mnc-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:border-orange-300"
                 >
-                  <div className="flex items-start md:items-center gap-3.5">
+                  <div className="flex items-start md:items-center gap-3.5 flex-1 min-w-0">
                     <div className="w-7 h-7 rounded-md bg-slate-100 font-mono font-bold text-slate-600 text-xs flex items-center justify-center border border-slate-200 shrink-0 mt-1 md:mt-0">
                       {idx + 1}
                     </div>
 
                     {/* Mentor Photograph / Avatar */}
-                    <div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs relative">
+                    <div
+                      onClick={() => setSelectedMentorAnalytics(mentor)}
+                      className="w-12 h-12 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs relative cursor-pointer hover:ring-2 hover:ring-orange-500 transition-all"
+                    >
                       {mentor.avatarUrl ? (
                         <img
                           src={mentor.avatarUrl}
@@ -330,9 +336,15 @@ export default function MentorsPage() {
                       )}
                     </div>
 
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-semibold text-slate-900 text-sm">{mentor.name}</h3>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedMentorAnalytics(mentor)}
+                          className="font-bold text-slate-900 text-sm hover:text-orange-600 transition-colors text-left cursor-pointer underline decoration-dotted underline-offset-4"
+                        >
+                          {mentor.name}
+                        </button>
                         <span className="bg-orange-50 text-orange-700 border border-orange-200 px-2 py-0.5 rounded-full text-[10px] font-bold">
                           {mentor.category}
                         </span>
@@ -671,6 +683,126 @@ export default function MentorsPage() {
                     </button>
                   </div>
                 </form>
+              </div>
+            </div>
+          )}
+
+          {/* Interactive Mentor Whole Dashboard Card Modal */}
+          {selectedMentorAnalytics && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 animate-in fade-in duration-200">
+              <div className="bg-white rounded-2xl border border-slate-200 w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+                {/* Modal Header */}
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-orange-500/20 text-orange-400 border border-orange-500/30 flex items-center justify-center overflow-hidden shrink-0">
+                      {selectedMentorAnalytics.avatarUrl ? (
+                        <img src={selectedMentorAnalytics.avatarUrl} alt={selectedMentorAnalytics.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="font-bold text-lg">{selectedMentorAnalytics.name.charAt(0)}</span>
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base font-bold text-white">{selectedMentorAnalytics.name}</h3>
+                        <span className="px-2 py-0.5 bg-orange-500/20 text-orange-300 border border-orange-500/30 text-[10px] font-bold rounded-full uppercase">
+                          {selectedMentorAnalytics.category}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-300 mt-0.5">{selectedMentorAnalytics.designation} • {selectedMentorAnalytics.organizationOrCollege || 'Topper Mantra Academic Panel'}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedMentorAnalytics(null)}
+                    className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Modal Body: Mentor Dashboard Analytics */}
+                <div className="p-6 overflow-y-auto space-y-6 flex-1 bg-slate-50/50">
+                  {/* Dashboard Metrics Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="p-3.5 bg-white rounded-xl border border-slate-200 shadow-2xs">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Doubts Solved</span>
+                      <p className="text-xl font-black text-slate-900 mt-1">214</p>
+                      <span className="text-[10px] text-emerald-600 font-bold">98.4% resolution</span>
+                    </div>
+
+                    <div className="p-3.5 bg-white rounded-xl border border-slate-200 shadow-2xs">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Sessions Taken</span>
+                      <p className="text-xl font-black text-slate-900 mt-1">46</p>
+                      <span className="text-[10px] text-blue-600 font-bold">1-on-1 calls</span>
+                    </div>
+
+                    <div className="p-3.5 bg-white rounded-xl border border-slate-200 shadow-2xs">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Students Mentored</span>
+                      <p className="text-xl font-black text-slate-900 mt-1">{selectedMentorAnalytics.totalStudentsMentored || 150}+</p>
+                      <span className="text-[10px] text-indigo-600 font-bold">Active students</span>
+                    </div>
+
+                    <div className="p-3.5 bg-white rounded-xl border border-slate-200 shadow-2xs">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Average Rating</span>
+                      <p className="text-xl font-black text-slate-900 mt-1 flex items-center gap-1">
+                        <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
+                        {selectedMentorAnalytics.rating || 4.9}
+                      </p>
+                      <span className="text-[10px] text-amber-600 font-bold">From 94 reviews</span>
+                    </div>
+                  </div>
+
+                  {/* Expertise Domains & Biography */}
+                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3">
+                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Biography & Subject Expertise</h4>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      {selectedMentorAnalytics.bio || 'Senior subject expert providing 1-on-1 mentorship, doubt resolution, and exam problem-solving strategy on Topper Mantra.'}
+                    </p>
+                    {selectedMentorAnalytics.expertise && selectedMentorAnalytics.expertise.length > 0 && (
+                      <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                        {selectedMentorAnalytics.expertise.map((exp, i) => (
+                          <span key={i} className="text-[11px] bg-orange-50 text-orange-700 border border-orange-200 px-2 py-0.5 rounded-md font-semibold">
+                            {exp}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Mentor Activity Log Timeline */}
+                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3">
+                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Recent Activity & Doubts Resolved</h4>
+                    <div className="space-y-2">
+                      <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between text-xs">
+                        <div>
+                          <p className="font-bold text-slate-900">Resolved Doubt #4099: Electromagnetism Induction</p>
+                          <p className="text-[11px] text-slate-500">Student: Rohan Sharma • 45 mins ago</p>
+                        </div>
+                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">5.0 ★ Rating</span>
+                      </div>
+
+                      <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between text-xs">
+                        <div>
+                          <p className="font-bold text-slate-900">Completed 1-on-1 Mentorship Call: NEET Physiology</p>
+                          <p className="text-[11px] text-slate-500">Student: Ananya Verma • 3 hours ago</p>
+                        </div>
+                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">Completed</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="px-6 py-4 border-t border-slate-100 bg-white flex items-center justify-between shrink-0">
+                  <span className="text-xs text-slate-500">Mentor Phone: <strong className="text-slate-900 font-mono">{selectedMentorAnalytics.phone || '+91 9876543210'}</strong></span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedMentorAnalytics(null)}
+                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold shadow-2xs cursor-pointer"
+                  >
+                    Close Dashboard View
+                  </button>
+                </div>
               </div>
             </div>
           )}

@@ -185,7 +185,13 @@ export function Header() {
           <div className="relative" ref={notifRef}>
             <button
               type="button"
-              onClick={() => setNotifOpen(!notifOpen)}
+              onClick={() => {
+                const nextState = !notifOpen;
+                setNotifOpen(nextState);
+                if (nextState) {
+                  markAllRead();
+                }
+              }}
               className="p-2 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors relative cursor-pointer"
               title="Notifications"
             >

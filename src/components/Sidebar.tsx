@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, GraduationCap, School, MessageSquare, LogOut, ShieldCheck, Video } from 'lucide-react';
+import { LayoutDashboard, Users, GraduationCap, School, MessageSquare, LogOut, ShieldCheck, Video, Calendar, TrendingUp, Bell } from 'lucide-react';
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -33,7 +33,11 @@ export function Sidebar() {
     {
       title: 'MENTOR WORKSPACE',
       items: [
-        { name: 'Doubts Resolution Queue', href: '/doubts', icon: MessageSquare },
+        { name: 'Overview', href: '/mentor-dashboard', icon: LayoutDashboard },
+        { name: 'Doubts Queue', href: '/doubts', icon: MessageSquare },
+        { name: 'Sessions', href: '/sessions', icon: Calendar },
+        { name: 'Performance', href: '/mentor-performance', icon: TrendingUp },
+        { name: 'Notifications', href: '/notifications', icon: Bell },
         { name: 'School Communities', href: '/schools', icon: School },
       ],
     },
