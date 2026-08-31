@@ -25,6 +25,11 @@ import {
   Upload,
   X,
 } from 'lucide-react';
+import {
+  uploadImageToBunnyStorage,
+  compressImageToBlob,
+  createLocalPreview,
+} from '@/lib/bunnyStorage';
 
 const CATEGORIES = [
   'All',
@@ -74,6 +79,8 @@ export default function LiveContentPage() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadStage, setUploadStage] = useState<string>('');
   const [thumbnailUploadMode, setThumbnailUploadMode] = useState<'file' | 'url'>('file');
+  const [selectedThumbnailFile, setSelectedThumbnailFile] = useState<File | null>(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string>('');
   const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -105,41 +112,6 @@ export default function LiveContentPage() {
     }
   };
 
-  const compressImage = (file: File, maxWidth = 800, quality = 0.7): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const img = new window.Image();
-      const reader = new FileReader();
-
-      reader.onload = () => {
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            reject(new Error('Canvas context not available'));
-            return;
-          }
-          ctx.drawImage(img, 0, 0, width, height);
-          const compressed = canvas.toDataURL('image/jpeg', quality);
-          resolve(compressed);
-        };
-        img.onerror = () => reject(new Error('Failed to load image'));
-        img.src = reader.result as string;
-      };
-      reader.onerror = () => reject(new Error('Failed to read file'));
-      reader.readAsDataURL(file);
-    });
-  };
-
   const handleThumbnailFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -148,16 +120,17 @@ export default function LiveContentPage() {
       alert('Please select a valid image file (PNG, JPG, WEBP).');
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      alert('Image file size must be under 10MB.');
+    if (file.size > 25 * 1024 * 1024) {
+      alert('Image file size must be under 25MB.');
       return;
     }
 
     try {
-      const compressed = await compressImage(file, 800, 0.7);
-      setVideoForm((prev) => ({ ...prev, thumbnailUrl: compressed }));
+      setSelectedThumbnailFile(file);
+      const preview = await createLocalPreview(file);
+      setThumbnailPreview(preview);
     } catch (err) {
-      alert('Failed to process image. Please try a different file.');
+      alert('Failed to process image preview.');
     }
   };
 
@@ -247,9 +220,24 @@ export default function LiveContentPage() {
               setUploadStage(`Streaming to Bunny CDN (${pct}%)...`);
             }
           );
-          setUploadStage('Upload complete! Publishing video metadata...');
+          setUploadStage('Video binary uploaded! Finalizing...');
         } else {
           throw new Error('Failed to initialize Bunny Stream video entry on backend.');
+        }
+      }
+
+      // Step 2: If uploading a custom thumbnail file to Bunny CDN Storage
+      if (thumbnailUploadMode === 'file' && selectedThumbnailFile) {
+        try {
+          setUploadStage('Uploading video poster to Bunny CDN...');
+          const compressedBlob = await compressImageToBlob(selectedThumbnailFile, 1280, 720, 0.85);
+          finalThumbnailUrl = await uploadImageToBunnyStorage(compressedBlob, 'thumbnails', (pct) => {
+            setUploadProgress(pct);
+            setUploadStage(`Uploading poster to Bunny CDN (${pct}%)...`);
+          });
+        } catch (thumbErr: any) {
+          console.warn('Bunny CDN thumbnail upload issue:', thumbErr.message);
+          // Non-blocking: continue if video itself is ready
         }
       }
 
@@ -279,6 +267,8 @@ export default function LiveContentPage() {
       setShowVideoModal(false);
       setSelectedVideo(null);
       setSelectedVideoFile(null);
+      setSelectedThumbnailFile(null);
+      setThumbnailPreview('');
       fetchVideosAndSchools();
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to save and publish video.');
@@ -691,7 +681,30 @@ export default function LiveContentPage() {
 
                       <div className="flex items-center gap-4">
                         <div className="w-24 h-16 rounded-xl bg-white border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs relative group">
-                          {videoForm.thumbnailUrl ? (
+                          {thumbnailUploadMode === 'file' ? (
+                            thumbnailPreview ? (
+                              <>
+                                <img
+                                  src={thumbnailPreview}
+                                  alt="Poster Preview"
+                                  className="w-full h-full object-cover"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedThumbnailFile(null);
+                                    setThumbnailPreview('');
+                                  }}
+                                  className="absolute inset-0 bg-slate-900/60 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs font-semibold transition-opacity cursor-pointer"
+                                  title="Remove Poster"
+                                >
+                                  Remove
+                                </button>
+                              </>
+                            ) : (
+                              <ImageIcon className="w-6 h-6 text-slate-300" />
+                            )
+                          ) : videoForm.thumbnailUrl ? (
                             <>
                               <img
                                 src={videoForm.thumbnailUrl}
@@ -726,14 +739,16 @@ export default function LiveContentPage() {
                                 />
                               </label>
                               <p className="text-[11px] text-slate-400 mt-1">
-                                {videoForm.thumbnailUrl ? '✓ Poster selected & preview active' : 'Select PNG, JPG, or WEBP poster from your computer'}
+                                {selectedThumbnailFile
+                                  ? `✓ Poster selected: ${selectedThumbnailFile.name} (${(selectedThumbnailFile.size / 1024).toFixed(0)} KB)`
+                                  : 'Select PNG, JPG, or WEBP poster from your computer (uploaded to Bunny CDN)'}
                               </p>
                             </div>
                           ) : (
                             <div>
                               <input
                                 type="url"
-                                placeholder="Paste image URL (https://cdn...)"
+                                placeholder="Paste image URL (https://...)"
                                 value={videoForm.thumbnailUrl}
                                 onChange={(e) => setVideoForm({ ...videoForm, thumbnailUrl: e.target.value })}
                                 className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2 text-xs focus:outline-none focus:border-slate-500 font-mono"

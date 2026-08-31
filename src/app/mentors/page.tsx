@@ -26,6 +26,11 @@ import {
   Upload,
   X,
 } from 'lucide-react';
+import {
+  uploadImageToBunnyStorage,
+  compressImageToBlob,
+  createLocalPreview,
+} from '@/lib/bunnyStorage';
 
 const CATEGORIES = ['All', 'JEE', 'NEET', 'HACKATHON', 'ENTREPRENEURSHIP', 'CUET', 'BOARDS', 'DRONE', 'OTHER'];
 
@@ -40,6 +45,10 @@ export default function MentorsPage() {
   // Add Mentor Modal state
   const [showAddModal, setShowAddModal] = useState(false);
   const [photoUploadMode, setPhotoUploadMode] = useState<'file' | 'url'>('file');
+  const [selectedPhotoFile, setSelectedPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string>('');
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [uploadStage, setUploadStage] = useState<string>('');
   const [newMentorName, setNewMentorName] = useState('');
   const [newMentorDesignation, setNewMentorDesignation] = useState('');
   const [newMentorOrganization, setNewMentorOrganization] = useState('');
@@ -81,44 +90,6 @@ export default function MentorsPage() {
     }
   }
 
-  const compressImage = (file: File, maxWidth = 800, quality = 0.7): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const img = new window.Image();
-      const reader = new FileReader();
-
-      reader.onload = () => {
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-
-          // Scale down if wider than maxWidth
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            reject(new Error('Canvas context not available'));
-            return;
-          }
-          ctx.drawImage(img, 0, 0, width, height);
-
-          // Compress to JPEG
-          const compressed = canvas.toDataURL('image/jpeg', quality);
-          resolve(compressed);
-        };
-        img.onerror = () => reject(new Error('Failed to load image'));
-        img.src = reader.result as string;
-      };
-      reader.onerror = () => reject(new Error('Failed to read file'));
-      reader.readAsDataURL(file);
-    });
-  };
-
   const handleImageFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -127,16 +98,17 @@ export default function MentorsPage() {
       alert('Please select a valid image file (PNG, JPG, WEBP).');
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      alert('Image file size must be under 10MB.');
+    if (file.size > 25 * 1024 * 1024) {
+      alert('Image file size must be under 25MB.');
       return;
     }
 
     try {
-      const compressed = await compressImage(file, 800, 0.7);
-      setNewMentorAvatarUrl(compressed);
+      setSelectedPhotoFile(file);
+      const preview = await createLocalPreview(file);
+      setPhotoPreview(preview);
     } catch (err) {
-      alert('Failed to process image. Please try a different file.');
+      alert('Failed to process image preview.');
     }
   };
 
@@ -145,6 +117,30 @@ export default function MentorsPage() {
     setAdding(true);
     setSavedMessage('');
     setErrorMsg('');
+    setUploadProgress(null);
+    setUploadStage('');
+
+    let finalAvatarUrl = newMentorAvatarUrl.trim() || undefined;
+
+    // Direct Bunny CDN Storage Upload for mentor photo
+    if (photoUploadMode === 'file' && selectedPhotoFile) {
+      try {
+        setUploadStage('Optimizing & uploading photo to Bunny CDN...');
+        const compressedBlob = await compressImageToBlob(selectedPhotoFile, 800, 800, 0.85);
+        finalAvatarUrl = await uploadImageToBunnyStorage(compressedBlob, 'mentors', (pct) => {
+          setUploadProgress(pct);
+          setUploadStage(`Uploading photo to Bunny CDN (${pct}%)...`);
+        });
+        setUploadStage('Photo uploaded to Bunny CDN! Saving mentor profile...');
+      } catch (uploadErr: any) {
+        console.error('Bunny Storage upload error:', uploadErr);
+        setErrorMsg(`Photo upload to Bunny CDN failed: ${uploadErr.message}`);
+        setAdding(false);
+        setUploadProgress(null);
+        setUploadStage('');
+        return;
+      }
+    }
 
     const expertiseArr = newMentorExpertise
       ? newMentorExpertise.split(',').map((s) => s.trim()).filter(Boolean)
@@ -155,7 +151,7 @@ export default function MentorsPage() {
       designation: newMentorDesignation.trim(),
       organizationOrCollege: newMentorOrganization.trim() || 'Topper Mantra Academic Panel',
       category: newMentorCategory,
-      avatarUrl: newMentorAvatarUrl.trim() || undefined,
+      avatarUrl: finalAvatarUrl,
       bio: newMentorBio.trim() || undefined,
       expertise: expertiseArr,
       subjects: [newMentorCategory],
@@ -171,7 +167,7 @@ export default function MentorsPage() {
     try {
       const res = await mentorsApi.createMentor(payload);
       if (res && res.success) {
-        setSavedMessage(`🎉 Mentor ${newMentorName} onboarded successfully!`);
+        setSavedMessage(`🎉 Mentor ${newMentorName} onboarded successfully with live CDN photo!`);
         fetchMentors();
         setShowAddModal(false);
         resetForm();
@@ -182,6 +178,8 @@ export default function MentorsPage() {
       setErrorMsg(err.message || 'Failed to add mentor.');
     } finally {
       setAdding(false);
+      setUploadProgress(null);
+      setUploadStage('');
     }
   };
 
@@ -190,6 +188,10 @@ export default function MentorsPage() {
     setNewMentorDesignation('');
     setNewMentorOrganization('');
     setNewMentorAvatarUrl('');
+    setSelectedPhotoFile(null);
+    setPhotoPreview('');
+    setUploadProgress(null);
+    setUploadStage('');
     setNewMentorBio('');
     setNewMentorExpertise('');
     setNewMentorPhone('');
@@ -517,7 +519,31 @@ export default function MentorsPage() {
 
                       <div className="flex items-center gap-4">
                         <div className="w-18 h-18 rounded-2xl bg-white border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs relative group">
-                          {newMentorAvatarUrl ? (
+                          {photoUploadMode === 'file' ? (
+                            photoPreview ? (
+                              <>
+                                <img
+                                  src={photoPreview}
+                                  alt="Avatar Preview"
+                                  className="w-full h-full object-cover"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedPhotoFile(null);
+                                    setPhotoPreview('');
+                                    if (fileInputRef.current) fileInputRef.current.value = '';
+                                  }}
+                                  className="absolute inset-0 bg-slate-900/60 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs font-semibold transition-opacity cursor-pointer"
+                                  title="Remove Photo"
+                                >
+                                  Remove
+                                </button>
+                              </>
+                            ) : (
+                              <ImageIcon className="w-7 h-7 text-slate-300" />
+                            )
+                          ) : newMentorAvatarUrl ? (
                             <>
                               <img
                                 src={newMentorAvatarUrl}
@@ -553,7 +579,9 @@ export default function MentorsPage() {
                                 />
                               </label>
                               <p className="text-[11px] text-slate-400 mt-1">
-                                {newMentorAvatarUrl ? '✓ Photo selected & ready' : 'Select PNG, JPG, or WEBP photo from your computer'}
+                                {selectedPhotoFile
+                                  ? `✓ Photo selected: ${selectedPhotoFile.name} (${(selectedPhotoFile.size / 1024).toFixed(0)} KB)`
+                                  : 'Select PNG, JPG, or WEBP photo from your computer (auto-uploaded to Bunny CDN)'}
                               </p>
                             </div>
                           ) : (
@@ -566,12 +594,35 @@ export default function MentorsPage() {
                                 className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2 text-xs focus:outline-none focus:border-slate-500 font-mono"
                               />
                               <p className="text-[11px] text-slate-400 mt-1">
-                                {newMentorAvatarUrl ? '✓ Live photo preview active' : 'Paste any direct image URL'}
+                                {newMentorAvatarUrl ? '✓ Live photo preview active' : 'Paste any direct HTTPS image URL'}
                               </p>
                             </div>
                           )}
                         </div>
                       </div>
+
+                      {/* Bunny CDN Upload Progress Indicator */}
+                      {uploadStage && (
+                        <div className="bg-white p-3 rounded-lg border border-orange-200 space-y-1.5">
+                          <div className="flex items-center justify-between text-xs font-semibold">
+                            <span className="text-orange-700 flex items-center gap-1.5">
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              {uploadStage}
+                            </span>
+                            {uploadProgress !== null && (
+                              <span className="font-mono text-orange-800">{uploadProgress}%</span>
+                            )}
+                          </div>
+                          {uploadProgress !== null && (
+                            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                              <div
+                                className="h-full bg-orange-600 rounded-full transition-all duration-200"
+                                style={{ width: `${uploadProgress}%` }}
+                              ></div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
