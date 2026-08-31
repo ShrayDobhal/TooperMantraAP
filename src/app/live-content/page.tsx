@@ -105,7 +105,42 @@ export default function LiveContentPage() {
     }
   };
 
-  const handleThumbnailFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const compressImage = (file: File, maxWidth = 800, quality = 0.7): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new window.Image();
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Canvas context not available'));
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL('image/jpeg', quality);
+          resolve(compressed);
+        };
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = reader.result as string;
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleThumbnailFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -113,18 +148,17 @@ export default function LiveContentPage() {
       alert('Please select a valid image file (PNG, JPG, WEBP).');
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image file size must be under 5MB.');
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Image file size must be under 10MB.');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (reader.result) {
-        setVideoForm((prev) => ({ ...prev, thumbnailUrl: reader.result as string }));
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImage(file, 800, 0.7);
+      setVideoForm((prev) => ({ ...prev, thumbnailUrl: compressed }));
+    } catch (err) {
+      alert('Failed to process image. Please try a different file.');
+    }
   };
 
   // Assign Schools Modal State

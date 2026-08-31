@@ -53,7 +53,11 @@ export const mentorsApi = {
     availability?: string;
     status?: string;
   }): Promise<{ success: boolean; data: Mentor }> {
-    const res: any = await api.post('/admin/mentors', payload);
+    const res: any = await api.post('/admin/mentors', payload, {
+      timeout: 60000, // 60s timeout for image upload payloads
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
+    });
     return res;
   },
 
