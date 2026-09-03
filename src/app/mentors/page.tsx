@@ -419,7 +419,14 @@ export default function MentorsPage() {
         <main className="p-8 space-y-6 flex-1 animate-in fade-in duration-300">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Mentor Directory & Management</h1>
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Mentor Directory & Management</h1>
+                {!loading && (
+                  <span className="text-xs font-bold px-2.5 py-0.5 bg-orange-100 text-orange-800 rounded-full border border-orange-200">
+                    {mentors.length} {mentors.length === 1 ? 'Mentor' : 'Mentors'}
+                  </span>
+                )}
+              </div>
               <p className="text-slate-500 text-xs mt-0.5">Add new mentors with photographs, click any mentor to open their dashboard, and reorder live priority rank.</p>
             </div>
 

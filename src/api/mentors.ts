@@ -24,16 +24,49 @@ export interface Mentor {
 
 export const mentorsApi = {
   async getMentors(category?: string): Promise<{ success: boolean; data: { items: Mentor[] } }> {
-    const url = category ? `/mentors?category=${encodeURIComponent(category)}` : '/mentors';
-    const res: any = await api.get(url);
-    if (Array.isArray(res)) {
-      return { success: true, data: { items: res } };
+    try {
+      let allItems: Mentor[] = [];
+      let page = 1;
+      const limit = 100;
+      let hasMore = true;
+
+      while (hasMore) {
+        const query = new URLSearchParams({
+          limit: limit.toString(),
+          page: page.toString(),
+        });
+        if (category && category !== 'All') {
+          query.append('category', category);
+        }
+
+        const res: any = await api.get(`/mentors?${query.toString()}`);
+
+        if (Array.isArray(res)) {
+          allItems = res;
+          break;
+        }
+
+        const items: Mentor[] = Array.isArray(res.data)
+          ? res.data
+          : (res.data?.items || []);
+
+        allItems = allItems.concat(items);
+
+        if (res.data?.hasNextPage && page < (res.data?.totalPages || 1)) {
+          page++;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      return { success: true, data: { items: allItems } };
+    } catch (err) {
+      // Fallback to basic fetch if query params encounter issues
+      const fallbackUrl = category && category !== 'All' ? `/mentors?category=${encodeURIComponent(category)}` : '/mentors';
+      const res: any = await api.get(fallbackUrl);
+      const items = Array.isArray(res) ? res : (res.data?.items || res.data || []);
+      return { success: true, data: { items: Array.isArray(items) ? items : [] } };
     }
-    if (res.data) {
-      const items = Array.isArray(res.data) ? res.data : (res.data.items || []);
-      return { success: true, data: { items } };
-    }
-    return { success: true, data: { items: [] } };
   },
 
   async createMentor(payload: {
