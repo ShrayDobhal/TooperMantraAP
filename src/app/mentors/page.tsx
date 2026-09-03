@@ -25,6 +25,7 @@ import {
   Filter,
   Upload,
   X,
+  Pencil,
 } from 'lucide-react';
 import {
   uploadImageToBunnyStorage,
@@ -67,6 +68,30 @@ export default function MentorsPage() {
 
   // Delete Mentor Confirmation state
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Edit Mentor Modal state
+  const [editingMentor, setEditingMentor] = useState<Mentor | null>(null);
+  const [editPhotoUploadMode, setEditPhotoUploadMode] = useState<'file' | 'url'>('file');
+  const [editSelectedPhotoFile, setEditSelectedPhotoFile] = useState<File | null>(null);
+  const [editPhotoPreview, setEditPhotoPreview] = useState<string>('');
+  const [editUploadProgress, setEditUploadProgress] = useState<number | null>(null);
+  const [editUploadStage, setEditUploadStage] = useState<string>('');
+  const [editMentorName, setEditMentorName] = useState('');
+  const [editMentorDesignation, setEditMentorDesignation] = useState('');
+  const [editMentorOrganization, setEditMentorOrganization] = useState('');
+  const [editMentorCategory, setEditMentorCategory] = useState('JEE');
+  const [editMentorAvatarUrl, setEditMentorAvatarUrl] = useState('');
+  const [editMentorBio, setEditMentorBio] = useState('');
+  const [editMentorExpertise, setEditMentorExpertise] = useState('');
+  const [editMentorPhone, setEditMentorPhone] = useState('');
+  const [editMentorRating, setEditMentorRating] = useState('4.9');
+  const [editMentorExperience, setEditMentorExperience] = useState('3');
+  const [editMentorStudentsCount, setEditMentorStudentsCount] = useState('150');
+  const [editMentorStatus, setEditMentorStatus] = useState('ACTIVE');
+  const [editMentorAvailability, setEditMentorAvailability] = useState('AVAILABLE');
+  const [updating, setUpdating] = useState(false);
+  const [editErrorMsg, setEditErrorMsg] = useState('');
+  const editFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchMentors();
@@ -200,6 +225,143 @@ export default function MentorsPage() {
     setNewMentorStudentsCount('150');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+
+  const openEditModal = (mentor: Mentor) => {
+    setEditingMentor(mentor);
+    setEditMentorName(mentor.name || '');
+    setEditMentorDesignation(mentor.designation || '');
+    setEditMentorOrganization(mentor.organizationOrCollege || '');
+    setEditMentorCategory(mentor.category || 'JEE');
+    setEditMentorAvatarUrl(mentor.avatarUrl || '');
+    setEditPhotoPreview(mentor.avatarUrl || '');
+    setEditPhotoUploadMode(mentor.avatarUrl ? 'url' : 'file');
+    setEditSelectedPhotoFile(null);
+    setEditUploadProgress(null);
+    setEditUploadStage('');
+    setEditMentorBio(mentor.bio || '');
+    setEditMentorExpertise(Array.isArray(mentor.expertise) ? mentor.expertise.join(', ') : '');
+    setEditMentorPhone(mentor.phone || '');
+    setEditMentorRating(mentor.rating !== undefined ? String(mentor.rating) : '4.9');
+    setEditMentorExperience(mentor.experienceYears !== undefined ? String(mentor.experienceYears) : '3');
+    setEditMentorStudentsCount(mentor.totalStudentsMentored !== undefined ? String(mentor.totalStudentsMentored) : '150');
+    setEditMentorStatus(mentor.status || 'ACTIVE');
+    setEditMentorAvailability(mentor.availability || 'AVAILABLE');
+    setEditErrorMsg('');
+    if (editFileInputRef.current) {
+      editFileInputRef.current.value = '';
+    }
+  };
+
+  const closeEditModal = () => {
+    setEditingMentor(null);
+    setEditSelectedPhotoFile(null);
+    setEditPhotoPreview('');
+    setEditUploadProgress(null);
+    setEditUploadStage('');
+    setEditErrorMsg('');
+    if (editFileInputRef.current) {
+      editFileInputRef.current.value = '';
+    }
+  };
+
+  const handleEditImageFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please select a valid image file (PNG, JPG, WEBP).');
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      alert('Image file size must be under 25MB.');
+      return;
+    }
+
+    try {
+      setEditSelectedPhotoFile(file);
+      const preview = await createLocalPreview(file);
+      setEditPhotoPreview(preview);
+    } catch (err) {
+      alert('Failed to process image preview.');
+    }
+  };
+
+  const handleUpdateMentor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingMentor) return;
+
+    setUpdating(true);
+    setEditErrorMsg('');
+    setSavedMessage('');
+    setEditUploadProgress(null);
+    setEditUploadStage('');
+
+    let finalAvatarUrl: string | undefined = undefined;
+
+    // Direct Bunny CDN Storage Upload for mentor photo if changed via file
+    if (editPhotoUploadMode === 'file' && editSelectedPhotoFile) {
+      try {
+        setEditUploadStage('Optimizing & uploading photo to Bunny CDN...');
+        const compressedBlob = await compressImageToBlob(editSelectedPhotoFile, 800, 800, 0.85);
+        finalAvatarUrl = await uploadImageToBunnyStorage(compressedBlob, 'mentors', (pct) => {
+          setEditUploadProgress(pct);
+          setEditUploadStage(`Uploading photo to Bunny CDN (${pct}%)...`);
+        });
+        setEditUploadStage('Photo uploaded to Bunny CDN! Saving mentor updates...');
+      } catch (uploadErr: any) {
+        console.error('Bunny Storage upload error:', uploadErr);
+        setEditErrorMsg(`Photo upload to Bunny CDN failed: ${uploadErr.message}`);
+        setUpdating(false);
+        setEditUploadProgress(null);
+        setEditUploadStage('');
+        return;
+      }
+    } else if (editPhotoUploadMode === 'url') {
+      finalAvatarUrl = editMentorAvatarUrl.trim() || undefined;
+    } else {
+      // Retain existing preview URL if it's already an HTTPS link
+      finalAvatarUrl = editPhotoPreview.startsWith('data:') ? undefined : (editPhotoPreview || undefined);
+    }
+
+    const expertiseArr = editMentorExpertise
+      ? editMentorExpertise.split(',').map((s) => s.trim()).filter(Boolean)
+      : [];
+
+    const payload: Partial<Mentor> = {
+      name: editMentorName.trim(),
+      designation: editMentorDesignation.trim(),
+      organizationOrCollege: editMentorOrganization.trim() || 'Topper Mantra Academic Panel',
+      category: editMentorCategory,
+      avatarUrl: finalAvatarUrl,
+      bio: editMentorBio.trim() || undefined,
+      expertise: expertiseArr,
+      subjects: [editMentorCategory],
+      exams: [editMentorCategory],
+      phone: editMentorPhone.trim() || undefined,
+      rating: parseFloat(editMentorRating) || 4.9,
+      experienceYears: parseInt(editMentorExperience, 10) || 3,
+      totalStudentsMentored: parseInt(editMentorStudentsCount, 10) || 150,
+      availability: editMentorAvailability,
+      status: editMentorStatus,
+    };
+
+    try {
+      const res = await mentorsApi.updateMentor(editingMentor.id, payload);
+      if (res && res.success) {
+        setSavedMessage(`🎉 Mentor "${editMentorName}" updated successfully!`);
+        fetchMentors();
+        closeEditModal();
+      } else {
+        setEditErrorMsg('Failed to update mentor profile.');
+      }
+    } catch (err: any) {
+      setEditErrorMsg(err.message || 'Failed to update mentor.');
+    } finally {
+      setUpdating(false);
+      setEditUploadProgress(null);
+      setEditUploadStage('');
     }
   };
 
@@ -439,11 +601,20 @@ export default function MentorsPage() {
                         <ChevronDown className="w-4 h-4" />
                       </button>
 
+                      {/* Edit Mentor Action Button */}
+                      <button
+                        onClick={() => openEditModal(mentor)}
+                        className="p-1.5 bg-slate-50 hover:bg-orange-50 hover:text-orange-600 active:scale-[0.95] text-slate-600 rounded-md border border-slate-200 transition-all ml-1 cursor-pointer"
+                        title="Edit Mentor Details"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+
                       {/* Delete Mentor Action Button */}
                       <button
                         onClick={() => handleDeleteMentor(mentor)}
                         disabled={deletingId === mentor.id}
-                        className="p-1.5 bg-slate-50 hover:bg-rose-50 hover:text-rose-600 active:scale-[0.95] text-slate-400 rounded-md border border-slate-200 transition-all ml-2 cursor-pointer"
+                        className="p-1.5 bg-slate-50 hover:bg-rose-50 hover:text-rose-600 active:scale-[0.95] text-slate-400 rounded-md border border-slate-200 transition-all ml-1 cursor-pointer"
                         title="Delete Mentor"
                       >
                         {deletingId === mentor.id ? <Loader2 className="w-4 h-4 animate-spin text-rose-600" /> : <Trash2 className="w-4 h-4" />}
@@ -775,6 +946,340 @@ export default function MentorsPage() {
             </div>
           )}
 
+          {/* Edit Mentor Modal */}
+          {editingMentor && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 animate-in fade-in duration-200">
+              <div className="bg-white rounded-2xl border border-slate-200 w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+                {/* Fixed Modal Header */}
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-center text-orange-600">
+                      <Pencil className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900">Edit Mentor Profile</h3>
+                      <p className="text-xs text-slate-500">Update mentor information, biography, photography, and expertise domains.</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={closeEditModal}
+                    className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Scrollable Form Body */}
+                <form onSubmit={handleUpdateMentor} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                  <div className="p-6 overflow-y-auto flex-1 space-y-4">
+                    {editErrorMsg && (
+                      <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-semibold flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                        <span>{editErrorMsg}</span>
+                      </div>
+                    )}
+
+                    {/* Photo / Avatar Section with Device File Upload + URL Switcher */}
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                          Mentor Photograph / Profile Picture
+                        </label>
+                        <div className="flex items-center gap-1 bg-white border border-slate-200 p-0.5 rounded-lg text-[11px] font-semibold">
+                          <button
+                            type="button"
+                            onClick={() => setEditPhotoUploadMode('file')}
+                            className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                              editPhotoUploadMode === 'file'
+                                ? 'bg-orange-600 text-white shadow-2xs'
+                                : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            Upload File
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditPhotoUploadMode('url')}
+                            className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
+                              editPhotoUploadMode === 'url'
+                                ? 'bg-orange-600 text-white shadow-2xs'
+                                : 'text-slate-600 hover:text-slate-900'
+                            }`}
+                          >
+                            Paste URL
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4">
+                        <div className="w-18 h-18 rounded-2xl bg-white border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs relative group">
+                          {editPhotoPreview ? (
+                            <>
+                              <img
+                                src={editPhotoPreview}
+                                alt="Avatar Preview"
+                                className="w-full h-full object-cover"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditSelectedPhotoFile(null);
+                                  setEditPhotoPreview('');
+                                  setEditMentorAvatarUrl('');
+                                  if (editFileInputRef.current) editFileInputRef.current.value = '';
+                                }}
+                                className="absolute inset-0 bg-slate-900/60 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs font-semibold transition-opacity cursor-pointer"
+                                title="Remove Photo"
+                              >
+                                Remove
+                              </button>
+                            </>
+                          ) : (
+                            <ImageIcon className="w-7 h-7 text-slate-300" />
+                          )}
+                        </div>
+
+                        <div className="flex-1 space-y-1.5">
+                          {editPhotoUploadMode === 'file' ? (
+                            <div>
+                              <label className="inline-flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-300 hover:border-orange-500 hover:text-orange-600 rounded-lg text-xs font-semibold text-slate-700 cursor-pointer shadow-2xs transition-all">
+                                <Upload className="w-4 h-4 text-orange-600" />
+                                <span>{editPhotoPreview ? 'Change Image from Device' : 'Choose Image from Device'}</span>
+                                <input
+                                  ref={editFileInputRef}
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={handleEditImageFileSelect}
+                                  className="hidden"
+                                />
+                              </label>
+                              <p className="text-[11px] text-slate-400 mt-1">
+                                {editSelectedPhotoFile
+                                  ? `✓ New photo selected: ${editSelectedPhotoFile.name} (${(editSelectedPhotoFile.size / 1024).toFixed(0)} KB)`
+                                  : editPhotoPreview
+                                  ? 'Current photo loaded. Select a new file to replace it.'
+                                  : 'Select PNG, JPG, or WEBP photo from your computer (auto-uploaded to Bunny CDN)'}
+                              </p>
+                            </div>
+                          ) : (
+                            <div>
+                              <input
+                                type="url"
+                                placeholder="Paste image URL (e.g. Bunny CDN / Unsplash / S3)"
+                                value={editMentorAvatarUrl}
+                                onChange={(e) => {
+                                  setEditMentorAvatarUrl(e.target.value);
+                                  setEditPhotoPreview(e.target.value);
+                                }}
+                                className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2 text-xs focus:outline-none focus:border-slate-500 font-mono"
+                              />
+                              <p className="text-[11px] text-slate-400 mt-1">
+                                {editMentorAvatarUrl ? '✓ Live photo preview active' : 'Paste any direct HTTPS image URL'}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Bunny CDN Upload Progress Indicator */}
+                      {editUploadStage && (
+                        <div className="bg-white p-3 rounded-lg border border-orange-200 space-y-1.5">
+                          <div className="flex items-center justify-between text-xs font-semibold">
+                            <span className="text-orange-700 flex items-center gap-1.5">
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              {editUploadStage}
+                            </span>
+                            {editUploadProgress !== null && (
+                              <span className="font-mono text-orange-800">{editUploadProgress}%</span>
+                            )}
+                          </div>
+                          {editUploadProgress !== null && (
+                            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                              <div
+                                className="h-full bg-orange-600 rounded-full transition-all duration-200"
+                                style={{ width: `${editUploadProgress}%` }}
+                              ></div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Full Name *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Dr. Varun Kumar"
+                          value={editMentorName}
+                          onChange={(e) => setEditMentorName(e.target.value)}
+                          className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 font-medium focus:outline-none focus:border-slate-500 text-xs placeholder:text-slate-400"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Designation & Rank *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. AIR 12 | IIT Delhi"
+                          value={editMentorDesignation}
+                          onChange={(e) => setEditMentorDesignation(e.target.value)}
+                          className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 font-medium focus:outline-none focus:border-slate-500 text-xs placeholder:text-slate-400"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">College / Organization *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. IIT Bombay / AIIMS"
+                          value={editMentorOrganization}
+                          onChange={(e) => setEditMentorOrganization(e.target.value)}
+                          className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 font-medium focus:outline-none focus:border-slate-500 text-xs placeholder:text-slate-400"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Category *</label>
+                        <select
+                          value={editMentorCategory}
+                          onChange={(e) => setEditMentorCategory(e.target.value)}
+                          className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 font-semibold focus:outline-none focus:border-slate-500 text-xs cursor-pointer"
+                        >
+                          <option value="JEE" className="text-slate-900 bg-white">JEE</option>
+                          <option value="NEET" className="text-slate-900 bg-white">NEET</option>
+                          <option value="HACKATHON" className="text-slate-900 bg-white">HACKATHON</option>
+                          <option value="ENTREPRENEURSHIP" className="text-slate-900 bg-white">ENTREPRENEURSHIP</option>
+                          <option value="CUET" className="text-slate-900 bg-white">CUET</option>
+                          <option value="BOARDS" className="text-slate-900 bg-white">BOARDS</option>
+                          <option value="DRONE" className="text-slate-900 bg-white">DRONE</option>
+                          <option value="OTHER" className="text-slate-900 bg-white">OTHER</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Mentor Biography</label>
+                      <textarea
+                        rows={2}
+                        placeholder="Brief background, achievements, and teaching methodology..."
+                        value={editMentorBio}
+                        onChange={(e) => setEditMentorBio(e.target.value)}
+                        className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 font-medium focus:outline-none focus:border-slate-500 text-xs placeholder:text-slate-400"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Areas of Expertise (Comma-separated)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Physical Chemistry, Inorganic Shortcuts, Speed Tricks"
+                        value={editMentorExpertise}
+                        onChange={(e) => setEditMentorExpertise(e.target.value)}
+                        className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 font-medium focus:outline-none focus:border-slate-500 text-xs placeholder:text-slate-400"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Rating</label>
+                        <input
+                          type="text"
+                          value={editMentorRating}
+                          onChange={(e) => setEditMentorRating(e.target.value)}
+                          className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 font-semibold focus:outline-none focus:border-slate-500 text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Exp (Years)</label>
+                        <input
+                          type="number"
+                          value={editMentorExperience}
+                          onChange={(e) => setEditMentorExperience(e.target.value)}
+                          className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 font-semibold focus:outline-none focus:border-slate-500 text-xs"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Students</label>
+                        <input
+                          type="number"
+                          value={editMentorStudentsCount}
+                          onChange={(e) => setEditMentorStudentsCount(e.target.value)}
+                          className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 font-semibold focus:outline-none focus:border-slate-500 text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Mobile Number</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. +91 9876543210"
+                          value={editMentorPhone}
+                          onChange={(e) => setEditMentorPhone(e.target.value)}
+                          className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 font-mono font-semibold focus:outline-none focus:border-slate-500 text-xs placeholder:text-slate-400"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Account Status</label>
+                        <select
+                          value={editMentorStatus}
+                          onChange={(e) => setEditMentorStatus(e.target.value)}
+                          className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 font-semibold focus:outline-none focus:border-slate-500 text-xs cursor-pointer"
+                        >
+                          <option value="ACTIVE" className="text-slate-900 bg-white">Active</option>
+                          <option value="INACTIVE" className="text-slate-900 bg-white">Inactive</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Availability</label>
+                        <select
+                          value={editMentorAvailability}
+                          onChange={(e) => setEditMentorAvailability(e.target.value)}
+                          className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2.5 font-semibold focus:outline-none focus:border-slate-500 text-xs cursor-pointer"
+                        >
+                          <option value="AVAILABLE" className="text-slate-900 bg-white">Available</option>
+                          <option value="BUSY" className="text-slate-900 bg-white">Busy</option>
+                          <option value="OFFLINE" className="text-slate-900 bg-white">Offline</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Fixed Modal Footer */}
+                  <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={closeEditModal}
+                      className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer shadow-2xs"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={updating}
+                      className="px-4 py-2 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-60 cursor-pointer"
+                    >
+                      {updating && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                      {updating ? 'Saving Updates...' : 'Save Changes'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
           {/* Interactive Mentor Whole Dashboard Card Modal */}
           {selectedMentorAnalytics && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 animate-in fade-in duration-200">
@@ -883,13 +1388,27 @@ export default function MentorsPage() {
                 {/* Modal Footer */}
                 <div className="px-6 py-4 border-t border-slate-100 bg-white flex items-center justify-between shrink-0">
                   <span className="text-xs text-slate-500">Mentor Phone: <strong className="text-slate-900 font-mono">{selectedMentorAnalytics.phone || '+91 9876543210'}</strong></span>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedMentorAnalytics(null)}
-                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold shadow-2xs cursor-pointer"
-                  >
-                    Close Dashboard View
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const m = selectedMentorAnalytics;
+                        setSelectedMentorAnalytics(null);
+                        openEditModal(m);
+                      }}
+                      className="px-3.5 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      Edit Mentor
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedMentorAnalytics(null)}
+                      className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold shadow-2xs cursor-pointer"
+                    >
+                      Close
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

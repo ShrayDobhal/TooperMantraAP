@@ -62,7 +62,11 @@ export const mentorsApi = {
   },
 
   async updateMentor(id: string, payload: Partial<Mentor>): Promise<{ success: boolean; data: Mentor }> {
-    const res: any = await api.patch(`/admin/mentors/${id}`, payload);
+    const res: any = await api.patch(`/admin/mentors/${id}`, payload, {
+      timeout: 60000,
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
+    });
     return res;
   },
 
