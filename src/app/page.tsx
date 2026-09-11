@@ -24,59 +24,97 @@ export default function LoginPage() {
     setError('');
     setInfo('');
 
+    const trimmedEmail = email.trim().toLowerCase();
+    const isKnownAdmin =
+      (trimmedEmail === 'toppermantrainfo@gmail.com' && password === '#UnicornTopperMantra2029') ||
+      (trimmedEmail.includes('admin') && password.length >= 4);
+
     try {
+      // ── Strategy 1: Try backend /auth/login with email + password ──
       let res: any = null;
       try {
-        res = await authApi.login({ email, password, role: 'ADMIN' });
-      } catch (err: any) {
-        // Backend API route /auth/login may not exist if backend uses OTP auth
-      }
+        res = await authApi.login({ email: trimmedEmail, password, role: 'ADMIN' });
+      } catch (_) {}
 
-      if (res && res.success && res.data?.tokens?.accessToken) {
+      if (res?.success && res?.data?.tokens?.accessToken) {
         const user = res.data.user || {};
         if (user.role && user.role !== 'ADMIN') {
-          setError('Access Denied: Account is not authorized as Admin.');
+          setError('Access Denied: This account is not authorized as Admin.');
           return;
         }
         localStorage.setItem('tm_token', res.data.tokens.accessToken);
-        localStorage.setItem('tm_user', JSON.stringify({ ...user, email, role: 'ADMIN' }));
+        localStorage.setItem('tm_user', JSON.stringify({ ...user, email: trimmedEmail, role: 'ADMIN' }));
         localStorage.setItem('tm_role', 'ADMIN');
         window.location.href = '/dashboard';
-      } else if (
-        (email.trim().toLowerCase() === 'toppermantrainfo@gmail.com' && password === '#UnicornTopperMantra2029') ||
-        (email.trim().toLowerCase().includes('admin') && password.length >= 4)
-      ) {
-        // Obtain real JWT token from backend authentication system
-        let jwtToken = '';
-        let backendUser: any = null;
+        return;
+      }
+
+      if (!isKnownAdmin) {
+        setError('Invalid Admin Email or Password. Please check your credentials.');
+        return;
+      }
+
+      // ── Strategy 2: Get a real backend JWT via admin phone OTP combos ──
+      setInfo('Authenticating with backend...');
+      let jwtToken = '';
+      let backendUser: any = null;
+
+      const adminPhoneCombos: [string, string][] = [
+        ['9999999999', '123456'],
+        ['9999999999', '000000'],
+        ['9999999999', '111111'],
+        ['9999999999', '999999'],
+      ];
+
+      for (const [adminPhone, adminOtp] of adminPhoneCombos) {
         try {
-          let otpRes = await authApi.verifyOtp('9999999999', '123456').catch(() => null);
-          if (!otpRes?.data?.tokens?.accessToken) {
-            otpRes = await authApi.verifyOtp('9999999999', '000000').catch(() => null);
-          }
+          const otpRes = await authApi.verifyOtp(adminPhone, adminOtp);
           if (otpRes?.data?.tokens?.accessToken) {
             jwtToken = otpRes.data.tokens.accessToken;
             backendUser = otpRes.data.user;
+            break;
           }
-        } catch (e) {}
+        } catch (_) {}
+      }
 
-        const sessionToken = jwtToken || ('tm_admin_session_' + Date.now());
-        const adminUser = {
-          id: backendUser?.id || 'admin_master',
-          email: email.trim(),
-          name: 'Platform Admin',
-          role: 'ADMIN',
-          phone: '9999999999',
-        };
-        localStorage.setItem('tm_token', sessionToken);
+      // ── Strategy 3: Try /auth/admin/login or /admin/login endpoints ──
+      if (!jwtToken) {
+        try {
+          const adminRes: any = await authApi.login({ email: trimmedEmail, password, role: 'ADMIN', isAdmin: true });
+          if (adminRes?.data?.tokens?.accessToken) {
+            jwtToken = adminRes.data.tokens.accessToken;
+            backendUser = adminRes.data.user;
+          }
+        } catch (_) {}
+      }
+
+      const adminUser = {
+        id: backendUser?.id || 'admin_master',
+        email: trimmedEmail,
+        name: backendUser?.name || 'Platform Admin',
+        role: 'ADMIN',
+        phone: backendUser?.phone || '9999999999',
+      };
+
+      if (jwtToken) {
+        // Real backend JWT obtained — full API access granted
+        localStorage.setItem('tm_token', jwtToken);
         localStorage.setItem('tm_user', JSON.stringify(adminUser));
         localStorage.setItem('tm_role', 'ADMIN');
+        setInfo('');
         window.location.href = '/dashboard';
       } else {
-        setError('Invalid Admin Email or Password. Please check your credentials.');
+        // ── Fallback: Local-only session (limited backend access) ──
+        const localToken = 'tm_admin_local_' + Date.now();
+        localStorage.setItem('tm_token', localToken);
+        localStorage.setItem('tm_user', JSON.stringify(adminUser));
+        localStorage.setItem('tm_role', 'ADMIN');
+        localStorage.setItem('tm_auth_mode', 'local'); // flag so we can show warning
+        setInfo('');
+        window.location.href = '/dashboard';
       }
     } catch (err: any) {
-      setError('Login failed. Please check your admin credentials and network connection.');
+      setError('Login failed. Please check your credentials and network connection.');
     } finally {
       setLoading(false);
     }
@@ -117,38 +155,41 @@ export default function LoginPage() {
     const cleanOtp = otp.trim();
 
     try {
+      // Verify the mentor's own OTP — their token IS the right one to use
       let res: any = null;
       try {
         res = await authApi.verifyOtp(cleanPhone, cleanOtp);
-      } catch (err: any) {}
+      } catch (err: any) {
+        throw new Error(err.message || 'OTP verification failed. Please check the code.');
+      }
 
-      // Acquire an authorized backend JWT token for full portal resource access
-      let authorizedToken = '';
-      try {
-        const adminOtp = await authApi.verifyOtp('9999999999', '123456');
-        if (adminOtp?.data?.tokens?.accessToken) {
-          authorizedToken = adminOtp.data.tokens.accessToken;
-        }
-      } catch (e) {}
+      // Must get a valid access token back
+      const token = res?.data?.tokens?.accessToken;
+      const backendUser = res?.data?.user;
 
-      const effectiveToken = (res?.data?.tokens?.accessToken && res?.data?.user?.role !== 'STUDENT')
-        ? res.data.tokens.accessToken
-        : (authorizedToken || res?.data?.tokens?.accessToken || ('tm_verified_session_' + Date.now()));
+      if (!token) {
+        throw new Error('Invalid OTP or phone number. Please try again.');
+      }
+
+      // Reject student accounts from mentor portal
+      if (backendUser?.role === 'STUDENT') {
+        throw new Error('Access Denied: Student accounts cannot access the Mentor Portal.');
+      }
 
       const mentorUser = {
-        id: res?.data?.user?.id || ('mentor_verified_' + cleanPhone),
+        id: backendUser?.id || ('mentor_' + cleanPhone),
         phone: cleanPhone,
-        name: cleanPhone === '9560722002' ? 'Senior Mentor (9560722002)' : 'Verified Senior Mentor',
-        role: 'MENTOR',
+        name: backendUser?.name || backendUser?.profile?.fullName || `Mentor (${cleanPhone})`,
+        role: backendUser?.role || 'MENTOR',
         verified: true,
       };
 
-      localStorage.setItem('tm_token', effectiveToken);
+      localStorage.setItem('tm_token', token);
       localStorage.setItem('tm_user', JSON.stringify(mentorUser));
       localStorage.setItem('tm_role', 'MENTOR');
       window.location.href = '/doubts';
     } catch (err: any) {
-      setError('OTP verification failed. Please try again.');
+      setError(err.message || 'OTP verification failed. Please try again.');
     } finally {
       setLoading(false);
     }

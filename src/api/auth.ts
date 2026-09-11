@@ -1,7 +1,7 @@
 import { api } from '@/lib/api';
 
 export const authApi = {
-  async login(payload: { email?: string; password?: string; phone?: string; otp?: string; role?: string }) {
+  async login(payload: { email?: string; password?: string; phone?: string; otp?: string; role?: string; isAdmin?: boolean }) {
     const res: any = await api.post('/auth/login', payload);
     return res;
   },

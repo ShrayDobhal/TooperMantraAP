@@ -5,3 +5,4 @@ export * from './students';
 export * from './mentors';
 export * from './doubts';
 export * from './dashboard';
+export * from './media';

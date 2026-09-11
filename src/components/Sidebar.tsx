@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, GraduationCap, School, MessageSquare, LogOut, ShieldCheck, Video, Calendar, TrendingUp, Bell } from 'lucide-react';
+import { LayoutDashboard, Users, GraduationCap, School, MessageSquare, LogOut, ShieldCheck, Video, Calendar, TrendingUp, Bell, FileImage } from 'lucide-react';
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -52,6 +52,7 @@ export function Sidebar() {
       title: 'PLATFORM MANAGEMENT',
       items: [
         { name: 'Videos & Live Content', href: '/live-content', icon: Video },
+        { name: 'Images & PDFs', href: '/media-library', icon: FileImage },
         { name: 'Mentors Directory', href: '/mentors', icon: GraduationCap },
         { name: 'School Licenses', href: '/schools', icon: School },
       ],
