@@ -80,8 +80,15 @@ export default function DoubtsPage() {
     }
   }, [fetchPool]);
 
-  useEffect(() => { fetchPool(); }, [fetchPool]);
-  useEffect(() => { fetchMyTab(activeTab); }, [activeTab, fetchMyTab]);
+  useEffect(() => {
+    fetchPool();
+    doubtsApi.getMyDoubts('RESOLVED').then((res) => setResolvedDoubts(res.data?.items || []));
+    doubtsApi.getMyDoubts('CLAIMED').then((res) => setMyDoubts(res.data?.items || []));
+  }, [fetchPool]);
+
+  useEffect(() => {
+    fetchMyTab(activeTab);
+  }, [activeTab, fetchMyTab]);
 
   // ── Claim a ticket ────────────────────────────────────────────────────────────
   const handleClaim = async (doubt: DoubtTicket) => {
@@ -91,13 +98,13 @@ export default function DoubtsPage() {
       setPoolDoubts((prev) => prev.filter((d) => d.id !== doubt.id));
       setMyDoubts((prev) => [...prev, { ...doubt, status: 'CLAIMED' }]);
     } catch (e: any) {
-      console.warn('Claim error (may already be claimed):', e.message);
+      console.warn('Claim error:', e.message);
     }
     setSelectedDoubt({ ...doubt, status: 'CLAIMED' });
     setSolutionText('');
     setSolutionImageFiles([]);
     setSolutionImagePreviews([]);
-    setStatusMsg(`Claimed ticket. Write your step-by-step solution below.`);
+    setStatusMsg(`Claimed ticket "${doubt.subject}". Write your step-by-step solution below.`);
     setActiveTab('my');
   };
 
@@ -146,24 +153,29 @@ export default function DoubtsPage() {
         uploadedUrls.push(cdnUrl);
       }
 
-      setUploadStage('Submitting solution to backend...');
+      setUploadStage('Posting mentor solution to student app & discussion...');
       await doubtsApi.resolveDoubt(selectedDoubt.id, {
         solutionText,
         solutionImages: uploadedUrls,
       });
 
-      // Move ticket to resolved
+      // Optimistically move ticket to resolved
       setMyDoubts((prev) => prev.filter((d) => d.id !== selectedDoubt.id));
       setResolvedDoubts((prev) => [
-        { ...selectedDoubt, status: 'RESOLVED', solutionText, solutionImages: uploadedUrls },
-        ...prev,
+        { ...selectedDoubt, status: 'RESOLVED', solutionText, solutionImages: uploadedUrls, resolvedAt: new Date().toISOString() },
+        ...prev.filter((d) => d.id !== selectedDoubt.id),
       ]);
 
-      setStatusMsg(`🎉 Doubt resolved! Solution uploaded to Bunny CDN and pushed to student.`);
+      setStatusMsg(`🎉 Solution posted to student discussion! Marked as resolved.`);
       setSelectedDoubt(null);
       setSolutionText('');
       setSolutionImageFiles([]);
       setSolutionImagePreviews([]);
+
+      // Refresh both tabs in background
+      fetchPool();
+      doubtsApi.getMyDoubts('RESOLVED').then((res) => setResolvedDoubts(res.data?.items || []));
+      doubtsApi.getMyDoubts('CLAIMED').then((res) => setMyDoubts(res.data?.items || []));
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to submit doubt resolution.');
     } finally {
