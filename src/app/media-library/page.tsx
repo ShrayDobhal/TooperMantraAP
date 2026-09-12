@@ -24,6 +24,10 @@ import {
   Eye,
   Download,
   Filter,
+  BookOpen,
+  Sparkles,
+  Layers,
+  Compass,
 } from 'lucide-react';
 import {
   uploadImageToBunnyStorage,
@@ -31,6 +35,21 @@ import {
   createLocalPreview,
   BUNNY_CONFIG,
 } from '@/lib/bunnyStorage';
+
+const EXPLORE_PILLARS = [
+  { code: 'ALL', name: 'All Explore Resources', emoji: '📚', desc: 'All study notes & documents published to the Explore section' },
+  { code: 'ACADEMICS', name: 'Academics', emoji: '🎓', desc: 'Topper Notes, Formula Sheets & PYQs for JEE, NEET, CUET & Boards' },
+  { code: 'HACKATHON', name: 'Hackathon', emoji: '💻', desc: 'Coding frameworks, SIH playbooks & problem statements' },
+  { code: 'ENTREPRENEURSHIP', name: 'Entrepreneurship', emoji: '🚀', desc: 'Startup business models, pitch decks & grant applications' },
+  { code: 'DRONE_AVIATION', name: 'Drone Aviation', emoji: '🛩️', desc: 'DGCA UAV regulations, aerodynamics & schematic notes' },
+];
+
+const RESOURCE_TYPES = [
+  { code: 'TOPPER_NOTES', label: 'Topper Handwritten Notes', emoji: '📝', desc: 'Real notes from AIR rankers' },
+  { code: 'FORMULA_SHEET', label: 'Formula Sheets & Mindmaps', emoji: '📐', desc: 'Quick revision cheat sheets' },
+  { code: 'PYQ_BANK', label: 'PYQs & Detailed Solutions', emoji: '📖', desc: 'Past 10 years chapterwise questions' },
+  { code: 'GUIDE_TEMPLATE', label: 'Playbooks & Templates', emoji: '📑', desc: 'Guides, pitch decks & project templates' },
+];
 
 const CATEGORIES = ['All', 'Academics', 'Hackathon', 'Entrepreneurship', 'Drone Aviation', 'Inspire', 'Notes', 'Formula Sheet', 'Question Bank', 'Mock Test', 'Reference', 'Other'];
 const EXAMS = ['All', 'JEE', 'NEET', 'CUET', 'Boards', 'Other'];
@@ -112,6 +131,8 @@ interface MediaForm {
   title: string;
   description: string;
   type: MediaType;
+  pillar: string;
+  resourceType: string;
   category: string;
   exam: string;
   classLevel: string;
@@ -123,7 +144,9 @@ const defaultForm: MediaForm = {
   title: '',
   description: '',
   type: 'PDF',
-  category: 'Academic',
+  pillar: 'ACADEMICS',
+  resourceType: 'TOPPER_NOTES',
+  category: 'Academics',
   exam: 'JEE',
   classLevel: 'CLASS_12',
   subject: '',
@@ -139,6 +162,7 @@ export default function MediaLibraryPage() {
 
   // Filters
   const [search, setSearch] = useState('');
+  const [selectedPillar, setSelectedPillar] = useState('ALL');
   const [typeFilter, setTypeFilter] = useState<'ALL' | MediaType>('ALL');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [examFilter, setExamFilter] = useState('All');
@@ -212,19 +236,27 @@ export default function MediaLibraryPage() {
   const openUploadModal = (item?: MediaItem) => {
     if (item) {
       setSelectedItem(item);
+      const matchedPillar = EXPLORE_PILLARS.find(p => p.code === item.category?.toUpperCase() || item.category?.toUpperCase().includes(p.code))?.code || 'ACADEMICS';
+      const matchedResType = RESOURCE_TYPES.find(r => item.tags?.includes(r.code))?.code || 'TOPPER_NOTES';
       setForm({
         title: item.title,
         description: item.description || '',
         type: item.type,
-        category: item.category || 'Academic',
+        pillar: matchedPillar,
+        resourceType: matchedResType,
+        category: item.category || 'Academics',
         exam: item.exam || 'JEE',
         classLevel: item.classLevel || 'CLASS_12',
         subject: item.subject || '',
-        tagsInput: item.tags?.join(', ') || '',
+        tagsInput: item.tags?.filter(t => t !== matchedResType && t !== 'EXPLORE_SECTION').join(', ') || '',
       });
     } else {
       setSelectedItem(null);
-      setForm(defaultForm);
+      const defaultPillar = selectedPillar !== 'ALL' ? selectedPillar : 'ACADEMICS';
+      setForm({
+        ...defaultForm,
+        pillar: defaultPillar,
+      });
     }
     setSelectedFile(null);
     setSelectedThumbnailFile(null);
@@ -238,11 +270,16 @@ export default function MediaLibraryPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (file.type.startsWith('video/') || file.name.match(/\.(mp4|mov|avi|mkv|webm)$/i)) {
+      alert('⚠️ Video files cannot be uploaded here!\n\nThe Explore Section is strictly for study resources: PDF notes, formula sheets, and playbooks.\n\nPlease upload videos under "Community Sessions & Clips" or "Inspire Hub".');
+      return;
+    }
+
     const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
     const isImage = file.type.startsWith('image/');
 
     if (!isPdf && !isImage) {
-      alert('Please select a valid file: PDF document or image (PNG, JPG, WEBP).');
+      alert('Please select a valid PDF document or study image (PNG, JPG, WEBP).');
       return;
     }
 
@@ -272,7 +309,7 @@ export default function MediaLibraryPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedItem && !selectedFile) {
-      alert('Please select a file to upload (PDF or Image).');
+      alert('Please select a file to upload (PDF document or Image).');
       return;
     }
 
@@ -332,11 +369,11 @@ export default function MediaLibraryPage() {
         fileUrl: finalFileUrl,
         thumbnailUrl: finalThumbnailUrl || undefined,
         fileSize: finalFileSize,
-        category: form.category,
+        category: form.pillar,
         exam: form.exam,
         classLevel: form.classLevel,
         subject: form.subject.trim() || undefined,
-        tags: tagsArr,
+        tags: [form.resourceType, 'EXPLORE_SECTION', ...tagsArr],
         status: 'ACTIVE',
       };
 
@@ -403,6 +440,27 @@ export default function MediaLibraryPage() {
   const imageItems = items.filter((i) => i.type === 'IMAGE');
   const pdfItems = items.filter((i) => i.type === 'PDF');
 
+  const getPillarCount = (code: string) => {
+    if (code === 'ALL') return items.length;
+    return items.filter((i) => (i.category || '').toUpperCase().includes(code)).length;
+  };
+
+  const filteredItems = items.filter((item) => {
+    if (selectedPillar !== 'ALL') {
+      const cat = (item.category || '').toUpperCase();
+      if (!cat.includes(selectedPillar)) return false;
+    }
+    if (typeFilter !== 'ALL' && item.type !== typeFilter) return false;
+    if (categoryFilter !== 'All' && item.category !== categoryFilter) return false;
+    if (examFilter !== 'All' && item.exam !== examFilter) return false;
+    if (classFilter !== 'ALL' && item.classLevel !== classFilter) return false;
+    if (schoolFilter) {
+      const isAssigned = item.assignedSchools?.includes(schoolFilter) || item.assignedSchoolsDetails?.some(s => s.id === schoolFilter);
+      if (!isAssigned) return false;
+    }
+    return true;
+  });
+
   const formatBytes = (bytes?: number) => {
     if (!bytes) return '';
     if (bytes < 1024) return `${bytes} B`;
@@ -420,12 +478,20 @@ export default function MediaLibraryPage() {
           {/* Page Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="px-2.5 py-0.5 bg-amber-100/80 text-amber-900 border border-amber-300/80 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                  <span>📂</span> Target: Student App → Explore Section
+                </span>
+                <span className="px-2.5 py-0.5 bg-slate-100 text-slate-600 border border-slate-200 rounded-full text-[10px] font-bold">
+                  PDFs & Study Notes Only
+                </span>
+              </div>
               <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                <FileImage className="w-6 h-6 text-orange-600" />
-                Images & PDF Library
+                <BookOpen className="w-6 h-6 text-orange-600" />
+                Explore Section — Study Resources & Topper Notes
               </h1>
               <p className="text-slate-500 text-xs mt-0.5">
-                Upload images and PDFs to Bunny CDN, manage metadata, and assign resources to partner schools.
+                Upload PDFs, Topper Handwritten Notes, Formula Sheets & Playbooks directly to the Student Mobile App&apos;s Explore section (NO videos).
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -442,7 +508,7 @@ export default function MediaLibraryPage() {
                 className="px-4 py-2 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg shadow-2xs flex items-center gap-2 transition-all cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
-                Upload Image / PDF
+                Upload Notes / PDF Resource
               </button>
             </div>
           </div>
@@ -466,13 +532,75 @@ export default function MediaLibraryPage() {
             </div>
           )}
 
+          {/* Pillar Navigation Bar */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 px-1">
+              <div className="flex items-center gap-2">
+                <Compass className="w-4 h-4 text-orange-600" />
+                <span className="text-xs font-black text-slate-900 tracking-wider uppercase">
+                  Explore Program Pillars
+                </span>
+              </div>
+              <span className="text-[11px] font-semibold text-slate-500">
+                Pillars sync directly to Explore Programs in the student mobile app
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+              {EXPLORE_PILLARS.map((pillar) => {
+                const isActive = selectedPillar === pillar.code;
+                const count = getPillarCount(pillar.code);
+                return (
+                  <button
+                    key={pillar.code}
+                    type="button"
+                    onClick={() => setSelectedPillar(pillar.code)}
+                    className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                      isActive
+                        ? 'bg-slate-900 text-white shadow-sm ring-2 ring-slate-900/10'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 bg-slate-50 border border-slate-200/70'
+                    }`}
+                  >
+                    <span className="text-base leading-none">{pillar.emoji}</span>
+                    <span>{pillar.name}</span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                        isActive ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-700'
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {selectedPillar !== 'ALL' && (
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-900">
+                    {EXPLORE_PILLARS.find((p) => p.code === selectedPillar)?.emoji}{' '}
+                    {EXPLORE_PILLARS.find((p) => p.code === selectedPillar)?.name}
+                  </span>
+                  <span className="text-slate-300">•</span>
+                  <span className="text-slate-500">
+                    {EXPLORE_PILLARS.find((p) => p.code === selectedPillar)?.desc}
+                  </span>
+                </div>
+                <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                  Active Explore Filter
+                </span>
+              </div>
+            )}
+          </div>
+
           {/* Stats Summary Bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
-              { label: 'Total Items', value: items.length, color: 'slate' },
-              { label: 'Images', value: imageItems.length, color: 'blue' },
-              { label: 'PDFs', value: pdfItems.length, color: 'orange' },
-              { label: 'Assigned Schools', value: schools.length, color: 'emerald' },
+              { label: 'Explore Resources', value: items.length, color: 'slate' },
+              { label: 'PDF Documents', value: pdfItems.length, color: 'orange' },
+              { label: 'Images & Covers', value: imageItems.length, color: 'blue' },
+              { label: 'Partner Schools', value: schools.length, color: 'emerald' },
             ].map((stat) => (
               <div key={stat.label} className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs">
                 <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{stat.label}</p>
@@ -550,15 +678,15 @@ export default function MediaLibraryPage() {
                 <div key={i} className="h-56 skeleton" />
               ))}
             </div>
-          ) : items.length === 0 ? (
+          ) : filteredItems.length === 0 ? (
             <div className="p-16 bg-white rounded-xl border border-slate-200 text-center text-slate-400 space-y-3">
               <FileImage className="w-14 h-14 mx-auto text-slate-300" />
-              <p className="text-sm font-semibold text-slate-700">No media found matching filters.</p>
-              <p className="text-xs text-slate-500">Click "Upload Image / PDF" to add resources to the library.</p>
+              <p className="text-sm font-semibold text-slate-700">No resources found matching filters.</p>
+              <p className="text-xs text-slate-500">Click &quot;Upload Notes / PDF Resource&quot; to publish materials to the Explore section.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-              {items.map((item) => {
+              {filteredItems.map((item) => {
                 const assignedCount = item.assignedSchools?.length || 0;
                 const isPdf = item.type === 'PDF';
                 return (
@@ -735,13 +863,13 @@ export default function MediaLibraryPage() {
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-center text-orange-600">
-                  <FileImage className="w-5 h-5" />
+                  <BookOpen className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900">
-                    {selectedItem ? 'Edit Resource Metadata' : 'Upload Image or PDF'}
+                    {selectedItem ? 'Edit Explore Resource' : 'Publish Notes / PDF to Explore'}
                   </h3>
-                  <p className="text-xs text-slate-500">Upload to Bunny CDN · Assign to schools · Manage metadata</p>
+                  <p className="text-xs text-slate-500">Target: Student Mobile App → Explore Section (PDFs & Documents)</p>
                 </div>
               </div>
               <button
@@ -757,16 +885,78 @@ export default function MediaLibraryPage() {
             <form onSubmit={handleSave} className="flex flex-col flex-1 min-h-0 overflow-hidden">
               <div className="p-6 overflow-y-auto flex-1 space-y-5 text-xs">
 
+                {/* Target App Destination Banner */}
+                <div className="p-3 bg-amber-50/80 border border-amber-200/80 rounded-xl flex items-center justify-between shadow-2xs">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-xl">📂</span>
+                    <div>
+                      <p className="font-bold text-amber-950 text-xs">Target Destination: Student Mobile App → Explore Section</p>
+                      <p className="text-[11px] text-amber-800">Resources uploaded here appear under Explore Programs &amp; Notes. Only PDF documents permitted.</p>
+                    </div>
+                  </div>
+                  <span className="px-2 py-0.5 bg-amber-200/70 text-amber-900 rounded text-[10px] font-black uppercase tracking-wider shrink-0">
+                    Explore Only
+                  </span>
+                </div>
+
+                {/* Program Pillar Selector */}
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1.5 uppercase tracking-wider text-[11px]">
+                    Target Program Pillar *
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {EXPLORE_PILLARS.filter(p => p.code !== 'ALL').map((p) => (
+                      <button
+                        key={p.code}
+                        type="button"
+                        onClick={() => setForm(prev => ({ ...prev, pillar: p.code }))}
+                        className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                          form.pillar === p.code
+                            ? 'border-orange-500 bg-orange-50/70 text-orange-950 ring-2 ring-orange-500/20 shadow-xs'
+                            : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
+                        }`}
+                      >
+                        <span className="text-lg block mb-1">{p.emoji}</span>
+                        <span className="font-bold text-xs block truncate">{p.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Resource Category Type Selector */}
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1.5 uppercase tracking-wider text-[11px]">
+                    Resource Category Type *
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {RESOURCE_TYPES.map((rt) => (
+                      <button
+                        key={rt.code}
+                        type="button"
+                        onClick={() => setForm(prev => ({ ...prev, resourceType: rt.code }))}
+                        className={`p-2 rounded-lg border text-left flex items-center gap-2 transition-all cursor-pointer ${
+                          form.resourceType === rt.code
+                            ? 'border-orange-500 bg-orange-50/70 text-orange-950 font-bold shadow-xs ring-1 ring-orange-500/20'
+                            : 'border-slate-200 bg-white hover:border-slate-300 text-slate-600 font-medium'
+                        }`}
+                      >
+                        <span className="text-base">{rt.emoji}</span>
+                        <span className="truncate text-xs">{rt.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* File Upload Drop Zone */}
                 {!selectedItem && (
                   <div className="space-y-2">
                     <label className="block font-bold text-slate-700 uppercase tracking-wider">
-                      Select File *
+                      Select PDF Document *
                     </label>
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="image/*,application/pdf,.pdf"
+                      accept="application/pdf,.pdf"
                       onChange={handleFileSelect}
                       className="hidden"
                     />
@@ -778,17 +968,13 @@ export default function MediaLibraryPage() {
                         <Upload className="w-6 h-6 text-slate-400 group-hover:text-orange-500" />
                       </div>
                       <p className="font-semibold text-slate-700 group-hover:text-orange-700">
-                        {selectedFile ? `✓ ${selectedFile.name}` : 'Click to choose Image or PDF'}
+                        {selectedFile ? `✓ ${selectedFile.name}` : 'Click to choose PDF Document'}
                       </p>
-                      <p className="text-[11px] text-slate-400">PNG, JPG, WEBP, or PDF · Max 100 MB · Uploaded to Bunny CDN</p>
+                      <p className="text-[11px] text-slate-400">PDF Documents Only · Max 100 MB · Uploaded directly to Bunny Storage</p>
                     </div>
                     {selectedFile && (
-                      <div className="flex items-center gap-2 p-2 bg-emerald-50 border border-emerald-200 rounded-lg">
-                        {form.type === 'PDF' ? (
-                          <FileText className="w-4 h-4 text-orange-600 shrink-0" />
-                        ) : (
-                          <ImageIcon className="w-4 h-4 text-blue-600 shrink-0" />
-                        )}
+                      <div className="flex items-center gap-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg">
+                        <FileText className="w-4 h-4 text-orange-600 shrink-0" />
                         <span className="text-[11px] font-semibold text-emerald-800 truncate">
                           {selectedFile.name} · {formatBytes(selectedFile.size)}
                         </span>
@@ -803,32 +989,6 @@ export default function MediaLibraryPage() {
                     )}
                   </div>
                 )}
-
-                {/* Resource Type (auto-detected but overridable) */}
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setForm((f) => ({ ...f, type: 'PDF' }))}
-                    className={`py-2.5 rounded-lg font-bold flex items-center justify-center gap-2 border transition-all cursor-pointer ${
-                      form.type === 'PDF'
-                        ? 'bg-orange-50 border-orange-400 text-orange-700'
-                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-400'
-                    }`}
-                  >
-                    <FileText className="w-4 h-4" /> PDF Document
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setForm((f) => ({ ...f, type: 'IMAGE' }))}
-                    className={`py-2.5 rounded-lg font-bold flex items-center justify-center gap-2 border transition-all cursor-pointer ${
-                      form.type === 'IMAGE'
-                        ? 'bg-blue-50 border-blue-400 text-blue-700'
-                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-400'
-                    }`}
-                  >
-                    <ImageIcon className="w-4 h-4" /> Image
-                  </button>
-                </div>
 
                 {/* Thumbnail Upload (for PDFs) */}
                 {form.type === 'PDF' && (
@@ -890,20 +1050,8 @@ export default function MediaLibraryPage() {
                   />
                 </div>
 
-                {/* Category + Exam + Class */}
+                {/* Exam + Class + Subject */}
                 <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1.5">Category *</label>
-                    <select
-                      value={form.category}
-                      onChange={(e) => setForm({ ...form, category: e.target.value })}
-                      className="w-full p-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg font-semibold focus:border-slate-500 focus:outline-none cursor-pointer"
-                    >
-                      {CATEGORIES.filter((c) => c !== 'All').map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                  </div>
                   <div>
                     <label className="block font-bold text-slate-700 mb-1.5">Target Exam</label>
                     <select
@@ -928,10 +1076,6 @@ export default function MediaLibraryPage() {
                       ))}
                     </select>
                   </div>
-                </div>
-
-                {/* Subject + Tags */}
-                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block font-bold text-slate-700 mb-1.5">Subject</label>
                     <select
@@ -939,22 +1083,23 @@ export default function MediaLibraryPage() {
                       onChange={(e) => setForm({ ...form, subject: e.target.value })}
                       className="w-full p-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg font-semibold focus:border-slate-500 focus:outline-none cursor-pointer"
                     >
-                      <option value="">Select Subject</option>
-                      {SUBJECTS.filter(Boolean).map((s) => (
-                        <option key={s} value={s}>{s}</option>
+                      {SUBJECTS.map((sub) => (
+                        <option key={sub} value={sub}>{sub || 'General / All Subjects'}</option>
                       ))}
                     </select>
                   </div>
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1.5">Tags (comma-separated)</label>
-                    <input
-                      type="text"
-                      value={form.tagsInput}
-                      onChange={(e) => setForm({ ...form, tagsInput: e.target.value })}
-                      placeholder="e.g. newton, kinematics, class12"
-                      className="w-full p-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg font-medium focus:border-slate-500 focus:outline-none placeholder:text-slate-400"
-                    />
-                  </div>
+                </div>
+
+                {/* Additional Tags */}
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1.5">Additional Tags <span className="text-slate-400 font-normal">(comma-separated)</span></label>
+                  <input
+                    type="text"
+                    value={form.tagsInput}
+                    onChange={(e) => setForm({ ...form, tagsInput: e.target.value })}
+                    placeholder="e.g. Mechanics, Formula Sheet, Class 12, Handwritten"
+                    className="w-full p-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg font-medium focus:border-slate-500 focus:outline-none placeholder:text-slate-400"
+                  />
                 </div>
 
                 {/* Upload Progress */}

@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
 import {
@@ -86,7 +87,17 @@ const CLASSES = [
   { label: 'College', value: 'COLLEGE' },
 ];
 
-export default function LiveContentPage() {
+function LiveContentPageContent() {
+  const searchParams = useSearchParams();
+  const initialView = searchParams?.get('view') === 'inspire' ? 'INSPIRE' : 'COMMUNITY';
+  const [viewMode, setViewMode] = useState<'COMMUNITY' | 'INSPIRE'>(initialView);
+
+  useEffect(() => {
+    const v = searchParams?.get('view');
+    if (v === 'inspire') setViewMode('INSPIRE');
+    else if (v === 'community') setViewMode('COMMUNITY');
+  }, [searchParams]);
+
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,10 +124,11 @@ export default function LiveContentPage() {
   const [modalSelectedSchoolIds, setModalSelectedSchoolIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
-  // Form State
+  // Form State with Target Destination
   const [videoForm, setVideoForm] = useState({
     title: '',
     description: '',
+    targetSection: 'COMMUNITY' as 'COMMUNITY' | 'INSPIRE',
     category: 'ACADEMIC',
     exam: 'JEE',
     classLevel: 'CLASS_12',
@@ -126,6 +138,9 @@ export default function LiveContentPage() {
     videoUrl: '',
     thumbnailUrl: '',
     durationMinutes: 30,
+    speakerName: '',
+    speakerTag: '',
+    format: 'VIDEO' as 'VIDEO' | 'PODCAST' | 'SHORT',
   });
 
   const handleVideoFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -206,12 +221,21 @@ export default function LiveContentPage() {
     fetchVideosAndSchools();
   };
 
-  // Real-time filtered videos matching selected pillar tab and active filters
+  // Real-time filtered videos matching destination mode, pillar tab and active filters
   const filteredVideos = videos.filter((v) => {
-    // 1. Pillar section tab matching
-    if (selectedPillar !== 'ALL' && !matchesPillar(v.category, selectedPillar)) {
-      return false;
+    const isInspireCategory = v.category === 'INSPIRE' || v.tags?.some((t) => t.toUpperCase() === 'INSPIRE');
+
+    // 0. App Destination Section filtering
+    if (viewMode === 'INSPIRE') {
+      if (!isInspireCategory) return false;
+    } else {
+      if (isInspireCategory) return false;
+      // 1. Pillar section tab matching for Community
+      if (selectedPillar !== 'ALL' && !matchesPillar(v.category, selectedPillar)) {
+        return false;
+      }
     }
+
     // 2. Search query matching
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -220,14 +244,14 @@ export default function LiveContentPage() {
       const tagsMatch = v.tags?.some((t) => t.toLowerCase().includes(q));
       if (!titleMatch && !descMatch && !tagsMatch) return false;
     }
-    // 3. Target Exam matching
-    if (examFilter !== 'All') {
+    // 3. Target Exam matching (only in Community view)
+    if (viewMode === 'COMMUNITY' && examFilter !== 'All') {
       if (!v.exam || v.exam.toUpperCase() !== examFilter.toUpperCase()) {
         return false;
       }
     }
-    // 4. Target Class Level matching
-    if (classFilter !== 'ALL') {
+    // 4. Target Class Level matching (only in Community view)
+    if (viewMode === 'COMMUNITY' && classFilter !== 'ALL') {
       const target = v.classLevel || v.targetClass;
       if (target && target !== classFilter && target !== 'ALL') {
         return false;
@@ -250,9 +274,22 @@ export default function LiveContentPage() {
     setUploadProgress(null);
     setUploadStage('');
 
-    const tagsArr = videoForm.tagsInput
+    const isInspire = videoForm.targetSection === 'INSPIRE' || videoForm.category === 'INSPIRE';
+
+    let tagsArr = videoForm.tagsInput
       ? videoForm.tagsInput.split(',').map((t) => t.trim()).filter(Boolean)
       : [];
+
+    if (isInspire) {
+      if (!tagsArr.includes('INSPIRE')) tagsArr.push('INSPIRE');
+      if (videoForm.format && !tagsArr.includes(videoForm.format)) tagsArr.push(videoForm.format);
+      if (videoForm.speakerName?.trim() && !tagsArr.includes(videoForm.speakerName.trim())) {
+        tagsArr.push(videoForm.speakerName.trim());
+      }
+      if (videoForm.speakerTag?.trim() && !tagsArr.includes(videoForm.speakerTag.trim())) {
+        tagsArr.push(videoForm.speakerTag.trim());
+      }
+    }
 
     const durationSec = Math.max(60, Number(videoForm.durationMinutes || 30) * 60);
 
@@ -307,9 +344,9 @@ export default function LiveContentPage() {
       const payload = {
         title: videoForm.title.trim(),
         description: videoForm.description.trim() || undefined,
-        category: videoForm.category.toUpperCase(),
-        exam: videoForm.exam.toUpperCase(),
-        classLevel: videoForm.classLevel,
+        category: isInspire ? 'INSPIRE' : videoForm.category.toUpperCase(),
+        exam: isInspire ? 'ALL' : videoForm.exam.toUpperCase(),
+        classLevel: isInspire ? 'ALL' : videoForm.classLevel,
         tags: tagsArr,
         youtubeId: videoForm.youtubeId.trim() || undefined,
         bunnyVideoId: finalBunnyId,
@@ -326,7 +363,7 @@ export default function LiveContentPage() {
       } else {
         const createRes = await videosApi.createVideo(payload);
         targetVideoId = createRes?.data?.id;
-        setToastMsg(`🎉 Video "${videoForm.title}" uploaded & assigned to ${videoForm.category}!`);
+        setToastMsg(`🎉 ${isInspire ? 'Inspire video' : 'Community video'} "${videoForm.title}" published successfully!`);
       }
 
       // Automatically sync partner school assignments if selected in modal
@@ -405,12 +442,29 @@ export default function LiveContentPage() {
           {/* Header Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md bg-orange-100 text-orange-700 border border-orange-200 inline-flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>
+                  Target: Student Mobile App → {viewMode === 'INSPIRE' ? 'Inspire Tab (Hub)' : 'My Space → Community'}
+                </span>
+              </div>
               <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                <Video className="w-6 h-6 text-orange-600" />
-                Central Video Library & School Content Control
+                {viewMode === 'INSPIRE' ? (
+                  <>
+                    <Sparkles className="w-6 h-6 text-amber-500" />
+                    Inspire Hub — Masterclasses & Podcasts
+                  </>
+                ) : (
+                  <>
+                    <Video className="w-6 h-6 text-orange-600" />
+                    Community Live Sessions & Recorded Video Clips
+                  </>
+                )}
               </h1>
               <p className="text-slate-500 text-xs mt-0.5">
-                Upload video lectures with Bunny Stream / CDN streams, manage exam & category metadata, and assign content to partner schools.
+                {viewMode === 'INSPIRE'
+                  ? 'Podcasts, AIR Topper masterclasses, and inspirational episodes streamed in the student app\'s Inspire Feed.'
+                  : 'Live mentorship sessions and recorded video lectures categorized by school communities and core program pillars.'}
               </p>
             </div>
 
@@ -427,10 +481,12 @@ export default function LiveContentPage() {
               <button
                 onClick={() => {
                   setSelectedVideo(null);
-                  const defaultCat = selectedPillar !== 'ALL' ? selectedPillar : 'ACADEMIC';
+                  const isInsp = viewMode === 'INSPIRE';
+                  const defaultCat = isInsp ? 'INSPIRE' : (selectedPillar !== 'ALL' && selectedPillar !== 'INSPIRE' ? selectedPillar : 'ACADEMIC');
                   setVideoForm({
                     title: '',
                     description: '',
+                    targetSection: isInsp ? 'INSPIRE' : 'COMMUNITY',
                     category: defaultCat,
                     exam: 'JEE',
                     classLevel: 'CLASS_12',
@@ -440,6 +496,9 @@ export default function LiveContentPage() {
                     videoUrl: '',
                     thumbnailUrl: '',
                     durationMinutes: 30,
+                    speakerName: '',
+                    speakerTag: '',
+                    format: 'VIDEO',
                   });
                   setModalSelectedSchoolIds(schoolFilter ? [schoolFilter] : []);
                   setSelectedVideoFile(null);
@@ -450,7 +509,7 @@ export default function LiveContentPage() {
                 className="px-4 py-2 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg shadow-2xs flex items-center gap-2 transition-all cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
-                Upload New Video
+                {viewMode === 'INSPIRE' ? 'Upload Inspire Masterclass' : 'Upload Video Session'}
               </button>
             </div>
           </div>
@@ -474,71 +533,128 @@ export default function LiveContentPage() {
             </div>
           )}
 
-          {/* 5 Core Pillar Tabs Navigation */}
-          <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 uppercase tracking-wider">
-                <Layers className="w-4 h-4 text-orange-600" />
-                <span>Pillar Navigation</span>
-              </div>
-              <span className="text-[11px] text-slate-500 hidden md:inline">
-                Videos upload and sync directly to that section in the student mobile app
+          {/* App Destination Segmented Switcher */}
+          <div className="flex items-center gap-2 bg-slate-200/70 p-1.5 rounded-2xl w-fit border border-slate-200/80 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => {
+                setViewMode('COMMUNITY');
+                setSelectedPillar('ALL');
+              }}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'COMMUNITY'
+                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              }`}
+            >
+              <Video className="w-4 h-4 text-orange-600" />
+              <span>Community Sessions & Clips</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-black">
+                {videos.filter((v) => v.category !== 'INSPIRE' && !v.tags?.includes('INSPIRE')).length}
               </span>
-            </div>
+            </button>
 
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-              {PILLAR_SECTIONS.map((pillar) => {
-                const isActive = selectedPillar === pillar.code;
-                const count =
-                  pillar.code === 'ALL'
-                    ? videos.length
-                    : videos.filter((v) => matchesPillar(v.category, pillar.code)).length;
+            <button
+              type="button"
+              onClick={() => {
+                setViewMode('INSPIRE');
+                setSelectedPillar('INSPIRE');
+              }}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'INSPIRE'
+                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              }`}
+            >
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              <span>Inspire Hub (Podcasts & Talks)</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-black">
+                {videos.filter((v) => v.category === 'INSPIRE' || v.tags?.includes('INSPIRE')).length}
+              </span>
+            </button>
+          </div>
 
-                return (
-                  <button
-                    key={pillar.id}
-                    type="button"
-                    onClick={() => setSelectedPillar(pillar.code)}
-                    className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
-                      isActive
-                        ? 'bg-slate-900 text-white shadow-sm ring-2 ring-slate-900/10'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 bg-slate-50 border border-slate-200/70'
-                    }`}
-                  >
-                    <span className="text-base leading-none">{pillar.emoji}</span>
-                    <span>{pillar.name}</span>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                        isActive ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-700'
-                      }`}
-                    >
-                      {count}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Active Pillar Feed Context Banner */}
-            {selectedPillar !== 'ALL' && (
-              <div className="pt-2.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs text-slate-600">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-slate-900">
-                    {PILLAR_SECTIONS.find((p) => p.code === selectedPillar)?.emoji}{' '}
-                    {PILLAR_SECTIONS.find((p) => p.code === selectedPillar)?.name}
-                  </span>
-                  <span className="text-slate-300">•</span>
-                  <span className="text-slate-500">
-                    {PILLAR_SECTIONS.find((p) => p.code === selectedPillar)?.description}
-                  </span>
+          {/* Section-Specific Context Navigation */}
+          {viewMode === 'COMMUNITY' ? (
+            <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 uppercase tracking-wider">
+                  <Layers className="w-4 h-4 text-orange-600" />
+                  <span>Community Pillar Navigation</span>
                 </div>
-                <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/70 px-2.5 py-0.5 rounded-md inline-flex items-center gap-1.5 self-start sm:self-auto">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  Active app section target
+                <span className="text-[11px] text-slate-500 hidden md:inline">
+                  Assigned to student partner school communities under these four pillars
                 </span>
               </div>
-            )}
-          </div>
+
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+                {PILLAR_SECTIONS.filter((p) => p.code !== 'INSPIRE').map((pillar) => {
+                  const isActive = selectedPillar === pillar.code;
+                  const count =
+                    pillar.code === 'ALL'
+                      ? videos.filter((v) => v.category !== 'INSPIRE').length
+                      : videos.filter((v) => v.category !== 'INSPIRE' && matchesPillar(v.category, pillar.code)).length;
+
+                  return (
+                    <button
+                      key={pillar.id}
+                      type="button"
+                      onClick={() => setSelectedPillar(pillar.code)}
+                      className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                        isActive
+                          ? 'bg-slate-900 text-white shadow-sm ring-2 ring-slate-900/10'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 bg-slate-50 border border-slate-200/70'
+                      }`}
+                    >
+                      <span className="text-base leading-none">{pillar.emoji}</span>
+                      <span>{pillar.name}</span>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                          isActive ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-700'
+                        }`}
+                      >
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedPillar !== 'ALL' && (
+                <div className="pt-2.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs text-slate-600">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-900">
+                      {PILLAR_SECTIONS.find((p) => p.code === selectedPillar)?.emoji}{' '}
+                      {PILLAR_SECTIONS.find((p) => p.code === selectedPillar)?.name}
+                    </span>
+                    <span className="text-slate-300">•</span>
+                    <span className="text-slate-500">
+                      {PILLAR_SECTIONS.find((p) => p.code === selectedPillar)?.description}
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/70 px-2.5 py-0.5 rounded-md inline-flex items-center gap-1.5 self-start sm:self-auto">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Syncs to Student App → My Space → Community
+                  </span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-transparent p-4 rounded-2xl border border-amber-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-600" />
+                  <span className="text-xs font-bold text-slate-900">Inspire Hub Live Sync</span>
+                </div>
+                <p className="text-[11px] text-slate-600">
+                  All videos uploaded here are marked with <code className="bg-white/80 px-1 py-0.5 rounded font-mono text-[10px] text-amber-800">category: INSPIRE</code> and automatically featured in the student app&apos;s Inspire Tab feed.
+                </p>
+              </div>
+              <span className="text-[11px] font-semibold text-amber-800 bg-amber-100 border border-amber-300/60 px-3 py-1 rounded-lg inline-flex items-center gap-1.5 shrink-0">
+                ⭐ Auto-Featured on App Inspire Tab
+              </span>
+            </div>
+          )}
 
           {/* Filters Bar */}
           <form onSubmit={handleSearchSubmit} className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 items-center">
@@ -721,10 +837,12 @@ export default function LiveContentPage() {
                             onClick={() => {
                               setSelectedVideo(v);
                               setModalSelectedSchoolIds(v.assignedSchools || []);
+                              const isInsp = v.category === 'INSPIRE' || v.tags?.some((t) => t.toUpperCase() === 'INSPIRE');
                               setVideoForm({
                                 title: v.title,
                                 description: v.description || '',
-                                category: v.category || 'ACADEMIC',
+                                targetSection: isInsp ? 'INSPIRE' : 'COMMUNITY',
+                                category: v.category || (isInsp ? 'INSPIRE' : 'ACADEMIC'),
                                 exam: v.exam || 'JEE',
                                 classLevel: v.classLevel || v.targetClass || 'CLASS_12',
                                 tagsInput: v.tags?.join(', ') || '',
@@ -733,6 +851,9 @@ export default function LiveContentPage() {
                                 videoUrl: v.videoUrl || '',
                                 thumbnailUrl: v.thumbnailUrl || '',
                                 durationMinutes: Math.round((v.durationSeconds || 1200) / 60),
+                                speakerName: '',
+                                speakerTag: '',
+                                format: 'VIDEO',
                               });
                               setSelectedVideoFile(null);
                               setSelectedThumbnailFile(null);
@@ -904,60 +1025,175 @@ export default function LiveContentPage() {
                       </div>
                     </div>
 
+                    {/* Target App Destination Selector */}
+                    <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                      <label className="block font-bold text-slate-700 text-xs uppercase tracking-wider">
+                        Target App Destination *
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setVideoForm((prev) => ({
+                              ...prev,
+                              targetSection: 'COMMUNITY',
+                              category: prev.category === 'INSPIRE' ? 'ACADEMIC' : prev.category,
+                            }))
+                          }
+                          className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                            videoForm.targetSection === 'COMMUNITY'
+                              ? 'bg-orange-50/80 border-orange-400 ring-2 ring-orange-400/20 shadow-2xs'
+                              : 'bg-white border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 font-bold text-slate-900 text-xs">
+                            <Video className="w-4 h-4 text-orange-600" />
+                            <span>Community Sessions</span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-1">
+                            School Communities (Academics, Hackathons, Startups, Drones)
+                          </p>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setVideoForm((prev) => ({
+                              ...prev,
+                              targetSection: 'INSPIRE',
+                              category: 'INSPIRE',
+                            }))
+                          }
+                          className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                            videoForm.targetSection === 'INSPIRE'
+                              ? 'bg-amber-50/80 border-amber-400 ring-2 ring-amber-400/20 shadow-2xs'
+                              : 'bg-white border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 font-bold text-slate-900 text-xs">
+                            <Sparkles className="w-4 h-4 text-amber-500" />
+                            <span>Inspire Hub</span>
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-1">
+                            Podcasts, AIR Topper masterclasses & motivational talks
+                          </p>
+                        </button>
+                      </div>
+                    </div>
+
                     <div>
-                      <label className="block font-semibold text-slate-700 mb-1">Video Title *</label>
+                      <label className="block font-semibold text-slate-700 mb-1">
+                        {videoForm.targetSection === 'INSPIRE' ? 'Masterclass / Podcast Title *' : 'Video Title *'}
+                      </label>
                       <input
                         type="text"
                         required
                         value={videoForm.title}
                         onChange={(e) => setVideoForm({ ...videoForm, title: e.target.value })}
-                        placeholder="e.g. JEE Physics — Newton's Laws of Motion"
+                        placeholder={
+                          videoForm.targetSection === 'INSPIRE'
+                            ? 'e.g. How I Cracked AIR 1 in JEE Advanced — Strategy & Mindset'
+                            : "e.g. JEE Physics — Newton's Laws of Motion Masterclass"
+                        }
                         className="w-full p-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg font-medium focus:border-slate-500 focus:outline-none placeholder:text-slate-400"
                       />
                     </div>
 
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <label className="block font-semibold text-slate-700 mb-1">Pillar Section *</label>
-                        <select
-                          value={videoForm.category}
-                          onChange={(e) => setVideoForm({ ...videoForm, category: e.target.value })}
-                          className="w-full p-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg font-semibold focus:border-slate-500 focus:outline-none cursor-pointer"
-                        >
-                          {PILLAR_OPTIONS.map((p) => (
-                            <option key={p.value} value={p.value} className="text-slate-900 bg-white">
-                              {p.emoji} {p.label} — {p.subtitle}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                    {videoForm.targetSection === 'INSPIRE' ? (
+                      /* Inspire Hub Specific Fields: Speaker, Tagline & Format */
+                      <div className="p-4 bg-amber-50/50 border border-amber-200/70 rounded-xl space-y-3">
+                        <div className="flex items-center gap-1.5 font-bold text-amber-900 text-xs uppercase tracking-wider">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Inspire Speaker & Format Details</span>
+                        </div>
 
-                      <div>
-                        <label className="block font-semibold text-slate-700 mb-1">Target Exam</label>
-                        <select
-                          value={videoForm.exam}
-                          onChange={(e) => setVideoForm({ ...videoForm, exam: e.target.value })}
-                          className="w-full p-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg font-semibold focus:border-slate-500 focus:outline-none cursor-pointer"
-                        >
-                          {EXAMS.filter((ex) => ex !== 'All').map((ex) => (
-                            <option key={ex} value={ex} className="text-slate-900 bg-white">{ex}</option>
-                          ))}
-                        </select>
-                      </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div>
+                            <label className="block font-semibold text-slate-700 mb-1">Format *</label>
+                            <select
+                              value={videoForm.format}
+                              onChange={(e: any) => setVideoForm({ ...videoForm, format: e.target.value })}
+                              className="w-full p-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg font-semibold focus:border-slate-500 focus:outline-none cursor-pointer"
+                            >
+                              <option value="VIDEO">🎬 Video Masterclass</option>
+                              <option value="PODCAST">🎙️ Podcast Episode</option>
+                              <option value="SHORT">⚡ Short / Insight Clip</option>
+                            </select>
+                          </div>
 
-                      <div>
-                        <label className="block font-semibold text-slate-700 mb-1">Target Class</label>
-                        <select
-                          value={videoForm.classLevel}
-                          onChange={(e) => setVideoForm({ ...videoForm, classLevel: e.target.value })}
-                          className="w-full p-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg font-semibold focus:border-slate-500 focus:outline-none cursor-pointer"
-                        >
-                          {CLASSES.map((cl) => (
-                            <option key={cl.value} value={cl.value} className="text-slate-900 bg-white">{cl.label}</option>
-                          ))}
-                        </select>
+                          <div>
+                            <label className="block font-semibold text-slate-700 mb-1">Speaker / Mentor Name</label>
+                            <input
+                              type="text"
+                              value={videoForm.speakerName}
+                              onChange={(e) => setVideoForm({ ...videoForm, speakerName: e.target.value })}
+                              placeholder="e.g. Aditya Srivastava (AIR 1)"
+                              className="w-full p-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg font-medium focus:border-slate-500 focus:outline-none placeholder:text-slate-400"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block font-semibold text-slate-700 mb-1">Speaker Tag / Credential</label>
+                            <input
+                              type="text"
+                              value={videoForm.speakerTag}
+                              onChange={(e) => setVideoForm({ ...videoForm, speakerTag: e.target.value })}
+                              placeholder="e.g. IIT Kanpur Alum & Tech Lead"
+                              className="w-full p-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg font-medium focus:border-slate-500 focus:outline-none placeholder:text-slate-400"
+                            />
+                          </div>
+                        </div>
+
+                        <p className="text-[11px] text-amber-800 flex items-center gap-1.5">
+                          <span>✨</span>
+                          <span>Automatically featured at the top of the mobile app&apos;s Inspire Tab feed.</span>
+                        </p>
                       </div>
-                    </div>
+                    ) : (
+                      /* Community Pillar Fields */
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Community Pillar *</label>
+                          <select
+                            value={videoForm.category}
+                            onChange={(e) => setVideoForm({ ...videoForm, category: e.target.value })}
+                            className="w-full p-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg font-semibold focus:border-slate-500 focus:outline-none cursor-pointer"
+                          >
+                            {PILLAR_OPTIONS.filter((p) => p.value !== 'INSPIRE').map((p) => (
+                              <option key={p.value} value={p.value} className="text-slate-900 bg-white">
+                                {p.emoji} {p.label} — {p.subtitle}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Target Exam</label>
+                          <select
+                            value={videoForm.exam}
+                            onChange={(e) => setVideoForm({ ...videoForm, exam: e.target.value })}
+                            className="w-full p-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg font-semibold focus:border-slate-500 focus:outline-none cursor-pointer"
+                          >
+                            {EXAMS.filter((ex) => ex !== 'All').map((ex) => (
+                              <option key={ex} value={ex} className="text-slate-900 bg-white">{ex}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1">Target Class</label>
+                          <select
+                            value={videoForm.classLevel}
+                            onChange={(e) => setVideoForm({ ...videoForm, classLevel: e.target.value })}
+                            className="w-full p-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg font-semibold focus:border-slate-500 focus:outline-none cursor-pointer"
+                          >
+                            {CLASSES.map((cl) => (
+                              <option key={cl.value} value={cl.value} className="text-slate-900 bg-white">{cl.label}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Video Source Selection (Direct File Upload to Bunny CDN vs Manual Video ID) */}
                     <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
@@ -1138,53 +1374,65 @@ export default function LiveContentPage() {
                     </div>
 
                     {/* Partner School Assignment in Upload Modal */}
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 font-semibold text-slate-800">
-                          <SchoolIcon className="w-4 h-4 text-orange-600" />
-                          <span>Assign to Partner Schools</span>
+                    {videoForm.targetSection === 'INSPIRE' ? (
+                      <div className="p-4 bg-amber-50/60 border border-amber-200/70 rounded-xl space-y-1.5">
+                        <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
+                          <Sparkles className="w-4 h-4 text-amber-600" />
+                          <span>Global App Access — Inspire Tab</span>
                         </div>
-                        <span className="text-[11px] font-bold text-orange-600 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">
-                          {modalSelectedSchoolIds.length} Selected
-                        </span>
+                        <p className="text-[11px] text-amber-800">
+                          Inspire Hub masterclasses and podcasts are globally accessible to all registered students across all partner schools via the Inspire Tab feed.
+                        </p>
                       </div>
-                      <p className="text-[11px] text-slate-500">
-                        Choose which partner school apps will receive this video lecture under this pillar section.
-                      </p>
-                      {schools.length === 0 ? (
-                        <p className="text-[11px] text-slate-400 italic">No partner schools registered yet.</p>
-                      ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto pr-1">
-                          {schools.map((s) => {
-                            const isChecked = modalSelectedSchoolIds.includes(s.id);
-                            return (
-                              <label
-                                key={s.id}
-                                className={`flex items-center gap-2 p-2 rounded-lg border text-xs cursor-pointer transition-colors ${
-                                  isChecked
-                                    ? 'bg-orange-50/80 border-orange-300 text-slate-900 font-semibold'
-                                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100/60'
-                                }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={() => {
-                                    setModalSelectedSchoolIds((prev) =>
-                                      prev.includes(s.id)
-                                        ? prev.filter((id) => id !== s.id)
-                                        : [...prev, s.id]
-                                    );
-                                  }}
-                                  className="rounded text-orange-600 focus:ring-orange-500 w-3.5 h-3.5"
-                                />
-                                <span className="truncate">{s.name}</span>
-                              </label>
-                            );
-                          })}
+                    ) : (
+                      <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5 font-semibold text-slate-800">
+                            <SchoolIcon className="w-4 h-4 text-orange-600" />
+                            <span>Assign to Partner Schools</span>
+                          </div>
+                          <span className="text-[11px] font-bold text-orange-600 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">
+                            {modalSelectedSchoolIds.length} Selected
+                          </span>
                         </div>
-                      )}
-                    </div>
+                        <p className="text-[11px] text-slate-500">
+                          Choose which partner school apps will receive this video lecture under this community pillar.
+                        </p>
+                        {schools.length === 0 ? (
+                          <p className="text-[11px] text-slate-400 italic">No partner schools registered yet.</p>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto pr-1">
+                            {schools.map((s) => {
+                              const isChecked = modalSelectedSchoolIds.includes(s.id);
+                              return (
+                                <label
+                                  key={s.id}
+                                  className={`flex items-center gap-2 p-2 rounded-lg border text-xs cursor-pointer transition-colors ${
+                                    isChecked
+                                      ? 'bg-orange-50/80 border-orange-300 text-slate-900 font-semibold'
+                                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100/60'
+                                  }`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={() => {
+                                      setModalSelectedSchoolIds((prev) =>
+                                        prev.includes(s.id)
+                                          ? prev.filter((id) => id !== s.id)
+                                          : [...prev, s.id]
+                                      );
+                                    }}
+                                    className="rounded text-orange-600 focus:ring-orange-500 w-3.5 h-3.5"
+                                  />
+                                  <span className="truncate">{s.name}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Fixed Footer */}
@@ -1287,5 +1535,19 @@ export default function LiveContentPage() {
         </main>
       </div>
     </div>
+  );
+}
+
+export default function LiveContentPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-500 text-xs font-semibold">
+          Loading Content Studio...
+        </div>
+      }
+    >
+      <LiveContentPageContent />
+    </Suspense>
   );
 }
