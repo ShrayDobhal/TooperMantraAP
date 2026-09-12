@@ -32,7 +32,7 @@ import {
   BUNNY_CONFIG,
 } from '@/lib/bunnyStorage';
 
-const CATEGORIES = ['All', 'Academic', 'Notes', 'Formula Sheet', 'Question Bank', 'Mock Test', 'Diagram', 'Reference', 'Other'];
+const CATEGORIES = ['All', 'Academics', 'Hackathon', 'Entrepreneurship', 'Drone Aviation', 'Inspire', 'Notes', 'Formula Sheet', 'Question Bank', 'Mock Test', 'Reference', 'Other'];
 const EXAMS = ['All', 'JEE', 'NEET', 'CUET', 'Boards', 'Other'];
 const CLASSES = [
   { label: 'All Classes', value: 'ALL' },

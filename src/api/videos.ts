@@ -32,6 +32,122 @@ export interface VideoItem {
   assignedSchoolsDetails?: Array<{ id: string; name: string; code?: string; status: string }>;
 }
 
+export interface VideoPillar {
+  id: string;
+  code: string;
+  name: string;
+  emoji: string;
+  badgeBg: string;
+  badgeText: string;
+  badgeBorder: string;
+  description: string;
+}
+
+export const PILLAR_SECTIONS: VideoPillar[] = [
+  {
+    id: 'ALL',
+    code: 'ALL',
+    name: 'All Videos',
+    emoji: '📺',
+    badgeBg: 'bg-slate-100',
+    badgeText: 'text-slate-800',
+    badgeBorder: 'border-slate-200',
+    description: 'Central library of all learning content across partner schools',
+  },
+  {
+    id: 'ACADEMIC',
+    code: 'ACADEMIC',
+    name: 'Academics',
+    emoji: '🎓',
+    badgeBg: 'bg-indigo-50',
+    badgeText: 'text-indigo-700',
+    badgeBorder: 'border-indigo-200',
+    description: 'JEE, NEET, CUET & Board Exams foundational syllabus & strategies',
+  },
+  {
+    id: 'HACKATHON',
+    code: 'HACKATHON',
+    name: 'Hackathon',
+    emoji: '💻',
+    badgeBg: 'bg-purple-50',
+    badgeText: 'text-purple-700',
+    badgeBorder: 'border-purple-200',
+    description: 'Coding competitions, app architecture, AI & robotics prototypes',
+  },
+  {
+    id: 'ENTREPRENEURSHIP',
+    code: 'ENTREPRENEURSHIP',
+    name: 'Entrepreneurship',
+    emoji: '🚀',
+    badgeBg: 'bg-emerald-50',
+    badgeText: 'text-emerald-700',
+    badgeBorder: 'border-emerald-200',
+    description: 'Startup roadmaps, venture pitching, grants & founder case studies',
+  },
+  {
+    id: 'DRONE_AVIATION',
+    code: 'DRONE_AVIATION',
+    name: 'Drone Aviation',
+    emoji: '🛩️',
+    badgeBg: 'bg-sky-50',
+    badgeText: 'text-sky-700',
+    badgeBorder: 'border-sky-200',
+    description: 'DGCA UAV pilot training, aerospace physics & flight simulation',
+  },
+  {
+    id: 'INSPIRE',
+    code: 'INSPIRE',
+    name: 'Inspire',
+    emoji: '✨',
+    badgeBg: 'bg-amber-50',
+    badgeText: 'text-amber-800',
+    badgeBorder: 'border-amber-200',
+    description: 'Masterclasses, motivational keynotes, AIR rankers & talks',
+  },
+];
+
+export function matchesPillar(videoCategory: string, pillarCode: string): boolean {
+  if (!pillarCode || pillarCode === 'ALL' || pillarCode === 'All') return true;
+  const vCat = (videoCategory || '').toUpperCase().trim();
+  const target = pillarCode.toUpperCase().trim();
+
+  if (target === 'ACADEMIC') {
+    return (
+      vCat === 'ACADEMIC' ||
+      vCat === 'JEE' ||
+      vCat === 'NEET' ||
+      vCat === 'CUET' ||
+      vCat === 'BOARDS' ||
+      vCat === 'MATH' ||
+      vCat === 'PHYSICS' ||
+      vCat === 'CHEMISTRY'
+    );
+  }
+  if (target === 'HACKATHON') {
+    return vCat === 'HACKATHON' || vCat === 'CODING' || vCat === 'AI' || vCat === 'ROBOTICS';
+  }
+  if (target === 'ENTREPRENEURSHIP') {
+    return vCat === 'ENTREPRENEURSHIP' || vCat === 'STARTUP' || vCat === 'BUSINESS';
+  }
+  if (target === 'DRONE_AVIATION') {
+    return vCat === 'DRONE_AVIATION' || vCat === 'DRONE' || vCat === 'DRONE_TECHNOLOGY';
+  }
+  if (target === 'INSPIRE') {
+    return vCat === 'INSPIRE' || vCat === 'WORKSHOP' || vCat === 'MENTORSHIP' || vCat === 'STRATEGY' || vCat === 'COMMUNITY';
+  }
+
+  return vCat === target;
+}
+
+export function getPillarMeta(category: string): VideoPillar {
+  for (const pillar of PILLAR_SECTIONS) {
+    if (pillar.id !== 'ALL' && matchesPillar(category, pillar.code)) {
+      return pillar;
+    }
+  }
+  return PILLAR_SECTIONS[1]; // default to Academics
+}
+
 export interface VideoFilterParams {
   search?: string;
   category?: string;
