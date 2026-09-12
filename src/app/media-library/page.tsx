@@ -50,8 +50,9 @@ async function uploadPdfToBunny(file: File, onProgress?: (p: number) => void): P
   const timestamp = Date.now();
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
   const filename = `pdfs/pdf_${timestamp}_${randomSuffix}_${safeName}`;
-  const hosts = [BUNNY_CONFIG.storageHost, 'storage.bunnycdn.com'];
+  const hosts = ['storage.bunnycdn.com', BUNNY_CONFIG.storageHost, 'uk.storage.bunnycdn.com'];
 
+  let lastError: Error | null = null;
   for (const host of hosts) {
     try {
       const uploadUrl = `https://${host}/${BUNNY_CONFIG.storageZone}/${filename}`;
@@ -65,18 +66,25 @@ async function uploadPdfToBunny(file: File, onProgress?: (p: number) => void): P
             if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
           };
         }
-        xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed: ${xhr.status}`)));
-        xhr.onerror = () => reject(new Error('Network error uploading PDF'));
-        xhr.timeout = 120000;
-        xhr.ontimeout = () => reject(new Error('PDF upload timed out'));
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            reject(new Error(`Bunny Storage returned HTTP ${xhr.status}: ${xhr.statusText || xhr.responseText}`));
+          }
+        };
+        xhr.onerror = () => reject(new Error(`Network error uploading PDF to Bunny CDN (${host})`));
+        xhr.timeout = 180000;
+        xhr.ontimeout = () => reject(new Error('PDF upload to Bunny CDN timed out after 3 minutes'));
         xhr.send(file);
       });
       return `${BUNNY_CONFIG.cdnPullZoneUrl}/${filename}`;
     } catch (err: any) {
+      lastError = err;
       console.warn(`PDF upload to ${host} failed:`, err.message);
     }
   }
-  throw new Error('Failed to upload PDF to Bunny CDN Storage');
+  throw lastError || new Error('Failed to upload PDF to Bunny CDN Storage');
 }
 
 interface MediaForm {

@@ -6,7 +6,7 @@
 export const BUNNY_CONFIG = {
   storageZone: process.env.NEXT_PUBLIC_BUNNY_STORAGE_ZONE || 'topper-mantra-storage',
   storageKey: process.env.NEXT_PUBLIC_BUNNY_STORAGE_KEY || 'c3d0a28a-7069-4ac2-90ddc5683a27-5ff6-454c',
-  storageHost: process.env.NEXT_PUBLIC_BUNNY_STORAGE_HOST || 'sg.storage.bunnycdn.com',
+  storageHost: process.env.NEXT_PUBLIC_BUNNY_STORAGE_HOST || 'storage.bunnycdn.com',
   cdnPullZoneUrl: (process.env.NEXT_PUBLIC_BUNNY_CDN_URL || 'https://TopperMantra.b-cdn.net').replace(/\/$/, ''),
   streamLibraryId: process.env.NEXT_PUBLIC_BUNNY_STREAM_LIB_ID || '735098',
   streamApiKey: process.env.NEXT_PUBLIC_BUNNY_STREAM_API_KEY || '54cc8cdb-fb65-4fe4-8ed4081b4588-650d-4a81',
@@ -105,8 +105,8 @@ export async function uploadImageToBunnyStorage(
   const timestamp = Date.now();
   const filename = `${folder}/${folder}_${timestamp}_${randomSuffix}.jpg`;
 
-  // We try Singapore regional host first, with fallback to global host
-  const hosts = [BUNNY_CONFIG.storageHost, 'storage.bunnycdn.com'];
+  // Use primary Falkenstein storage endpoint first, with secondary fallback
+  const hosts = ['storage.bunnycdn.com', BUNNY_CONFIG.storageHost, 'uk.storage.bunnycdn.com'];
 
   let lastError: Error | null = null;
 

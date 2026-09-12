@@ -1,4 +1,5 @@
 import { api } from '@/lib/api';
+import { BUNNY_CONFIG } from '@/lib/bunnyStorage';
 
 export interface VideoItem {
   id: string;
@@ -267,8 +268,56 @@ export const videosApi = {
       thumbnailUrl: string;
     };
   }> {
-    const res: any = await api.post('/upload/video', { title });
-    return res;
+    const libraryId = BUNNY_CONFIG.streamLibraryId;
+    const apiKey = BUNNY_CONFIG.streamApiKey;
+    const cdnHost = BUNNY_CONFIG.streamCdnHost;
+
+    try {
+      // 1. Create genuine video entry directly in Bunny Stream API
+      const bunnyRes = await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos`, {
+        method: 'POST',
+        headers: {
+          'AccessKey': apiKey,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({ title: title.trim() || 'Untitled Video' }),
+      });
+
+      if (!bunnyRes.ok) {
+        const errText = await bunnyRes.text().catch(() => '');
+        throw new Error(`Bunny Stream rejected creation (status ${bunnyRes.status}): ${errText || bunnyRes.statusText}`);
+      }
+
+      const bunnyData = await bunnyRes.json();
+      const videoGuid = bunnyData.guid || bunnyData.id;
+
+      if (!videoGuid) {
+        throw new Error('Bunny Stream response did not contain a valid video GUID.');
+      }
+
+      return {
+        success: true,
+        data: {
+          bunnyVideoId: videoGuid,
+          libraryId: libraryId,
+          uploadUrl: `https://video.bunnycdn.com/library/${libraryId}/videos/${videoGuid}`,
+          authorizationHeader: apiKey,
+          cdnUrl: `https://${cdnHost}/${videoGuid}/playlist.m3u8`,
+          embedUrl: `https://iframe.mediadelivery.net/embed/${libraryId}/${videoGuid}?autoplay=false&preload=true`,
+          thumbnailUrl: `https://${cdnHost}/${videoGuid}/thumbnail.jpg`,
+        },
+      };
+    } catch (directErr: any) {
+      // Secondary fallback to backend upload endpoint
+      try {
+        const res: any = await api.post('/upload/video', { title });
+        if (res?.data?.bunnyVideoId && !res.data.bunnyVideoId.startsWith('bunny_vid_')) {
+          return res;
+        }
+      } catch (_) {}
+      throw directErr;
+    }
   },
 
   async uploadVideoFileToBunny(
@@ -296,11 +345,20 @@ export const videosApi = {
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve();
         } else {
-          reject(new Error(`Bunny Stream upload failed with status ${xhr.status}`));
+          let errorDetail = '';
+          try {
+            const parsed = JSON.parse(xhr.responseText);
+            errorDetail = parsed.message || parsed.HttpCode || xhr.responseText;
+          } catch (_) {
+            errorDetail = xhr.responseText || xhr.statusText;
+          }
+          reject(new Error(`Bunny Stream upload failed with status ${xhr.status}: ${errorDetail}`));
         }
       };
 
       xhr.onerror = () => reject(new Error('Network error during direct video upload to Bunny CDN.'));
+      xhr.timeout = 600000;
+      xhr.ontimeout = () => reject(new Error('Video upload timed out. Please check your network connection.'));
       xhr.send(file);
     });
   },
