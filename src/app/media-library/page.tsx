@@ -84,6 +84,27 @@ async function uploadPdfToBunny(file: File, onProgress?: (p: number) => void): P
       console.warn(`PDF upload to ${host} failed:`, err.message);
     }
   }
+
+  // Fallback: If direct browser upload failed, upload via server API route
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', 'pdfs');
+
+    const res = await fetch('/api/bunny/upload-file', {
+      method: 'POST',
+      body: formData,
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && json.data?.url) {
+        return json.data.url;
+      }
+    }
+  } catch (serverErr: any) {
+    console.warn('Server fallback PDF upload failed:', serverErr.message);
+  }
+
   throw lastError || new Error('Failed to upload PDF to Bunny CDN Storage');
 }
 

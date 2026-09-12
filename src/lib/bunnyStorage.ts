@@ -125,6 +125,26 @@ export async function uploadImageToBunnyStorage(
     }
   }
 
+  // Server-side upload fallback if browser direct uploads encountered issues
+  try {
+    const formData = new FormData();
+    formData.append('file', fileOrBlob);
+    formData.append('folder', folder);
+
+    const res = await fetch('/api/bunny/upload-file', {
+      method: 'POST',
+      body: formData,
+    });
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && json.data?.url) {
+        return json.data.url;
+      }
+    }
+  } catch (serverErr: any) {
+    console.warn('Server fallback image upload failed:', serverErr.message);
+  }
+
   throw lastError || new Error('Failed to upload image to Bunny CDN Storage');
 }
 

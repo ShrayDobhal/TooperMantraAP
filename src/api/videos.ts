@@ -268,12 +268,30 @@ export const videosApi = {
       thumbnailUrl: string;
     };
   }> {
+    const cleanTitle = title.trim() || 'Untitled Video';
     const libraryId = BUNNY_CONFIG.streamLibraryId;
     const apiKey = BUNNY_CONFIG.streamApiKey;
     const cdnHost = BUNNY_CONFIG.streamCdnHost;
 
+    // Method 1: Call internal Next.js API route (server-side, zero CORS / network issues)
     try {
-      // 1. Create genuine video entry directly in Bunny Stream API
+      const internalRes = await fetch('/api/bunny/create-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: cleanTitle }),
+      });
+      if (internalRes.ok) {
+        const json = await internalRes.json();
+        if (json.success && json.data?.bunnyVideoId) {
+          return json;
+        }
+      }
+    } catch (_) {
+      // Continue to Method 2 if internal route is unreachable
+    }
+
+    // Method 2: Direct call to Bunny Stream API from browser
+    try {
       const bunnyRes = await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos`, {
         method: 'POST',
         headers: {
@@ -281,7 +299,7 @@ export const videosApi = {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
-        body: JSON.stringify({ title: title.trim() || 'Untitled Video' }),
+        body: JSON.stringify({ title: cleanTitle }),
       });
 
       if (!bunnyRes.ok) {
@@ -308,15 +326,8 @@ export const videosApi = {
           thumbnailUrl: `https://${cdnHost}/${videoGuid}/thumbnail.jpg`,
         },
       };
-    } catch (directErr: any) {
-      // Secondary fallback to backend upload endpoint
-      try {
-        const res: any = await api.post('/upload/video', { title });
-        if (res?.data?.bunnyVideoId && !res.data.bunnyVideoId.startsWith('bunny_vid_')) {
-          return res;
-        }
-      } catch (_) {}
-      throw directErr;
+    } catch (err: any) {
+      throw new Error(`Bunny Stream Initialization Error: ${err.message}`);
     }
   },
 
