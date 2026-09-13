@@ -7,7 +7,7 @@ import { doubtsApi, DoubtTicket } from '@/api';
 import {
   MessageSquare, CheckCircle, CheckCircle2, Clock, Send, Image as ImageIcon,
   X, ExternalLink, Upload, Loader2, AlertCircle, RefreshCw, User, Calendar,
-  BookOpen, FileText,
+  BookOpen, FileText, Pencil,
 } from 'lucide-react';
 import { uploadImageToBunnyStorage, compressImageToBlob } from '@/lib/bunnyStorage';
 
@@ -33,6 +33,8 @@ export default function DoubtsPage() {
   const [solutionText, setSolutionText] = useState('');
   const [solutionImageFiles, setSolutionImageFiles] = useState<File[]>([]);
   const [solutionImagePreviews, setSolutionImagePreviews] = useState<string[]>([]);
+  const [existingSolutionImages, setExistingSolutionImages] = useState<string[]>([]);
+  const [isEditingSolution, setIsEditingSolution] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [uploadStage, setUploadStage] = useState('');
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -101,11 +103,37 @@ export default function DoubtsPage() {
       console.warn('Claim error:', e.message);
     }
     setSelectedDoubt({ ...doubt, status: 'CLAIMED' });
+    setIsEditingSolution(false);
     setSolutionText('');
     setSolutionImageFiles([]);
     setSolutionImagePreviews([]);
+    setExistingSolutionImages([]);
     setStatusMsg(`Claimed ticket "${doubt.subject}". Write your step-by-step solution below.`);
     setActiveTab('my');
+  };
+
+  const handleStartEdit = (doubt: DoubtTicket) => {
+    setSelectedDoubt(doubt);
+    setIsEditingSolution(true);
+    setSolutionText(doubt.solutionText || '');
+    setExistingSolutionImages(doubt.solutionImages || []);
+    setSolutionImageFiles([]);
+    setSolutionImagePreviews([]);
+    setErrorMsg('');
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditingSolution(false);
+    if (selectedDoubt) {
+      setSolutionText(selectedDoubt.solutionText || '');
+      setExistingSolutionImages(selectedDoubt.solutionImages || []);
+    }
+    setSolutionImageFiles([]);
+    setSolutionImagePreviews([]);
+  };
+
+  const handleRemoveExistingImage = (index: number) => {
+    setExistingSolutionImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   // ── Image file picker ─────────────────────────────────────────────────────────
@@ -130,7 +158,7 @@ export default function DoubtsPage() {
     setSolutionImagePreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // ── Submit solution ───────────────────────────────────────────────────────────
+  // ── Submit or Update solution ─────────────────────────────────────────────────
   const handleResolve = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDoubt) return;
@@ -153,24 +181,61 @@ export default function DoubtsPage() {
         uploadedUrls.push(cdnUrl);
       }
 
-      setUploadStage('Posting mentor solution to student app & discussion...');
-      await doubtsApi.resolveDoubt(selectedDoubt.id, {
-        solutionText,
-        solutionImages: uploadedUrls,
-      });
+      const finalSolutionImages = isEditingSolution
+        ? [...existingSolutionImages, ...uploadedUrls]
+        : uploadedUrls;
 
-      // Optimistically move ticket to resolved
-      setMyDoubts((prev) => prev.filter((d) => d.id !== selectedDoubt.id));
-      setResolvedDoubts((prev) => [
-        { ...selectedDoubt, status: 'RESOLVED', solutionText, solutionImages: uploadedUrls, resolvedAt: new Date().toISOString() },
-        ...prev.filter((d) => d.id !== selectedDoubt.id),
-      ]);
+      if (isEditingSolution) {
+        setUploadStage('Updating solution and syncing with student discussion...');
+        const mentorComment = selectedDoubt.comments?.find(
+          (c) => c.author?.role === 'MENTOR' || c.author?.role === 'ADMIN'
+        );
 
-      setStatusMsg(`🎉 Solution posted to student discussion! Marked as resolved.`);
-      setSelectedDoubt(null);
-      setSolutionText('');
-      setSolutionImageFiles([]);
-      setSolutionImagePreviews([]);
+        await doubtsApi.updateSolution(selectedDoubt.id, {
+          solutionText,
+          solutionImages: finalSolutionImages,
+          commentId: mentorComment?.id,
+        });
+
+        const updatedTicket: DoubtTicket = {
+          ...selectedDoubt,
+          status: 'RESOLVED',
+          solutionText,
+          solutionImages: finalSolutionImages,
+          updatedAt: new Date().toISOString(),
+        };
+
+        setSelectedDoubt(updatedTicket);
+        setResolvedDoubts((prev) => prev.map((d) => (d.id === selectedDoubt.id ? updatedTicket : d)));
+        setMyDoubts((prev) => prev.map((d) => (d.id === selectedDoubt.id ? updatedTicket : d)));
+        setHistoryDoubts((prev) => prev.map((d) => (d.id === selectedDoubt.id ? updatedTicket : d)));
+        setIsEditingSolution(false);
+        setExistingSolutionImages(finalSolutionImages);
+        setSolutionImageFiles([]);
+        setSolutionImagePreviews([]);
+        setStatusMsg('🎉 Solution updated successfully! Changes pushed to student discussion.');
+      } else {
+        setUploadStage('Posting mentor solution to student app & discussion...');
+        await doubtsApi.resolveDoubt(selectedDoubt.id, {
+          solutionText,
+          solutionImages: finalSolutionImages,
+        });
+
+        // Optimistically move ticket to resolved
+        setMyDoubts((prev) => prev.filter((d) => d.id !== selectedDoubt.id));
+        setResolvedDoubts((prev) => [
+          { ...selectedDoubt, status: 'RESOLVED', solutionText, solutionImages: finalSolutionImages, resolvedAt: new Date().toISOString() },
+          ...prev.filter((d) => d.id !== selectedDoubt.id),
+        ]);
+
+        setStatusMsg(`🎉 Solution posted to student discussion! Marked as resolved.`);
+        setSelectedDoubt(null);
+        setSolutionText('');
+        setSolutionImageFiles([]);
+        setSolutionImagePreviews([]);
+        setExistingSolutionImages([]);
+        setIsEditingSolution(false);
+      }
 
       // Refresh both tabs in background
       fetchPool();
@@ -325,8 +390,13 @@ export default function DoubtsPage() {
                     onPreviewImage={setPreviewImage}
                     onSelect={() => {
                       setSelectedDoubt(d);
+                      setIsEditingSolution(false);
                       setSolutionText(d.solutionText || '');
+                      setExistingSolutionImages(d.solutionImages || []);
+                      setSolutionImageFiles([]);
+                      setSolutionImagePreviews([]);
                     }}
+                    onEdit={handleStartEdit}
                   />
                 ))
               )}
@@ -336,15 +406,36 @@ export default function DoubtsPage() {
             <div className="mnc-card-flat p-5 h-fit space-y-4">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-emerald-600" />
-                Solution Editor Workspace
+                {isEditingSolution ? 'Edit Solution Workspace' : 'Solution Editor Workspace'}
               </h3>
 
               {selectedDoubt ? (
-                selectedDoubt.status === 'RESOLVED' ? (
+                selectedDoubt.status === 'RESOLVED' && !isEditingSolution ? (
                   /* Show resolved solution read-only */
-                  <ResolvedSolutionView doubt={selectedDoubt} onPreviewImage={setPreviewImage} />
+                  <ResolvedSolutionView
+                    doubt={selectedDoubt}
+                    onPreviewImage={setPreviewImage}
+                    onEdit={() => handleStartEdit(selectedDoubt)}
+                  />
                 ) : (
                   <form onSubmit={handleResolve} className="space-y-4">
+                    {/* Editing mode banner */}
+                    {isEditingSolution && (
+                      <div className="flex items-center justify-between p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-xs font-semibold">
+                        <div className="flex items-center gap-2">
+                          <Pencil className="w-4 h-4 text-amber-600 shrink-0" />
+                          <span>Editing Previously Submitted Answer</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleCancelEdit}
+                          className="text-amber-700 hover:text-amber-900 underline text-xs font-bold cursor-pointer"
+                        >
+                          Cancel Edit
+                        </button>
+                      </div>
+                    )}
+
                     {/* Question Preview */}
                     <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-2">
                       <div className="flex items-center gap-2">
@@ -353,11 +444,13 @@ export default function DoubtsPage() {
                           <span className="text-[10px] text-slate-400">• {selectedDoubt.topic}</span>
                         )}
                         <span className={`ml-auto px-2 py-0.5 text-[10px] font-bold rounded-full uppercase ${
-                          selectedDoubt.status === 'CLAIMED'
+                          isEditingSolution
+                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                            : selectedDoubt.status === 'CLAIMED'
                             ? 'bg-amber-50 text-amber-700 border border-amber-200'
                             : 'bg-blue-50 text-blue-700 border border-blue-200'
                         }`}>
-                          {selectedDoubt.status}
+                          {isEditingSolution ? 'EDITING ANSWER' : selectedDoubt.status}
                         </span>
                       </div>
                       <p className="text-xs text-slate-900 font-medium">{selectedDoubt.questionText}</p>
@@ -380,7 +473,7 @@ export default function DoubtsPage() {
                         Step-by-Step Explanation (Markdown Supported)
                       </label>
                       <textarea
-                        rows={5}
+                        rows={6}
                         value={solutionText}
                         onChange={(e) => setSolutionText(e.target.value)}
                         placeholder="Write formulas, step 1, step 2, and detailed explanation for the student..."
@@ -389,10 +482,35 @@ export default function DoubtsPage() {
                       />
                     </div>
 
+                    {/* Existing Images (When Editing) */}
+                    {isEditingSolution && existingSolutionImages.length > 0 && (
+                      <div className="space-y-1.5">
+                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider flex items-center justify-between">
+                          <span>Attached Diagrams ({existingSolutionImages.length})</span>
+                          <span className="text-[10px] text-slate-400 font-normal">Click ✕ to remove diagram</span>
+                        </label>
+                        <div className="flex items-center gap-2 flex-wrap bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                          {existingSolutionImages.map((img, i) => (
+                            <div key={i} className="relative group w-14 h-14 rounded overflow-hidden border border-slate-200 bg-white">
+                              <img src={img} alt="Existing diagram" className="w-full h-full object-cover" />
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveExistingImage(i)}
+                                className="absolute top-0.5 right-0.5 bg-rose-600 text-white rounded-full p-0.5 hover:bg-rose-700 transition-colors shadow-xs cursor-pointer"
+                                title="Remove diagram"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Image Upload → Bunny CDN */}
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
-                        <span>Upload Handwritten Diagram / Photo</span>
+                        <span>{isEditingSolution ? 'Add More Handwritten Diagrams / Photos' : 'Upload Handwritten Diagram / Photo'}</span>
                         <span className="text-[10px] text-slate-400 font-normal">Uploaded to Bunny CDN</span>
                       </label>
 
@@ -447,15 +565,36 @@ export default function DoubtsPage() {
                       </div>
                     )}
 
-                    {/* Submit */}
-                    <button
-                      type="submit"
-                      disabled={submitting}
-                      className="w-full py-2.5 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white font-semibold rounded-lg shadow-2xs flex items-center justify-center gap-2 text-xs transition-all disabled:opacity-60 cursor-pointer"
-                    >
-                      {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                      {submitting ? 'Uploading & Submitting...' : 'Submit Solution & Push to Student'}
-                    </button>
+                    {/* Submit / Update Buttons */}
+                    {isEditingSolution ? (
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          disabled={submitting}
+                          onClick={handleCancelEdit}
+                          className="w-1/3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs transition-all cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={submitting}
+                          className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-semibold rounded-lg shadow-2xs flex items-center justify-center gap-2 text-xs transition-all disabled:opacity-60 cursor-pointer"
+                        >
+                          {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                          {submitting ? 'Updating Solution...' : 'Save & Update Solution'}
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="submit"
+                        disabled={submitting}
+                        className="w-full py-2.5 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white font-semibold rounded-lg shadow-2xs flex items-center justify-center gap-2 text-xs transition-all disabled:opacity-60 cursor-pointer"
+                      >
+                        {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                        {submitting ? 'Uploading & Submitting...' : 'Submit Solution & Push to Student'}
+                      </button>
+                    )}
                   </form>
                 )
               ) : (
@@ -498,12 +637,14 @@ function DoubtCard({
   isSelected,
   onClaim,
   onSelect,
+  onEdit,
   onPreviewImage,
 }: {
   doubt: DoubtTicket;
   isSelected: boolean;
   onClaim: (d: DoubtTicket) => void;
   onSelect: () => void;
+  onEdit?: (d: DoubtTicket) => void;
   onPreviewImage: (url: string) => void;
 }) {
   const isResolved = doubt.status === 'RESOLVED';
@@ -627,6 +768,18 @@ function DoubtCard({
           </button>
         </div>
       )}
+
+      {isResolved && (
+        <div className="flex justify-end pt-1" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => onEdit?.(doubt)}
+            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white rounded-md text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            Edit Answer
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -635,10 +788,14 @@ function DoubtCard({
 function ResolvedSolutionView({
   doubt,
   onPreviewImage,
+  onEdit,
 }: {
   doubt: DoubtTicket;
   onPreviewImage: (url: string) => void;
+  onEdit?: () => void;
 }) {
+  const isEdited = doubt.updatedAt && doubt.resolvedAt && new Date(doubt.updatedAt).getTime() > new Date(doubt.resolvedAt).getTime() + 1000;
+
   return (
     <div className="space-y-4">
       {/* Question */}
@@ -649,12 +806,25 @@ function ResolvedSolutionView({
 
       {/* Resolution */}
       <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200 space-y-3">
-        <div className="flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-          <span className="text-xs font-bold text-emerald-800">
-            Solved by {doubt.mentor?.name || 'You'}
-            {doubt.resolvedAt && ` on ${new Date(doubt.resolvedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`}
-          </span>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span className="text-xs font-bold text-emerald-800">
+              Solved by {doubt.mentor?.name || 'You'}
+              {doubt.resolvedAt && ` on ${new Date(doubt.resolvedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`}
+              {isEdited && ' (Edited)'}
+            </span>
+          </div>
+          {onEdit && (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="px-3 py-1 bg-white hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+            >
+              <Pencil className="w-3.5 h-3.5 text-emerald-700" />
+              Edit Answer
+            </button>
+          )}
         </div>
         {doubt.solutionText && (
           <div>

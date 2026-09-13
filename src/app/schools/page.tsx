@@ -3,8 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
-import { schoolsApi, School } from '@/api';
-import { Building2, Plus, Key, Info, Loader2, AlertCircle, CheckCircle2, RefreshCw, Video, AlertTriangle, Search, Copy, Calendar, Clock } from 'lucide-react';
+import { schoolsApi, School, SchoolLicense } from '@/api';
+import { Building2, Plus, Key, Info, Loader2, AlertCircle, CheckCircle2, RefreshCw, Video, AlertTriangle, Search, Copy, Calendar, Clock, Trash2 } from 'lucide-react';
 
 export default function SchoolsPage() {
   const [schools, setSchools] = useState<School[]>([]);
@@ -28,10 +28,52 @@ export default function SchoolsPage() {
   const [generatingLicense, setGeneratingLicense] = useState(false);
   const [generatedCode, setGeneratedCode] = useState('');
 
+  // Delete School & License Confirmation States
+  const [schoolToDelete, setSchoolToDelete] = useState<School | null>(null);
+  const [deletingSchool, setDeletingSchool] = useState(false);
+  const [licenseToDelete, setLicenseToDelete] = useState<{ schoolId: string; schoolName: string; license: SchoolLicense } | null>(null);
+  const [deletingLicense, setDeletingLicense] = useState(false);
+
   // Details Modal
   const [detailsSchool, setDetailsSchool] = useState<School | null>(null);
 
   const [isMentor, setIsMentor] = useState(false);
+
+  const handleDeleteSchool = async () => {
+    if (!schoolToDelete) return;
+    setDeletingSchool(true);
+    setErrorMsg('');
+    try {
+      await schoolsApi.deleteSchool(schoolToDelete.id);
+      setToastMsg(`✓ School "${schoolToDelete.name}" deleted successfully.`);
+      setSchoolToDelete(null);
+      await fetchSchools();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to delete school.');
+    } finally {
+      setDeletingSchool(false);
+    }
+  };
+
+  const handleDeleteLicense = async () => {
+    if (!licenseToDelete) return;
+    setDeletingLicense(true);
+    setErrorMsg('');
+    try {
+      await schoolsApi.deleteSchoolLicense(
+        licenseToDelete.schoolId,
+        licenseToDelete.license.licenseCode,
+        licenseToDelete.license.id
+      );
+      setToastMsg(`✓ Access coupon batch "${licenseToDelete.license.licenseCode}" deleted successfully.`);
+      setLicenseToDelete(null);
+      await fetchSchools();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to delete license batch.');
+    } finally {
+      setDeletingLicense(false);
+    }
+  };
 
   const fetchSchools = async () => {
     setLoading(true);
@@ -389,17 +431,28 @@ export default function SchoolsPage() {
                         ) : null}
 
                         {!isMentor && (
-                          <button
-                            onClick={() => {
-                              setSelectedSchool(s);
-                              setCodePrefix(s.code);
-                              setShowLicenseModal(true);
-                            }}
-                            className="px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
-                          >
-                            <Key className="w-3.5 h-3.5" />
-                            Generate Code
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => {
+                                setSelectedSchool(s);
+                                setCodePrefix(s.code);
+                                setShowLicenseModal(true);
+                              }}
+                              className="px-3.5 py-1.5 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+                            >
+                              <Key className="w-3.5 h-3.5" />
+                              Generate Code
+                            </button>
+
+                            <button
+                              onClick={() => setSchoolToDelete(s)}
+                              className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 border border-rose-200 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer"
+                              title="Delete School Profile"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Delete</span>
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -446,8 +499,8 @@ export default function SchoolsPage() {
                               return (
                                 <div key={idx} className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-2 hover:border-slate-300 transition-colors shadow-2xs">
                                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                    {/* Code & Copy Button */}
-                                    <div className="flex items-center gap-2">
+                                    {/* Code, Copy Button & Delete Button */}
+                                    <div className="flex items-center gap-2 flex-wrap">
                                       <span className="font-mono text-slate-900 font-bold tracking-wider text-xs bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
                                         {lic.licenseCode}
                                       </span>
@@ -468,6 +521,16 @@ export default function SchoolsPage() {
                                             <span>Copy</span>
                                           </>
                                         )}
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => setLicenseToDelete({ schoolId: s.id, schoolName: s.name, license: lic })}
+                                        className="px-2 py-1 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded-md text-[11px] font-semibold text-slate-500 hover:text-rose-600 flex items-center gap-1 transition-all cursor-pointer"
+                                        title="Delete license coupon batch"
+                                      >
+                                        <Trash2 className="w-3 h-3 text-rose-500" />
+                                        <span>Delete</span>
                                       </button>
                                     </div>
 
@@ -656,6 +719,114 @@ export default function SchoolsPage() {
                     </button>
                   </div>
                 </form>
+              </div>
+            </div>
+          )}
+
+          {/* DELETE SCHOOL CONFIRMATION MODAL */}
+          {schoolToDelete && (
+            <div className="fixed inset-0 z-[100] bg-slate-950/80 flex items-center justify-center p-4 animate-in fade-in duration-200">
+              <div className="bg-white p-6 rounded-2xl border border-rose-200 w-full max-w-md space-y-4 shadow-2xl">
+                <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+                  <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 shrink-0">
+                    <Trash2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">Delete School Profile</h3>
+                    <p className="text-xs text-slate-500">This action will remove the partner school.</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-xs text-slate-700 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                  <p>
+                    Are you sure you want to delete school <strong>"{schoolToDelete.name}"</strong>?
+                  </p>
+                  <div className="text-[11px] text-slate-500 space-y-0.5 pt-1">
+                    <div>• Code: <strong className="font-mono text-slate-800">{schoolToDelete.code}</strong></div>
+                    <div>• Total License Batches: <strong>{schoolToDelete.licenses?.length || 0}</strong></div>
+                    <div>• Location: {schoolToDelete.city || 'N/A'}{schoolToDelete.state ? `, ${schoolToDelete.state}` : ''}</div>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-rose-600 bg-rose-50 p-2.5 rounded-lg border border-rose-200 font-medium">
+                  Warning: Deleting this school profile will remove all its issued license batches and student associations.
+                </p>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    disabled={deletingSchool}
+                    onClick={() => setSchoolToDelete(null)}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={deletingSchool}
+                    onClick={handleDeleteSchool}
+                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 active:scale-[0.98] text-white rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-60 cursor-pointer"
+                  >
+                    {deletingSchool && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    {deletingSchool ? 'Deleting...' : 'Confirm Delete School'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* DELETE LICENSE BATCH CONFIRMATION MODAL */}
+          {licenseToDelete && (
+            <div className="fixed inset-0 z-[100] bg-slate-950/80 flex items-center justify-center p-4 animate-in fade-in duration-200">
+              <div className="bg-white p-6 rounded-2xl border border-rose-200 w-full max-w-md space-y-4 shadow-2xl">
+                <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+                  <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 shrink-0">
+                    <Trash2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">Delete License Batch</h3>
+                    <p className="text-xs text-slate-500">{licenseToDelete.schoolName}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2 text-xs text-slate-700 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                  <p>
+                    Are you sure you want to revoke and delete this access coupon batch?
+                  </p>
+                  <div className="text-[11px] text-slate-600 space-y-1 pt-1 font-mono">
+                    <div className="p-2 bg-white rounded border border-slate-200 font-bold text-slate-900 text-center">
+                      {licenseToDelete.license.licenseCode}
+                    </div>
+                    <div className="flex items-center justify-between font-sans text-xs pt-1">
+                      <span>Total Seats: <strong>{licenseToDelete.license.totalSeats}</strong></span>
+                      <span>Allocated: <strong>{licenseToDelete.license.allocatedSeats}</strong></span>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-amber-700 bg-amber-50 p-2.5 rounded-lg border border-amber-200 font-medium">
+                  Notice: Revoking this license batch will prevent new redemptions with this code.
+                </p>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    disabled={deletingLicense}
+                    onClick={() => setLicenseToDelete(null)}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={deletingLicense}
+                    onClick={handleDeleteLicense}
+                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 active:scale-[0.98] text-white rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-60 cursor-pointer"
+                  >
+                    {deletingLicense && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    {deletingLicense ? 'Deleting...' : 'Confirm Delete Batch'}
+                  </button>
+                </div>
               </div>
             </div>
           )}

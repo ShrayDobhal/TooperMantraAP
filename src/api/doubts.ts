@@ -51,6 +51,7 @@ export interface DoubtTicket {
 }
 
 const CLAIMED_KEY = 'tm_claimed_doubts_store';
+const EDITED_SOLUTIONS_KEY = 'tm_edited_solutions_store';
 
 function getClaimedMap(): Record<string, { mentor: any; claimedAt: string }> {
   if (typeof window === 'undefined') return {};
@@ -69,6 +70,29 @@ function saveClaimedMap(map: Record<string, { mentor: any; claimedAt: string }>)
   } catch {}
 }
 
+export function getEditedSolutionsMap(): Record<string, { solutionText: string; solutionImages?: string[]; updatedAt: string }> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(EDITED_SOLUTIONS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveEditedSolution(doubtId: string, solutionText: string, solutionImages?: string[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    const map = getEditedSolutionsMap();
+    map[doubtId] = {
+      solutionText,
+      solutionImages,
+      updatedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(EDITED_SOLUTIONS_KEY, JSON.stringify(map));
+  } catch {}
+}
+
 export function discussionToTicket(d: any, claimedMap?: Record<string, any>): DoubtTicket {
   const comments: DoubtComment[] = Array.isArray(d.comments) ? d.comments : [];
 
@@ -78,9 +102,11 @@ export function discussionToTicket(d: any, claimedMap?: Record<string, any>): Do
   );
 
   const claimed = claimedMap ? claimedMap[d.id] : undefined;
+  const editedSolutionsMap = getEditedSolutionsMap();
+  const edited = editedSolutionsMap[d.id];
 
   let status: 'OPEN' | 'CLAIMED' | 'RESOLVED' = 'OPEN';
-  if (mentorComment || d.status === 'RESOLVED') {
+  if (edited || mentorComment || d.status === 'RESOLVED') {
     status = 'RESOLVED';
   } else if (claimed || d.status === 'CLAIMED' || d.status === 'IN_PROGRESS') {
     status = 'CLAIMED';
@@ -112,13 +138,19 @@ export function discussionToTicket(d: any, claimedMap?: Record<string, any>): Do
       }
     : claimed?.mentor || d.mentor || undefined;
 
-  const solutionImages = mentorComment
+  const initialSolutionImages = mentorComment
     ? (mentorComment.images && mentorComment.images.length > 0
         ? mentorComment.images
         : mentorComment.imageUrl
         ? [mentorComment.imageUrl]
         : [])
     : d.solutionImages || [];
+
+  const solutionImages = edited && edited.solutionImages !== undefined
+    ? edited.solutionImages
+    : initialSolutionImages;
+
+  const solutionText = edited ? edited.solutionText : (mentorComment?.content || d.solutionText);
 
   return {
     id: d.id,
@@ -141,11 +173,11 @@ export function discussionToTicket(d: any, claimedMap?: Record<string, any>): Do
     comments,
     mentor,
     claimedAt: claimed?.claimedAt || d.claimedAt,
-    resolvedAt: mentorComment?.createdAt || d.resolvedAt,
-    solutionText: mentorComment?.content || d.solutionText,
+    resolvedAt: edited?.updatedAt || mentorComment?.createdAt || d.resolvedAt,
+    solutionText,
     solutionImages,
     createdAt: d.createdAt,
-    updatedAt: d.updatedAt,
+    updatedAt: edited?.updatedAt || d.updatedAt,
   };
 }
 
@@ -339,6 +371,65 @@ export const doubtsApi = {
         status: 'RESOLVED',
         solutionText: payload.solutionText,
         solutionImages: payload.solutionImages,
+        comment: commentRes?.data || commentRes,
+      },
+    };
+  },
+
+  /**
+   * Update an existing solution for a resolved doubt ticket:
+   * 1. Updates the doubt record via /doubts/:id/resolve
+   * 2. If existing mentor comment is present, attempts to delete previous comment or update it,
+   *    and posts the updated explanation & diagrams to /discussions/:id/comments.
+   * 3. Stores the edited solution in persistent storage (tm_edited_solutions_store)
+   *    so the changes are immediately reflected across the entire app.
+   */
+  async updateSolution(
+    doubtId: string,
+    payload: { solutionText: string; solutionImages?: string[]; commentId?: string }
+  ): Promise<{ success: boolean; data: any }> {
+    // 1. If a previous commentId was provided or can be found, attempt to clean up old comment
+    if (payload.commentId) {
+      try {
+        await api.delete(`/discussions/comments/${payload.commentId}`);
+      } catch (_) {
+        try {
+          await api.delete(`/discussions/${doubtId}/comments/${payload.commentId}`);
+        } catch (_) {}
+      }
+    }
+
+    // 2. Post the updated mentor solution to student discussion
+    let commentRes: any = null;
+    try {
+      commentRes = await api.post(`/discussions/${doubtId}/comments`, {
+        content: payload.solutionText,
+        imageUrl: payload.solutionImages?.[0] || undefined,
+        images: payload.solutionImages || [],
+      });
+    } catch (err: any) {
+      console.warn('Comment post fallback on update:', err.message);
+    }
+
+    // 3. Update the doubt resolution record on backend
+    try {
+      await api.post(`/doubts/${doubtId}/resolve`, {
+        solutionText: payload.solutionText,
+        solutionImages: payload.solutionImages,
+      });
+    } catch (_) {}
+
+    // 4. Save to persistent store
+    saveEditedSolution(doubtId, payload.solutionText, payload.solutionImages);
+
+    return {
+      success: true,
+      data: {
+        id: doubtId,
+        status: 'RESOLVED',
+        solutionText: payload.solutionText,
+        solutionImages: payload.solutionImages,
+        updatedAt: new Date().toISOString(),
         comment: commentRes?.data || commentRes,
       },
     };
