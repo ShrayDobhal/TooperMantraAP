@@ -6,3 +6,5 @@ export * from './mentors';
 export * from './doubts';
 export * from './dashboard';
 export * from './media';
+export * from './events';
+export * from './opportunities';

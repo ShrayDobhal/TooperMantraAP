@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, GraduationCap, School, MessageSquare, LogOut, ShieldCheck, Video, Calendar, TrendingUp, Bell, FileImage, Sparkles, BookOpen } from 'lucide-react';
+import { LayoutDashboard, Users, GraduationCap, School, MessageSquare, LogOut, ShieldCheck, Video, Calendar, TrendingUp, Bell, FileImage, Sparkles, BookOpen, Radio, Trophy } from 'lucide-react';
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -52,6 +52,8 @@ export function Sidebar() {
       title: 'PLATFORM MANAGEMENT',
       items: [
         { name: 'Community Sessions & Clips', href: '/live-content', icon: Video },
+        { name: 'Live Masterclasses', href: '/masterclasses', icon: Radio },
+        { name: 'Opportunities Hub', href: '/opportunities', icon: Trophy },
         { name: 'Inspire Hub (Podcasts & Videos)', href: '/live-content?view=inspire', icon: Sparkles },
         { name: 'Explore Resources & Notes', href: '/media-library', icon: BookOpen },
         { name: 'Mentors Directory', href: '/mentors', icon: GraduationCap },
