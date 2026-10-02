@@ -7,7 +7,4 @@ export * from './doubts';
 export * from './dashboard';
 export * from './media';
 export * from './events';
-export * from './liveSessions';
-export * from './discussions';
 export * from './opportunities';
-export * from './systemHealth';
