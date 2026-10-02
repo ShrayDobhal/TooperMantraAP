@@ -3,28 +3,25 @@
 import React, { useEffect, useState } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
-import { opportunitiesApi, Opportunity } from '@/api';
+import { opportunitiesApi, Opportunity, schoolsApi, School } from '@/api';
+import { exportToCSV } from '@/lib/exportUtils';
 import {
   Trophy,
   Award,
-  Briefcase,
   Search,
   Plus,
   ExternalLink,
   Trash2,
   Edit3,
   RefreshCw,
-  AlertCircle,
   CheckCircle2,
-  Loader2,
-  Sparkles,
   Calendar,
-  Building,
+  Sparkles,
+  Download,
+  School as SchoolIcon,
+  Globe,
+  Clock,
   CheckCircle,
-  Image as ImageIcon,
-  DollarSign,
-  GraduationCap,
-  Users,
 } from 'lucide-react';
 
 const OPPORTUNITY_TYPES: Array<'HACKATHON' | 'SCHOLARSHIP' | 'GRANT' | 'COMPETITION' | 'WORKSHOP'> = [
@@ -37,8 +34,8 @@ const OPPORTUNITY_TYPES: Array<'HACKATHON' | 'SCHOLARSHIP' | 'GRANT' | 'COMPETIT
 
 export default function OpportunitiesPage() {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState('');
   const [toastMsg, setToastMsg] = useState('');
 
   // Search & Filters
@@ -46,7 +43,7 @@ export default function OpportunitiesPage() {
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
 
-  // Create Modal & Form state
+  // Create & Edit Modal
   const [showAddModal, setShowAddModal] = useState(false);
   const [title, setTitle] = useState('');
   const [organizationName, setOrganizationName] = useState('');
@@ -60,27 +57,30 @@ export default function OpportunitiesPage() {
   const [deadline, setDeadline] = useState('');
   const [isFeatured, setIsFeatured] = useState(false);
   const [status, setStatus] = useState<'ACTIVE' | 'EXPIRED' | 'UPCOMING'>('ACTIVE');
+  const [scope, setScope] = useState<'GLOBAL' | 'SCHOOL_RESTRICTED'>('GLOBAL');
+  const [selectedSchoolId, setSelectedSchoolId] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Edit State
+  // Edit & Delete State
   const [editingOpportunity, setEditingOpportunity] = useState<Opportunity | null>(null);
-
-  // Delete State
   const [itemToDelete, setItemToDelete] = useState<Opportunity | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const fetchOpportunities = async () => {
     setLoading(true);
-    setErrorMsg('');
     try {
-      const res = await opportunitiesApi.getOpportunities();
-      if (res && res.success) {
-        setOpportunities(res.data.items || []);
-      } else {
-        setErrorMsg('Failed to load opportunities from backend.');
+      const [oppRes, schRes] = await Promise.all([
+        opportunitiesApi.getOpportunities(),
+        schoolsApi.getSchools().catch(() => ({ success: false, data: [] })),
+      ]);
+      if (oppRes.success) {
+        setOpportunities(oppRes.data.items || []);
       }
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Unable to connect to opportunities service.');
+      if (schRes.success) {
+        setSchools(schRes.data || []);
+      }
+    } catch {
+      // handled
     } finally {
       setLoading(false);
     }
@@ -103,6 +103,8 @@ export default function OpportunitiesPage() {
     setDeadline('');
     setIsFeatured(false);
     setStatus('ACTIVE');
+    setScope('GLOBAL');
+    setSelectedSchoolId('');
     setEditingOpportunity(null);
   };
 
@@ -125,12 +127,14 @@ export default function OpportunitiesPage() {
     setDeadline(opp.deadline ? opp.deadline.slice(0, 16) : '');
     setIsFeatured(opp.isFeatured || false);
     setStatus(opp.status);
+    setScope(opp.targetSchoolScope || 'GLOBAL');
+    setSelectedSchoolId(opp.assignedSchoolIds?.[0] || '');
     setShowAddModal(true);
   };
 
   const showNotification = (msg: string) => {
     setToastMsg(msg);
-    setTimeout(() => setToastMsg(''), 4500);
+    setTimeout(() => setToastMsg(''), 4000);
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -142,7 +146,7 @@ export default function OpportunitiesPage() {
 
     setSubmitting(true);
     try {
-      const payload = {
+      const payload: any = {
         title: title.trim(),
         organizationName: organizationName.trim(),
         type,
@@ -155,29 +159,20 @@ export default function OpportunitiesPage() {
         deadline: new Date(deadline).toISOString(),
         isFeatured,
         status,
+        targetSchoolScope: scope,
+        assignedSchoolIds: scope === 'SCHOOL_RESTRICTED' && selectedSchoolId ? [selectedSchoolId] : [],
       };
 
       if (editingOpportunity) {
-        const res = await opportunitiesApi.updateOpportunity(editingOpportunity.id, payload);
-        if (res && res.success) {
-          showNotification('Opportunity updated successfully! Changes reflect on mobile apps immediately.');
-          setShowAddModal(false);
-          resetForm();
-          fetchOpportunities();
-        } else {
-          alert('Failed to update opportunity. Check backend logs.');
-        }
+        await opportunitiesApi.updateOpportunity(editingOpportunity.id, payload);
+        showNotification('Opportunity updated successfully! Changes reflect on mobile apps immediately.');
       } else {
-        const res = await opportunitiesApi.createOpportunity(payload);
-        if (res && res.success) {
-          showNotification('New Opportunity posted successfully! It is now live on the student mobile app.');
-          setShowAddModal(false);
-          resetForm();
-          fetchOpportunities();
-        } else {
-          alert('Failed to create opportunity. Ensure you have admin privileges.');
-        }
+        await opportunitiesApi.createOpportunity(payload);
+        showNotification('New Opportunity posted successfully! It is now live on the student mobile app.');
       }
+      setShowAddModal(false);
+      resetForm();
+      fetchOpportunities();
     } catch (err: any) {
       alert(err.message || 'Error occurred while saving opportunity.');
     } finally {
@@ -189,14 +184,10 @@ export default function OpportunitiesPage() {
     if (!itemToDelete) return;
     setDeleting(true);
     try {
-      const res = await opportunitiesApi.deleteOpportunity(itemToDelete.id);
-      if (res && res.success) {
-        showNotification(`Opportunity "${itemToDelete.title}" removed successfully.`);
-        setItemToDelete(null);
-        fetchOpportunities();
-      } else {
-        alert('Failed to delete opportunity.');
-      }
+      await opportunitiesApi.deleteOpportunity(itemToDelete.id);
+      showNotification(`Opportunity "${itemToDelete.title}" removed successfully.`);
+      setItemToDelete(null);
+      fetchOpportunities();
     } catch (err: any) {
       alert(err.message || 'Error deleting opportunity.');
     } finally {
@@ -204,13 +195,30 @@ export default function OpportunitiesPage() {
     }
   };
 
+  const handleExportCSV = () => {
+    exportToCSV(
+      opportunities.map((o) => ({
+        Title: o.title,
+        Organization: o.organizationName,
+        Type: o.type,
+        Category: o.category,
+        PrizePool: o.prizePool || 'N/A',
+        Eligibility: o.eligibility || 'All Students',
+        Deadline: o.deadline,
+        Status: o.status,
+        Scope: o.targetSchoolScope || 'GLOBAL',
+        ApplyURL: o.applyUrl,
+      })),
+      'topper_mantra_opportunities'
+    );
+  };
+
   // Filtered List
   const filteredOpportunities = opportunities.filter((opp) => {
     const matchesSearch =
       opp.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       opp.organizationName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (opp.category && opp.category.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (opp.description && opp.description.toLowerCase().includes(searchQuery.toLowerCase()));
+      (opp.category && opp.category.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const matchesType = typeFilter === 'ALL' || opp.type === typeFilter;
     const matchesStatus = statusFilter === 'ALL' || opp.status === statusFilter;
@@ -221,26 +229,22 @@ export default function OpportunitiesPage() {
   const getTypeBadgeColor = (t: string) => {
     switch (t) {
       case 'HACKATHON':
-        return 'bg-purple-50 text-purple-700 border-purple-200';
+        return 'bg-purple-500/10 text-purple-400 border-purple-500/30';
       case 'SCHOLARSHIP':
-        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
       case 'GRANT':
-        return 'bg-blue-50 text-blue-700 border-blue-200';
+        return 'bg-blue-500/10 text-blue-400 border-blue-500/30';
       case 'COMPETITION':
-        return 'bg-amber-50 text-amber-700 border-amber-200';
+        return 'bg-amber-500/10 text-amber-400 border-amber-500/30';
       case 'WORKSHOP':
-        return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+        return 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30';
       default:
-        return 'bg-slate-100 text-slate-700 border-slate-200';
+        return 'bg-zinc-800 text-zinc-300 border-zinc-700';
     }
   };
 
-  const activeCount = opportunities.filter((o) => o.status === 'ACTIVE').length;
-  const hackathonsCount = opportunities.filter((o) => o.type === 'HACKATHON').length;
-  const scholarshipsCount = opportunities.filter((o) => o.type === 'SCHOLARSHIP').length;
-
   return (
-    <div className="flex bg-slate-50 min-h-screen">
+    <div className="flex bg-zinc-950 min-h-screen text-slate-100">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
@@ -248,35 +252,42 @@ export default function OpportunitiesPage() {
         <main className="p-8 space-y-6">
           {/* Toast Notification */}
           {toastMsg && (
-            <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-slate-900 text-white px-5 py-3.5 rounded-2xl shadow-2xl border border-slate-700 animate-slide-up">
+            <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-zinc-900 text-white px-5 py-3.5 rounded-2xl shadow-2xl border border-zinc-700 animate-slide-up">
               <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
               <p className="text-sm font-medium">{toastMsg}</p>
             </div>
           )}
 
-          {/* Top Banner / Title */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs">
+          {/* Top Banner / Header */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-zinc-900/60 p-6 rounded-2xl border border-zinc-800/80 shadow-xs backdrop-blur-md">
             <div>
               <div className="flex items-center gap-2">
-                <span className="p-2 rounded-xl bg-orange-50 text-orange-600 border border-orange-100">
+                <span className="p-2 rounded-xl bg-orange-500/10 text-orange-400 border border-orange-500/20">
                   <Trophy className="w-5 h-5" />
                 </span>
-                <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Opportunities Hub</h1>
-                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <h1 className="text-2xl font-bold tracking-tight text-white">Opportunities Hub</h1>
+                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
                   Mobile Synced
                 </span>
               </div>
-              <p className="text-sm text-slate-500 mt-1">
+              <p className="text-sm text-zinc-400 mt-1">
                 Curate national hackathons, grants, scholarships, and prestigious competitions for Topper Mantra students.
               </p>
             </div>
 
             <div className="flex items-center gap-3">
               <button
+                onClick={handleExportCSV}
+                className="inline-flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold text-zinc-300 bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-700/80 rounded-xl transition cursor-pointer"
+              >
+                <Download className="w-4 h-4" />
+                Export CSV
+              </button>
+
+              <button
                 onClick={fetchOpportunities}
                 disabled={loading}
-                className="inline-flex items-center gap-2 px-3.5 py-2.5 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition cursor-pointer"
-                title="Refresh from server"
+                className="inline-flex items-center gap-2 px-3.5 py-2.5 text-xs font-semibold text-zinc-300 bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-700/80 rounded-xl transition cursor-pointer"
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
@@ -284,7 +295,7 @@ export default function OpportunitiesPage() {
 
               <button
                 onClick={handleOpenAdd}
-                className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-orange-600 hover:bg-orange-700 rounded-xl transition shadow-xs shadow-orange-600/20 cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-white bg-orange-500 hover:bg-orange-600 rounded-xl transition shadow-xs shadow-orange-500/20 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 Post Opportunity
@@ -292,289 +303,223 @@ export default function OpportunitiesPage() {
             </div>
           </div>
 
-          {/* Stats Bar */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Listings</p>
-                <Award className="w-4 h-4 text-orange-500" />
+          {/* Quick Metrics */}
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800/80 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-zinc-400 font-medium">Total Listed</p>
+                <p className="text-2xl font-bold text-white mt-1">{opportunities.length}</p>
               </div>
-              <p className="text-2xl font-bold text-slate-900 mt-2">{opportunities.length}</p>
-              <p className="text-xs text-slate-500 mt-1">Syncing to student mobile explore feed</p>
+              <Trophy className="w-6 h-6 text-orange-400/80" />
             </div>
-
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Active Competitions</p>
-                <CheckCircle className="w-4 h-4 text-emerald-500" />
+            <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800/80 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-zinc-400 font-medium">Active Deadlines</p>
+                <p className="text-2xl font-bold text-emerald-400 mt-1">
+                  {opportunities.filter((o) => o.status === 'ACTIVE').length}
+                </p>
               </div>
-              <p className="text-2xl font-bold text-emerald-600 mt-2">{activeCount}</p>
-              <p className="text-xs text-slate-500 mt-1">Accepting applications right now</p>
+              <Clock className="w-6 h-6 text-emerald-400/80" />
             </div>
-
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Hackathons</p>
-                <Trophy className="w-4 h-4 text-purple-500" />
+            <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800/80 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-zinc-400 font-medium">Hackathons & Grants</p>
+                <p className="text-2xl font-bold text-purple-400 mt-1">
+                  {opportunities.filter((o) => o.type === 'HACKATHON' || o.type === 'GRANT').length}
+                </p>
               </div>
-              <p className="text-2xl font-bold text-purple-600 mt-2">{hackathonsCount}</p>
-              <p className="text-xs text-slate-500 mt-1">Coding & Innovation contests</p>
+              <Award className="w-6 h-6 text-purple-400/80" />
             </div>
-
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Scholarships & Grants</p>
-                <GraduationCap className="w-4 h-4 text-blue-500" />
+            <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800/80 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-zinc-400 font-medium">Institutional Scope</p>
+                <p className="text-2xl font-bold text-blue-400 mt-1">
+                  {opportunities.filter((o) => o.targetSchoolScope === 'SCHOOL_RESTRICTED').length} Partner
+                </p>
               </div>
-              <p className="text-2xl font-bold text-blue-600 mt-2">{scholarshipsCount}</p>
-              <p className="text-xs text-slate-500 mt-1">Financial aid & research grants</p>
+              <SchoolIcon className="w-6 h-6 text-blue-400/80" />
             </div>
           </div>
 
           {/* Filter Bar */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
-            <div className="flex flex-col md:flex-row gap-3 items-center justify-between">
-              {/* Search */}
-              <div className="relative w-full md:w-96">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <div className="flex flex-wrap items-center justify-between gap-4 bg-zinc-900/60 p-4 rounded-xl border border-zinc-800/80">
+            <div className="flex items-center gap-3 flex-1 min-w-[260px]">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="Search by title, organizer, category..."
+                  placeholder="Search opportunities, organizers, or eligibility..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-orange-500 focus:bg-white transition"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500/50"
                 />
-              </div>
-
-              {/* Status Tabs */}
-              <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl text-xs font-semibold self-stretch md:self-auto overflow-x-auto">
-                {['ALL', 'ACTIVE', 'UPCOMING', 'EXPIRED'].map((st) => (
-                  <button
-                    key={st}
-                    onClick={() => setStatusFilter(st)}
-                    className={`px-3 py-1.5 rounded-lg transition capitalize cursor-pointer whitespace-nowrap ${
-                      statusFilter === st ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    {st.toLowerCase()}
-                  </button>
-                ))}
               </div>
             </div>
 
-            {/* Type Filter Pills */}
-            <div className="flex items-center gap-2 overflow-x-auto pt-1 border-t border-slate-100">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1">Type:</span>
-              <button
-                onClick={() => setTypeFilter('ALL')}
-                className={`px-3 py-1 text-xs font-semibold rounded-full border transition cursor-pointer shrink-0 ${
-                  typeFilter === 'ALL'
-                    ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
-                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                }`}
+            <div className="flex items-center gap-3">
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-orange-500/50"
               >
-                All Types
-              </button>
-              {OPPORTUNITY_TYPES.map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTypeFilter(t)}
-                  className={`px-3 py-1 text-xs font-semibold rounded-full border transition cursor-pointer shrink-0 ${
-                    typeFilter === t
-                      ? 'bg-orange-600 text-white border-orange-600 shadow-2xs'
-                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
+                <option value="ALL">All Categories</option>
+                {OPPORTUNITY_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-zinc-300 focus:outline-none focus:border-orange-500/50"
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="ACTIVE">Active</option>
+                <option value="UPCOMING">Upcoming</option>
+                <option value="EXPIRED">Expired</option>
+              </select>
             </div>
           </div>
 
-          {/* Error Message */}
-          {errorMsg && (
-            <div className="flex items-center gap-3 p-4 bg-rose-50 border border-rose-200 rounded-2xl text-rose-800 text-sm">
-              <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
-              <p>{errorMsg}</p>
-            </div>
-          )}
-
           {/* Cards Grid */}
           {loading ? (
-            <div className="flex flex-col items-center justify-center p-16 bg-white rounded-2xl border border-slate-200">
-              <Loader2 className="w-8 h-8 text-orange-600 animate-spin mb-3" />
-              <p className="text-sm font-semibold text-slate-600">Loading opportunities...</p>
-            </div>
+            <div className="p-12 text-center text-zinc-500 text-sm">Loading opportunities directory...</div>
           ) : filteredOpportunities.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-16 bg-white rounded-2xl border border-slate-200 text-center">
-              <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-3">
-                <Trophy className="w-6 h-6" />
-              </div>
-              <h3 className="text-base font-bold text-slate-800">No opportunities found</h3>
-              <p className="text-sm text-slate-500 max-w-sm mt-1 mb-4">
-                {searchQuery || typeFilter !== 'ALL' || statusFilter !== 'ALL'
-                  ? 'No results match your current filters. Try changing or clearing them.'
-                  : 'Start by posting your first national contest, hackathon, or scholarship.'}
-              </p>
-              <button
-                onClick={handleOpenAdd}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-orange-600 hover:bg-orange-700 rounded-xl transition cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                Post Opportunity
-              </button>
+            <div className="p-12 text-center bg-zinc-900/40 rounded-2xl border border-zinc-800/80 space-y-2">
+              <Trophy className="w-8 h-8 text-zinc-600 mx-auto" />
+              <p className="text-sm font-semibold text-zinc-300">No opportunities match criteria</p>
+              <p className="text-xs text-zinc-500">Post a new competition or reset the active filter queries.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredOpportunities.map((opp) => {
-                const deadlineFormatted = opp.deadline
-                  ? new Date(opp.deadline).toLocaleDateString('en-IN', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                    })
-                  : 'Open';
-
-                return (
-                  <div
-                    key={opp.id}
-                    className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xs hover:shadow-md transition-all flex flex-col group"
-                  >
-                    {/* Banner Image */}
-                    <div className="relative h-44 bg-slate-100 overflow-hidden">
+              {filteredOpportunities.map((opp) => (
+                <div
+                  key={opp.id}
+                  className="bg-zinc-900/60 rounded-2xl border border-zinc-800/80 overflow-hidden flex flex-col justify-between hover:border-zinc-700/80 transition shadow-xs group"
+                >
+                  <div>
+                    {/* Banner Image or Gradient Header */}
+                    <div className="h-36 bg-zinc-950 relative overflow-hidden border-b border-zinc-800/80">
                       {opp.bannerUrl ? (
                         <img
                           src={opp.bannerUrl}
                           alt={opp.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
                         />
                       ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 text-slate-500">
-                          <Trophy className="w-10 h-10 text-orange-400/50 mb-1" />
-                          <span className="text-xs font-semibold text-slate-400">Topper Mantra Hub</span>
+                        <div className="w-full h-full bg-linear-to-br from-zinc-900 via-zinc-950 to-orange-950/20 flex items-center justify-center">
+                          <Trophy className="w-12 h-12 text-zinc-800" />
                         </div>
                       )}
+                      <div className="absolute inset-0 bg-linear-to-t from-zinc-950 via-zinc-950/40 to-transparent" />
 
-                      {/* Top Badges */}
-                      <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
-                        <span
-                          className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border shadow-2xs bg-white/95 backdrop-blur-xs ${getTypeBadgeColor(
-                            opp.type
-                          )}`}
-                        >
+                      <div className="absolute top-3 left-3 flex items-center gap-1.5 flex-wrap">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getTypeBadgeColor(opp.type)}`}>
                           {opp.type}
                         </span>
                         {opp.isFeatured && (
-                          <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500 text-white shadow-2xs flex items-center gap-1">
-                            <Sparkles className="w-3 h-3" /> Featured
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/40 flex items-center gap-1">
+                            <Sparkles className="w-2.5 h-2.5" /> Featured
                           </span>
                         )}
                       </div>
 
                       <div className="absolute top-3 right-3">
                         <span
-                          className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border shadow-2xs backdrop-blur-xs ${
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                             opp.status === 'ACTIVE'
-                              ? 'bg-emerald-500 text-white border-emerald-400'
+                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
                               : opp.status === 'UPCOMING'
-                              ? 'bg-blue-500 text-white border-blue-400'
-                              : 'bg-slate-600 text-white border-slate-500'
+                              ? 'bg-blue-500/20 text-blue-400 border-blue-500/40'
+                              : 'bg-zinc-800 text-zinc-400 border-zinc-700'
                           }`}
                         >
                           {opp.status}
                         </span>
                       </div>
+
+                      <div className="absolute bottom-2.5 left-3 right-3">
+                        <p className="text-xs text-orange-400 font-semibold truncate">{opp.organizationName}</p>
+                      </div>
                     </div>
 
-                    {/* Content */}
-                    <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                      <div>
-                        {/* Organization & Category */}
-                        <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                          <Building className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span className="truncate">{opp.organizationName}</span>
-                          {opp.category && (
-                            <>
-                              <span className="text-slate-300">•</span>
-                              <span className="text-orange-600 font-semibold lowercase first-letter:uppercase truncate">
-                                {opp.category}
-                              </span>
-                            </>
-                          )}
-                        </div>
+                    {/* Body */}
+                    <div className="p-5 space-y-3">
+                      <h3 className="font-bold text-sm text-white line-clamp-2 leading-snug group-hover:text-orange-400 transition-colors">
+                        {opp.title}
+                      </h3>
+                      <p className="text-xs text-zinc-400 line-clamp-3 leading-relaxed">
+                        {opp.description}
+                      </p>
 
-                        {/* Title */}
-                        <h3 className="text-base font-bold text-slate-900 leading-snug line-clamp-2">
-                          {opp.title}
-                        </h3>
-
-                        {/* Description */}
-                        <p className="text-xs text-slate-500 mt-2 line-clamp-3 leading-relaxed">
-                          {opp.description}
-                        </p>
-                      </div>
-
-                      {/* Details Box: Prize & Eligibility & Deadline */}
-                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-2 text-xs">
+                      <div className="pt-2 border-t border-zinc-800/80 space-y-1.5 text-[11px] text-zinc-400">
                         {opp.prizePool && (
-                          <div className="flex items-center justify-between text-slate-700">
-                            <span className="text-slate-500 font-medium flex items-center gap-1">
-                              <DollarSign className="w-3.5 h-3.5 text-emerald-600" /> Reward / Prize:
-                            </span>
-                            <span className="font-bold text-emerald-700 truncate max-w-[170px]">{opp.prizePool}</span>
+                          <div className="flex items-center justify-between">
+                            <span className="text-zinc-500">Prize Pool:</span>
+                            <span className="font-bold text-emerald-400">{opp.prizePool}</span>
                           </div>
                         )}
-
-                        {opp.eligibility && (
-                          <div className="flex items-center justify-between text-slate-700">
-                            <span className="text-slate-500 font-medium flex items-center gap-1">
-                              <Users className="w-3.5 h-3.5 text-blue-500" /> Eligibility:
-                            </span>
-                            <span className="font-semibold text-slate-800 truncate max-w-[170px]">{opp.eligibility}</span>
-                          </div>
-                        )}
-
-                        <div className="flex items-center justify-between text-slate-700 pt-1 border-t border-slate-200/60">
-                          <span className="text-slate-500 font-medium flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5 text-orange-500" /> Deadline:
+                        <div className="flex items-center justify-between">
+                          <span className="text-zinc-500">Deadline:</span>
+                          <span className="font-medium text-zinc-300 flex items-center gap-1">
+                            <Calendar className="w-3 h-3 text-zinc-500" />
+                            {new Date(opp.deadline).toLocaleDateString('en-IN', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                            })}
                           </span>
-                          <span className="font-bold text-slate-900">{deadlineFormatted}</span>
                         </div>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
-                        <a
-                          href={opp.applyUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-xs font-bold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 px-3 py-2 rounded-xl transition cursor-pointer"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                          Apply Link
-                        </a>
-
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleOpenEdit(opp)}
-                            className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition cursor-pointer"
-                            title="Edit opportunity"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => setItemToDelete(opp)}
-                            className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition cursor-pointer"
-                            title="Delete opportunity"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                        <div className="flex items-center justify-between">
+                          <span className="text-zinc-500">Audience:</span>
+                          <span className="font-medium text-zinc-300 flex items-center gap-1">
+                            {opp.targetSchoolScope === 'SCHOOL_RESTRICTED' ? (
+                              <span className="text-blue-400 flex items-center gap-1">
+                                <SchoolIcon className="w-3 h-3" /> Partner Exclusive
+                              </span>
+                            ) : (
+                              <span className="text-zinc-400 flex items-center gap-1">
+                                <Globe className="w-3 h-3" /> All Students
+                              </span>
+                            )}
+                          </span>
                         </div>
                       </div>
                     </div>
                   </div>
-                );
-              })}
+
+                  {/* Actions Footer */}
+                  <div className="p-4 bg-zinc-950/60 border-t border-zinc-800/80 flex items-center justify-between gap-2">
+                    <a
+                      href={opp.applyUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs text-orange-400 hover:text-orange-300 font-semibold transition"
+                    >
+                      Apply Portal <ExternalLink className="w-3 h-3" />
+                    </a>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleOpenEdit(opp)}
+                        className="p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition cursor-pointer"
+                        title="Edit Opportunity"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setItemToDelete(opp)}
+                        className="p-1.5 text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
+                        title="Delete Opportunity"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </main>
@@ -582,71 +527,52 @@ export default function OpportunitiesPage() {
 
       {/* Add / Edit Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <span className="p-2 rounded-xl bg-orange-50 text-orange-600">
-                  <Trophy className="w-5 h-5" />
-                </span>
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900">
-                    {editingOpportunity ? 'Edit Opportunity' : 'Post New Opportunity'}
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Syncs to Topper Mantra student mobile app explore feed immediately.
-                  </p>
-                </div>
-              </div>
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-xl p-6 space-y-4 shadow-2xl my-8">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <Trophy className="w-4 h-4 text-orange-400" />
+                {editingOpportunity ? 'Edit Opportunity' : 'Post New Opportunity'}
+              </h2>
               <button
-                onClick={() => {
-                  setShowAddModal(false);
-                  resetForm();
-                }}
-                className="text-slate-400 hover:text-slate-600 p-2 text-xl font-bold cursor-pointer leading-none"
+                onClick={() => setShowAddModal(false)}
+                className="text-zinc-500 hover:text-zinc-300 text-sm font-semibold cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-4 pt-4">
+            <form onSubmit={handleSave} className="space-y-4 text-xs">
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Opportunity Title *
-                </label>
+                <label className="block text-zinc-400 font-medium mb-1">Opportunity Title *</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Smart India Hackathon 2026"
+                  placeholder="e.g. Smart India Hackathon 2026 Junior Edition"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-orange-500 focus:outline-hidden"
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-white placeholder-zinc-600 focus:outline-none focus:border-orange-500/60"
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Organizer / Institution *
-                  </label>
+                  <label className="block text-zinc-400 font-medium mb-1">Organizing Body *</label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Ministry of Education & AICTE"
+                    placeholder="e.g. Ministry of Education"
                     value={organizationName}
                     onChange={(e) => setOrganizationName(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-orange-500 focus:outline-hidden"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-white placeholder-zinc-600 focus:outline-none focus:border-orange-500/60"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Type *
-                  </label>
+                  <label className="block text-zinc-400 font-medium mb-1">Type *</label>
                   <select
                     value={type}
                     onChange={(e) => setType(e.target.value as any)}
-                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-orange-500 focus:outline-hidden"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-orange-500/60"
                   >
                     {OPPORTUNITY_TYPES.map((t) => (
                       <option key={t} value={t}>
@@ -657,158 +583,146 @@ export default function OpportunitiesPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Category Tag
-                  </label>
+                  <label className="block text-zinc-400 font-medium mb-1">Category / Domain</label>
                   <input
                     type="text"
-                    placeholder="e.g. Software & AI, Science, Robotics"
+                    placeholder="e.g. STEM, Aerospace, Coding"
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-orange-500 focus:outline-hidden"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-white placeholder-zinc-600 focus:outline-none focus:border-orange-500/60"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Application Deadline *
-                  </label>
+                  <label className="block text-zinc-400 font-medium mb-1">Prize Pool / Grant</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. ₹ 1,00,000 + Trophy"
+                    value={prizePool}
+                    onChange={(e) => setPrizePool(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-white placeholder-zinc-600 focus:outline-none focus:border-orange-500/60"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-zinc-400 font-medium mb-1">Description *</label>
+                <textarea
+                  required
+                  rows={3}
+                  placeholder="Outline eligibility, problem statement, evaluation criteria..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-white placeholder-zinc-600 focus:outline-none focus:border-orange-500/60"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-zinc-400 font-medium mb-1">Application URL *</label>
+                  <input
+                    type="url"
+                    required
+                    placeholder="https://..."
+                    value={applyUrl}
+                    onChange={(e) => setApplyUrl(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-white placeholder-zinc-600 focus:outline-none focus:border-orange-500/60"
+                  />
+                </div>
+                <div>
+                  <label className="block text-zinc-400 font-medium mb-1">Deadline *</label>
                   <input
                     type="datetime-local"
                     required
                     value={deadline}
                     onChange={(e) => setDeadline(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-orange-500 focus:outline-hidden"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Prize / Grants / Perks
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. ₹1,00,000 Cash Prize + Direct Mentorship"
-                    value={prizePool}
-                    onChange={(e) => setPrizePool(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-orange-500 focus:outline-hidden"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Eligibility
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Class 9-12 & College Undergrads"
-                    value={eligibility}
-                    onChange={(e) => setEligibility(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-orange-500 focus:outline-hidden"
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-orange-500/60"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Official Apply URL *
-                </label>
+                <label className="block text-zinc-400 font-medium mb-1">Banner Image URL</label>
                 <input
                   type="url"
-                  required
-                  placeholder="https://sih.gov.in"
-                  value={applyUrl}
-                  onChange={(e) => setApplyUrl(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-orange-500 focus:outline-hidden"
+                  placeholder="https://images.unsplash.com/..."
+                  value={bannerUrl}
+                  onChange={(e) => setBannerUrl(e.target.value)}
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-white placeholder-zinc-600 focus:outline-none focus:border-orange-500/60"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Banner Image URL (Unsplash or CDN)
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="url"
-                    placeholder="https://images.unsplash.com/photo-..."
-                    value={bannerUrl}
-                    onChange={(e) => setBannerUrl(e.target.value)}
-                    className="flex-1 px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-orange-500 focus:outline-hidden"
-                  />
-                  {bannerUrl && (
-                    <div className="w-11 h-11 rounded-xl overflow-hidden border border-slate-200 shrink-0">
-                      <img src={bannerUrl} alt="Preview" className="w-full h-full object-cover" />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Full Description & Details *
-                </label>
-                <textarea
-                  rows={3}
-                  required
-                  placeholder="Explain eligibility, evaluation criteria, rounds, and what makes this opportunity special for students..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-orange-500 focus:outline-hidden"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Listing Status
-                  </label>
+                  <label className="block text-zinc-400 font-medium mb-1">Audience Scope</label>
+                  <select
+                    value={scope}
+                    onChange={(e) => setScope(e.target.value as any)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-orange-500/60"
+                  >
+                    <option value="GLOBAL">All Topper Mantra Students</option>
+                    <option value="SCHOOL_RESTRICTED">Restricted to Specific Partner School</option>
+                  </select>
+                </div>
+                {scope === 'SCHOOL_RESTRICTED' && (
+                  <div>
+                    <label className="block text-zinc-400 font-medium mb-1">Target School</label>
+                    <select
+                      value={selectedSchoolId}
+                      onChange={(e) => setSelectedSchoolId(e.target.value)}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-orange-500/60"
+                    >
+                      <option value="">Select Partner School</option>
+                      {schools.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-6 pt-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isFeatured}
+                    onChange={(e) => setIsFeatured(e.target.checked)}
+                    className="w-4 h-4 rounded-sm border-zinc-700 bg-zinc-950 text-orange-500 focus:ring-0"
+                  />
+                  <span className="text-zinc-300">Feature on App Home</span>
+                </label>
+
+                <div className="flex items-center gap-2">
+                  <label className="text-zinc-400">Status:</label>
                   <select
                     value={status}
                     onChange={(e) => setStatus(e.target.value as any)}
-                    className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:outline-hidden"
+                    className="bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1 text-white text-xs"
                   >
                     <option value="ACTIVE">ACTIVE</option>
                     <option value="UPCOMING">UPCOMING</option>
                     <option value="EXPIRED">EXPIRED</option>
                   </select>
                 </div>
-
-                <div className="flex items-center gap-3 pt-4 sm:pt-0">
-                  <input
-                    type="checkbox"
-                    id="isFeatured"
-                    checked={isFeatured}
-                    onChange={(e) => setIsFeatured(e.target.checked)}
-                    className="w-4 h-4 text-orange-600 rounded-md focus:ring-orange-500"
-                  />
-                  <label htmlFor="isFeatured" className="text-sm font-semibold text-slate-800 cursor-pointer">
-                    Feature on Student Home Carousel
-                  </label>
-                </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-800">
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowAddModal(false);
-                    resetForm();
-                  }}
-                  className="px-4 py-2.5 text-sm font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl transition cursor-pointer"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-4 py-2 text-zinc-400 hover:text-white cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-orange-600 hover:bg-orange-700 rounded-xl transition shadow-xs shadow-orange-600/20 cursor-pointer disabled:opacity-50"
+                  className="px-5 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold transition cursor-pointer"
                 >
-                  {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {editingOpportunity ? 'Save Changes' : 'Publish Opportunity'}
+                  {submitting ? 'Saving...' : editingOpportunity ? 'Update Opportunity' : 'Publish Opportunity'}
                 </button>
               </div>
             </form>
@@ -818,32 +732,28 @@ export default function OpportunitiesPage() {
 
       {/* Delete Confirmation Modal */}
       {itemToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
-            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-4">
-              <Trash2 className="w-6 h-6" />
-            </div>
-            <h3 className="text-lg font-bold text-slate-900">Delete Opportunity?</h3>
-            <p className="text-sm text-slate-500 mt-1">
-              Are you sure you want to remove <span className="font-semibold text-slate-800">"{itemToDelete.title}"</span>?
-              It will be permanently removed from the mobile app opportunities directory.
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-sm p-6 space-y-4 shadow-2xl">
+            <h3 className="font-bold text-sm text-white">Delete Opportunity?</h3>
+            <p className="text-xs text-zinc-400">
+              Are you sure you want to remove <span className="text-white font-semibold">{itemToDelete.title}</span>?
+              Students will no longer see this in their opportunities list.
             </p>
-
-            <div className="flex items-center justify-end gap-3 mt-6">
+            <div className="flex items-center justify-end gap-3 pt-2">
               <button
+                type="button"
                 onClick={() => setItemToDelete(null)}
-                disabled={deleting}
-                className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-900 bg-slate-100 rounded-xl transition cursor-pointer"
+                className="px-3 py-1.5 text-xs text-zinc-400 hover:text-white cursor-pointer"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleDelete}
                 disabled={deleting}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition cursor-pointer disabled:opacity-50"
+                className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs cursor-pointer"
               >
-                {deleting && <Loader2 className="w-4 h-4 animate-spin" />}
-                Delete Permanently
+                {deleting ? 'Deleting...' : 'Confirm Delete'}
               </button>
             </div>
           </div>

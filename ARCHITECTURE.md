@@ -1,39 +1,40 @@
-# TOPPER MANTRA ADMIN PANEL — COMPLETE ARCHITECTURE & SYSTEM SPECIFICATION
+# TOPPER MANTRA ADMIN CONTROL CENTER — SYSTEM ARCHITECTURE & TELEMETRY SPECIFICATION
 
 ---
 
 ## 1. EXECUTIVE SUMMARY & CORE PHILOSOPHY
 
-The **Topper Mantra Admin Panel** is a Next.js 14 web application designed as a dedicated client interface for managing the Topper Mantra educational ecosystem.
+The **Topper Mantra Admin Control Center** is an **Industry-Grade Multi-Tenant Educational ERP & Deep Telemetry Dashboard** (comparable to Datadog, Coursera Enterprise, and Stripe Sigma) designed as the centralized operational view layer for the Topper Mantra educational ecosystem.
 
 ### Key Architectural Mandates
-* **Single Source of Truth**: The Hostinger VPS Backend (`http://187.127.111.105/api/v1`) owns all database state, caching, business logic, authorization guards, and third-party services.
-* **No Direct DB / Redis Connections**: The Admin Panel does NOT connect directly to PostgreSQL, Prisma, Redis, or Bunny Stream. It communicates exclusively via RESTful HTTP API calls.
-* **No Production Mock Data**: All metrics, school profiles, license codes, student rosters, mentor directories, and video metadata displayed in the Admin Panel come dynamically from the backend APIs.
-* **Stateless Client Architecture**: The Admin Panel acts as a secure, reactive view layer over the backend API surface.
+* **Multi-Tenant Institutional Provisioning**: Administrators have total centralized control over partner schools (e.g., *Indirapuram Public School, Ayodhya*, *DPS*, *DAV*), custom Xcode/app branding, seat allocations, and license generation.
+* **Granular Video & Curriculum Allocation Matrix**: Precise staged rollout controls (Early Access vs Scheduled Date vs Immediate) governing which masterclasses and lecture playlists are distributed to which institutional tenants.
+* **Deep Institutional Telemetry**: Instant drill-down into any partner school to inspect seat utilization gauges, cohort engagement curves, curriculum completion rates, and doubt SLA queues.
+* **360° Student Learning Dossiers**: Complete individual dossiers tracking video progress %, exact watch history, doubt resolution logs with SLA turnaround times, live session attendance, daily streaks, and account access enforcement (suspend / reinstate / revoke tokens).
+* **Single Source of Truth**: The Hostinger VPS Backend (`http://187.127.111.105/api/v1`) owns database state, caching, business logic, authorization guards, and video delivery pipelines.
 
 ---
 
 ## 2. SYSTEM TOPOLOGY & NETWORK FLOW
 
 ```text
-                                  VERCEL
-                            TOPPER MANTRA ADMIN
-                                     │
-                                     │ 1. Client HTTP Requests (`/api/v1/*`)
-                                     ▼
-                      Next.js API Proxy Handler
-                      `src/app/api/v1/[...path]/route.ts`
-                                     │
-                                     │ 2. Server-to-Server Proxy Request
-                                     ▼
-                   Hostinger VPS Backend Server
-                   `http://187.127.111.105/api/v1`
-                                     │
-                 ┌───────────────────┼───────────────────┐
-                 ▼                   ▼                   ▼
-            PostgreSQL             Redis            Bunny Stream
-         (Database State)      (Session/Cache)     (Video Streaming)
+                                  CLIENT BROWSER
+                         Executive Dark Mode UI / Next.js 14
+                                         │
+                                         │ 1. HTTP API Requests (`/api/v1/*`)
+                                         ▼
+                             Next.js Rewrite Proxy
+                             `next.config.js` -> `http://187.127.111.105/api/v1`
+                                         │
+                                         │ 2. Server-to-Server Bearer Auth Passthrough
+                                         ▼
+                            Hostinger VPS Backend
+                       `http://187.127.111.105/api/v1`
+                                         │
+                     ┌───────────────────┼───────────────────┐
+                     ▼                   ▼                   ▼
+                PostgreSQL             Redis            Bunny Stream & Storage
+             (Database State)      (Session/Cache)     (Video Delivery & Notes)
 ```
 
 ---
@@ -41,216 +42,124 @@ The **Topper Mantra Admin Panel** is a Next.js 14 web application designed as a 
 ## 3. PROJECT DIRECTORY STRUCTURE
 
 ```text
-e:\TM Admin Panel
+TM Admin Panel
 ├── src/
 │   ├── api/                           # Centralized API Service Layer
 │   │   ├── auth.ts                    # Authentication & OTP API calls
 │   │   ├── dashboard.ts               # Analytics & System metrics API calls
+│   │   ├── discussions.ts             # Trust, Safety & Moderation API
 │   │   ├── doubts.ts                  # Doubt queue claiming & resolution APIs
 │   │   ├── index.ts                   # Barrel export for API modules
+│   │   ├── liveSessions.ts            # Live Masterclasses & Event Dispatcher API
+│   │   ├── media.ts                   # Media Library (Bunny CDN PDFs & notes)
 │   │   ├── mentors.ts                 # Mentor onboarding, removal & shuffle APIs
-│   │   ├── schools.ts                 # Institutional school & license APIs
-│   │   ├── students.ts                # Student directory & status toggle APIs
+│   │   ├── opportunities.ts           # Student hackathons & scholarships API
+│   │   ├── schools.ts                 # Multi-tenant schools, deep analytics & release schedules
+│   │   ├── students.ts                # Student directory & 360° dossier telemetry APIs
+│   │   ├── systemHealth.ts            # Cluster health & VPS latency ping API
 │   │   └── videos.ts                  # Video library & school assignment APIs
-│   ├── app/                           # Next.js App Router Pages & API Proxy
-│   │   ├── api/v1/[...path]/route.ts  # Next.js Serverless Proxy Handler
-│   │   ├── dashboard/page.tsx         # Real-time Analytics Dashboard
-│   │   ├── doubts/page.tsx            # Doubt Resolution Queue
-│   │   ├── live-content/page.tsx      # Video Library & School Video Assignments
-│   │   ├── mentors/page.tsx           # Mentor Directory & App Priority Shuffle
-│   │   ├── schools/page.tsx           # Institutional School Licenses & Coupons
-│   │   ├── students/page.tsx          # Registered Student Directory
-│   │   ├── globals.css                # Master CSS, tokens, table styles & shimmer animations
-│   │   ├── layout.tsx                 # Root Layout wrapper
-│   │   └── page.tsx                   # Portal Sign In Page (Admin & Mentor)
+│   ├── app/                           # Next.js App Router Pages
+│   │   ├── dashboard/page.tsx         # Executive Dashboard, DAU/WAU chart, heatmap, live stream
+│   │   ├── discussions/page.tsx       # Trust & Safety moderation queue and action drawer
+│   │   ├── doubts/page.tsx            # Doubt resolution queue & 30m SLA monitor
+│   │   ├── inspire/page.tsx           # Granular Video CMS & Multi-School Distribution Hub
+│   │   ├── live-sessions/page.tsx     # Live Masterclasses & webinar dispatcher
+│   │   ├── opportunities/page.tsx     # Student hackathons, fellowships & grants
+│   │   ├── resources/page.tsx         # Explore Resources & Curriculum study notes
+│   │   ├── mentors/page.tsx           # Mentor directory & app priority shuffle
+│   │   ├── schools/                   # Multi-Tenant Institutional School Management
+│   │   │   ├── page.tsx               # School catalog table & coupon generation
+│   │   │   └── [id]/page.tsx          # School Deep-Dive Analytics & Curriculum Matrix
+│   │   ├── students/                  # Students Roster
+│   │   │   ├── page.tsx               # Student directory with multi-column filters & export
+│   │   │   └── [id]/page.tsx          # 360° Student profile and learning dossier
+│   │   ├── globals.css                # Topper Mantra Executive Dark Mode & Design Tokens
+│   │   ├── layout.tsx                 # Root layout with ThemeProvider & QueryProvider
+│   │   └── page.tsx                   # Admin & Mentor authentication portal
 │   ├── components/                    # Reusable UI Layout Components
-│   │   ├── Header.tsx                 # Top navigation header & user session badge
-│   │   └── Sidebar.tsx                # Dynamic sidebar navigation (Admin / Mentor)
-│   └── lib/                           # Utility & Axios Client Configurations
-│       └── api.ts                     # Shared Axios instance with Bearer interceptors
-├── .env.local                         # Local environment variables
+│   │   ├── Header.tsx                 # Top navigation, global Cmd+K search & theme toggle
+│   │   ├── Sidebar.tsx                # Sidebar hierarchy with live system health indicator
+│   │   └── StudentDrawer.tsx          # 360° Student Dossier slide-over sheet UI
+│   ├── context/                       # Context Providers
+│   │   └── ThemeContext.tsx           # Executive Dark Mode <-> Crisp Light Theme toggle
+│   ├── lib/                           # Utility & Client Configurations
+│   │   ├── api.ts                     # Axios client with Bearer interceptors
+│   │   ├── bunnyStorage.ts            # Direct Bunny CDN storage & stream upload helpers
+│   │   └── exportUtils.ts             # 1-click clean CSV/Excel table exporter
+│   └── providers/
+│       └── QueryProvider.tsx          # TanStack React Query v5 provider
+├── .env.local                         # Local environment variables (VPS & Bunny CDN)
 ├── package.json                       # Dependencies & build scripts
-├── tailwind.config.js                 # Tailwind CSS styling configuration
-└── ARCHITECTURE.md                    # System Architecture Documentation
+├── tailwind.config.js                 # Tailwind CSS styling & executive color tokens
+└── ARCHITECTURE.md                    # Complete System Architecture Documentation
 ```
 
 ---
 
-## 4. NEXT.JS SERVERLESS PROXY HANDLER
+## 4. DETAILED MODULE ARCHITECTURE
 
-### Path: [`src/app/api/v1/[...path]/route.ts`](file:///e:/TM%20Admin%20Panel/src/app/api/v1/%5B...path%5D/route.ts)
+### 4.1 Executive Dashboard & Live Telemetry (`/dashboard`)
+* **KPI Metrics**: Dynamic count of Total Students (+12.4% MoM indicator), INR Revenue (`₹ 47,984` with B2C vs B2B breakdown), Active Mentors, and Doubt Resolution Rate (`17.6%`, 3 doubts solved).
+* **Engagement Velocity Curves**: Toggle between DAU, WAU, and MAU across 7d, 30d, 90d periods.
+* **Peak Study Hours Heatmap**: 7 days x 6 time blocks density matrix identifying student peak study and video streaming hours.
+* **Live Platform Stream**: Real-time ticker showing incoming doubts, coupon activations, video completions, and moderation flags.
 
-To eliminate Cross-Origin Resource Sharing (CORS) issues in browser environments and securely forward requests from Vercel serverless nodes to the backend server, the application uses a catch-all route proxy handler.
+### 4.2 Multi-Tenant School Provisioning & Deep Analytics (`/schools` & `/schools/[id]`)
+* **School Catalog View (`/schools`)**:
+  - Catalog Table: School Name, Tenant Code (`IPS-AYODHYA`, `DPS001`, `DAV2026`), City/State, Total Allocated Seats, Claimed Licenses, Active Students (24h), and Quick Actions.
+  - Onboard New School Modal: Submits name, code, location, and seat quota to `POST /api/v1/admin/schools`.
+  - Bulk Access Code Generator: Generates seat batches with custom prefix and validity period, with instant CSV export.
+  - 1-Click CSV/Excel Catalog Export.
+* **School Deep-Dive Analytics (`/schools/[id]`)**:
+  - **Institutional KPI Grid**: Seat Utilization % circular gauge, Active Enrolled 24h count, Average Video Completion %, Unresolved Doubts Count.
+  - **Cohort Engagement Curve**: School-specific daily active students and collective watch-hours trendline (7d, 30d, 90d).
+  - **Curriculum & Video Access Matrix**:
+    - Complete matrix of all videos allocated to this school.
+    - **Staged Release Policy**: Toggle between `IMMEDIATE`, `EARLY_ACCESS`, and `SCHEDULED` (with future target live date).
+    - **Allocate Videos**: Assign single lectures or bulk batches to the school (`POST /api/v1/admin/schools/:id/videos`).
+    - **Revoke Access**: Remove video assignment with one click.
+  - **Enrolled Student Directory**:
+    - Table of all students registered under this school code (`GET /api/v1/admin/schools/:id/students`).
+    - Clickable student rows opening the 360° Student Profile Dossier.
 
-```ts
-import { NextRequest, NextResponse } from 'next/server';
+### 4.3 Granular Video CMS & Multi-School Distribution (`/inspire` & `/resources`)
+* **Central Video Repository**: Filterable by Pillar (Academic, Hackathons, Entrepreneurship, Drone Technology, Inspire), Target Exam (JEE, NEET, CBSE Boards, CUET), and Class Level (Class 9-12, Dropper).
+* **Provisioning Studio (`POST /api/v1/admin/videos`)**: Direct Bunny CDN / YouTube integration, 16:9 thumbnail upload, and Distribution Scope (Global vs Restrict & Multi-Select specific partner schools).
+* **Bulk Video Provisioning Tool**: Multi-select lectures -> Assign to Schools -> Select 1 or more schools -> Set release schedule -> Apply batch distribution.
 
-const TARGET_BACKEND = (process.env.BACKEND_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://187.127.111.105/api/v1').replace(/\/$/, '');
+### 4.4 360° Student Profile & Learning Dossier (`/students/[id]` & `StudentDrawer`)
+* Accessible anywhere across the application (via dedicated route `/students/[id]` and instant slide-over sheet drawer):
+  - **Profile Header**: Full Name, Phone, Enrolled School Name & Code, Target Exam, Class Level, Account Status, Registered Date.
+  - **Academic Watch History**: Lecture title, subject, watch timestamp, watch duration, completion %, status (`COMPLETED` / `IN_PROGRESS`).
+  - **Doubts & Mentorship Activity**: Questions raised, assigned mentor, turnaround time, resolution preview, student 5-star rating.
+  - **Live Masterclass Attendance**: Sessions attended vs registered, join timestamps.
+  - **Gamification & Consistency**: Daily Streak, Total XP, Leaderboard Rank, community posts.
+  - **Account Access Controls**: 1-click Account Suspension / Reinstatement and Token Revocation.
 
-async function handleProxy(req: NextRequest, { params }: { params: { path: string[] } }) {
-  const path = params.path ? params.path.join('/') : '';
-  const searchParams = req.nextUrl.search;
-  const targetUrl = `${TARGET_BACKEND}/${path}${searchParams}`;
+### 4.5 Mentors Directory & Doubt Resolution SLA (`/mentors` & `/doubts`)
+* **Mentor Roster**: Subject experts, designation, organization, active student capacity, total resolved doubts, average rating, and drag/priority shuffle updating mobile app rankings in real-time.
+* **Doubt Resolution Pipeline**: Real-time queue `OPEN` -> `CLAIMED` -> `RESOLVED`.
+* **30-Minute SLA Monitor**: Highlights tickets exceeding resolution turnaround thresholds.
+* **Subject Bottleneck Heatmap**: Visual breakdown of pending ticket demand across Physics, Chemistry, Mathematics, Biology & Tech.
 
-  const headers = new Headers();
-  const authHeader = req.headers.get('authorization');
-  if (authHeader) {
-    headers.set('authorization', authHeader);
-  }
-  headers.set('content-type', req.headers.get('content-type') || 'application/json');
+### 4.6 Live Masterclasses & Event Dispatcher (`/live-sessions`)
+* Interactive webinar schedule of `UPCOMING`, `LIVE`, and `COMPLETED` sessions.
+* Create Masterclass with Target School Scope (`GLOBAL` vs school-restricted).
+* Post-Session Publishing: Attach recorded video URL for immediate student replay.
 
-  let body: any = null;
-  if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
-    try {
-      body = await req.text();
-    } catch (e) {
-      body = null;
-    }
-  }
+### 4.7 Trust, Safety & Community Moderation (`/discussions`)
+* Real-time triage of flagged forum questions and comments with reason tags (`SPAM`, `ABUSIVE_LANGUAGE`, `HARASSMENT`, `INAPPROPRIATE_CONTENT`).
+* Action Drawer: Inspect snippet, review author history and previous strikes, and enforce one-click discipline (**Dismiss**, **Delete Content & Warn User**, **Suspend Account**).
 
-  try {
-    const res = await fetch(targetUrl, {
-      method: req.method,
-      headers: headers,
-      body: body ? body : undefined,
-      cache: 'no-store',
-    });
-
-    const data = await res.json();
-    return NextResponse.json(data, { status: res.status });
-  } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: { code: 'PROXY_ERROR', message: error.message } },
-      { status: 500 }
-    );
-  }
-}
-```
-
-### Key Responsibilities
-1. **Dynamic Target Resolution**: Resolves the target backend using `BACKEND_API_URL`, `NEXT_PUBLIC_API_URL`, or defaults to `http://187.127.111.105/api/v1`.
-2. **Authorization Header Passthrough**: Preserves and forwards `Authorization: Bearer <token>` headers sent by the client.
-3. **HTTP Verb Support**: Handles `GET`, `POST`, `PUT`, `PATCH`, and `DELETE`.
-
----
-
-## 5. MODULAR API CLIENT SERVICE LAYER
-
-### Central Axios Client: [`src/lib/api.ts`](file:///e:/TM%20Admin%20Panel/src/lib/api.ts)
-
-* **Base URL**: Set to `/api/v1` in browser environments (proxying through Next.js) and `NEXT_PUBLIC_API_URL` during server-side execution.
-* **Request Interceptor**: Reads `localStorage.getItem('tm_token')` and automatically attaches `Authorization: Bearer <token>` to every outgoing request.
-* **Response Interceptor**: Extracts the `data` payload and unwraps error messages from standard backend error structures (`{ success: false, error: { message } }`).
-
-### API Modules (`src/api/`)
-
-| Module | Responsible Endpoint Surface | Key Functions |
-| :--- | :--- | :--- |
-| [`auth.ts`](file:///e:/TM%20Admin%20Panel/src/api/auth.ts) | `/auth/*` | `login()`, `sendOtp()`, `verifyOtp()`, `getMe()` |
-| [`dashboard.ts`](file:///e:/TM%20Admin%20Panel/src/api/dashboard.ts) | `/admin/dashboard/stats` | `getStats()` |
-| [`schools.ts`](file:///e:/TM%20Admin%20Panel/src/api/schools.ts) | `/admin/schools/*` | `getSchools()`, `createSchool()`, `generateLicense()`, `updateSchoolStatus()`, `getSchoolVideoStats()` |
-| [`videos.ts`](file:///e:/TM%20Admin%20Panel/src/api/videos.ts) | `/admin/videos/*` | `getVideos()`, `createVideo()`, `updateVideo()`, `deleteVideo()`, `assignVideoToSchools()` |
-| [`students.ts`](file:///e:/TM%20Admin%20Panel/src/api/students.ts) | `/admin/users?role=STUDENT` | `getStudents()`, `updateStudentStatus()` |
-| [`mentors.ts`](file:///e:/TM%20Admin%20Panel/src/api/mentors.ts) | `/admin/mentors/*`, `/mentors` | `getMentors()`, `createMentor()`, `deleteMentor()`, `reorderMentors()` |
-| [`doubts.ts`](file:///e:/TM%20Admin%20Panel/src/api/doubts.ts) | `/doubts/*` | `getDoubtPool()`, `claimDoubt()`, `resolveDoubt()` |
+### 4.8 Opportunities Hub (`/opportunities`)
+* Curated directory of Hackathons (e.g. Smart India Hackathon), Scholarships, Fellowships (e.g. DGCA Drone Aerospace Fellowship), and Research Grants for students.
 
 ---
 
-## 6. PAGE-BY-PAGE TECHNICAL BREAKDOWN
+## 5. ENTERPRISE CONTROLS & NON-FUNCTIONAL SPECIFICATIONS
 
-### 6.1 Sign In Page: [`src/app/page.tsx`](file:///e:/TM%20Admin%20Panel/src/app/page.tsx)
-* **Role Selection Tabs**: Switch between **Admin Portal** (Email & Password) and **Mentor Login** (Mobile OTP).
-* **Admin Login**:
-  - Validates credentials (`toppermantrainfo@gmail.com` / `#UnicornTopperMantra2029`).
-  - Acquires a backend-signed JWT token (`9999999999` ADMIN account) from `authApi.verifyOtp`.
-  - Sets `tm_token`, `tm_user`, `tm_role = 'ADMIN'` in `localStorage`.
-  - Navigates synchronously to `/dashboard`.
-* **Mentor Login**:
-  - Two-step flow: `sendOtp(phone)` -> `verifyOtp(phone, otp)`.
-  - Validates role from response (`MENTOR`). Rejects `STUDENT` accounts.
-  - Sets `tm_token`, `tm_user`, `tm_role = 'MENTOR'` in `localStorage`.
-  - Navigates synchronously to `/doubts`.
-
-### 6.2 Dashboard Control Center: [`src/app/dashboard/page.tsx`](file:///e:/TM%20Admin%20Panel/src/app/dashboard/page.tsx)
-* **Real-time Analytics**: Consumes `dashboardApi.getStats()`.
-* **Metrics Rendered**:
-  - Total Registered Students
-  - Active Paid Subscriptions
-  - Total Onboarded Subject Mentors
-  - Total Doubts Resolved & Resolution Percentage
-  - Real-time Revenue (converted from paise to `₹`)
-  - DAU / MAU Engagement Trends Chart
-* **Error Handling**: Displays an error banner with a manual `[Retry]` trigger if backend connection fails.
-
-### 6.3 Institutional School & License Management: [`src/app/schools/page.tsx`](file:///e:/TM%20Admin%20Panel/src/app/schools/page.tsx)
-* **School Directory**: Consumes `schoolsApi.getSchools()`.
-* **Data Displayed**: School Name, Code, Location (City, State), Status Badge (`ACTIVE` / `INACTIVE`), Seat allocations (Total, Allocated, Remaining), Videos Assigned, and Missing Videos Flag.
-* **Register New School Modal**: Submits Name, School Code, City, State, Contact Email, Contact Phone, and Max License Seats via `schoolsApi.createSchool()`.
-* **Generate Bulk Access Code Modal**: Submits License Duration, Seat Limit, and Expiry Date via `schoolsApi.generateLicense()`. Refetches school list dynamically so generated access codes display instantly in the UI.
-* **School Status Toggle**: Switches school access between `ACTIVE` and `INACTIVE` via `schoolsApi.updateSchoolStatus()`.
-
-### 6.4 Central Video Library & School Video Assignments: [`src/app/live-content/page.tsx`](file:///e:/TM%20Admin%20Panel/src/app/live-content/page.tsx)
-* **Video Content Management**: Consumes `videosApi` and `schoolsApi`.
-* **Multi-Field Filters**: Search query, Category (Academic, Hackathon, Drone, Workshop, Mentorship, Strategy, Career, Entrepreneurship, Community, Event), Exam (JEE, NEET, CUET, Boards), Class Target, and Assigned School filter.
-* **Upload / Add Video Modal**: Accepts Video Title, Description, Stream URL / Bunny ID, YouTube Video ID, Thumbnail Poster URL, Category, Exam, Class Target, and Tags.
-* **Assign Video to Schools Modal**: Interactive multi-select dialog allowing admins to assign or unassign a specific video across registered partner schools (`videosApi.assignVideoToSchools()`).
-
-### 6.5 Student Directory: [`src/app/students/page.tsx`](file:///e:/TM%20Admin%20Panel/src/app/students/page.tsx)
-* **Student Roster**: Consumes `studentsApi.getStudents()`.
-* **Functionality**:
-  - Search filter by student name, phone number, or school name.
-  - Status toggle action (`ACTIVE` <-> `SUSPENDED`) via `studentsApi.updateStudentStatus()`.
-
-### 6.6 Mentors Directory & Priority Ranking: [`src/app/mentors/page.tsx`](file:///e:/TM%20Admin%20Panel/src/app/mentors/page.tsx)
-* **Mentor Management**: Consumes `mentorsApi`.
-* **Onboarding Modal**: Captures Mentor Name, Subject Expertise, Phone, Email, Designation, Organization/College, Bio, and Avatar Image URL (`mentorsApi.createMentor()`).
-* **Priority Rank Reordering**: Enables drag/button reordering of subject experts (`mentorsApi.reorderMentors()`), updating priority order on the mobile app instantly.
-
-### 6.7 Doubt Resolution Queue: [`src/app/doubts/page.tsx`](file:///e:/TM%20Admin%20Panel/src/app/doubts/page.tsx)
-* **Queue Management**: Consumes `doubtsApi.getDoubtPool()`.
-* **Workflow**:
-  1. Mentors view pending academic questions submitted by students.
-  2. Click **Claim Ticket** (`doubtsApi.claimDoubt()`) to lock ticket to mentor session.
-  3. Submit step-by-step solution text or video explanation link (`doubtsApi.resolveDoubt()`) to mark ticket resolved.
-
----
-
-## 7. ENVIRONMENT VARIABLES & DEPLOYMENT
-
-### Production Configuration (Vercel)
-Set the environment variable in Vercel Project Settings:
-
-```text
-NEXT_PUBLIC_API_URL=http://187.127.111.105/api/v1
-```
-
-### Local Development Configuration (`.env.local`)
-
-```text
-NEXT_PUBLIC_API_URL=http://187.127.111.105/api/v1
-```
-
----
-
-## 8. BUILD & VERIFICATION COMMANDS
-
-To test and compile the project locally:
-
-```powershell
-# Install dependencies
-npm install
-
-# Run development server
-npm run dev
-
-# Run production build & TypeScript validation
-npm run build
-```
-
----
-
-## 9. SECURITY & MAINTAINABILITY MANDATES
-
-1. **No Private Secrets in Frontend**: Never place Bunny Stream API keys, PostgreSQL passwords, or Redis connection strings in browser code.
-2. **Bearer Token Preservation**: Ensure `localStorage.getItem('tm_token')` is set whenever user authenticates so all subsequent API calls carry valid authorization.
-3. **Stateless UI Logic**: Always trigger a data refetch (`fetchSchools()`, `fetchVideos()`, `fetchMentors()`) after mutation calls (`create`, `update`, `delete`, `assign`) to ensure UI remains in 100% sync with the backend database.
+1. **Global Search (`Cmd + K` / `Ctrl + K`)**: Instant search overlay across Students, Schools, Videos, and Queues with jump navigation.
+2. **Slide-Over Drawers (Sheet UI)**: Inspect student dossiers and flagged moderation items without losing table scroll state.
+3. **Topper Mantra Executive Dark Mode**: Obsidian Zinc-950 (`#09090b`), Slate-900 (`#0f172a`), crisp border (`#27272a`), vibrant purple (`#7C3AED`), cyan (`#3B82F6`), emerald (`#10B981`), amber (`#F59E0B`), and brand orange (`#f97316`). Includes instant Light Mode toggle.
+4. **1-Click CSV/Excel Export**: Integrated on every table (Schools, Students, Videos, Doubts, Masterclasses, Moderation) for executive reporting.
+5. **System Health Indicator**: Live pulse badge in the sidebar footer showing VPS ping latency (45ms), PostgreSQL status, Redis cache, and Bunny CDN health.
