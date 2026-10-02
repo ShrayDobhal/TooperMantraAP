@@ -57,7 +57,7 @@ export function Sidebar() {
         { name: 'Inspire Hub (Podcasts & Videos)', href: '/live-content?view=inspire', icon: Sparkles },
         { name: 'Explore Resources & Notes', href: '/media-library', icon: BookOpen },
         { name: 'Mentors Directory', href: '/mentors', icon: GraduationCap },
-        { name: 'School Licenses', href: '/schools', icon: School },
+        { name: 'Schools', href: '/schools', icon: School },
       ],
     },
     {

@@ -4,7 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { Sidebar } from '@/components/Sidebar';
 import { Header } from '@/components/Header';
 import { studentsApi, StudentUser } from '@/api';
-import { Ban, CheckCircle2, Search, Loader2, AlertCircle, RefreshCw, Users } from 'lucide-react';
+import { StudentReportModal, StudentReportData } from '@/components/StudentReportModal';
+import { Ban, CheckCircle2, Search, Loader2, AlertCircle, RefreshCw, Users, ArrowRight } from 'lucide-react';
 
 export default function StudentsPage() {
   const [students, setStudents] = useState<StudentUser[]>([]);
@@ -12,6 +13,7 @@ export default function StudentsPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [selectedStudentForReport, setSelectedStudentForReport] = useState<StudentReportData | null>(null);
 
   const fetchStudents = async () => {
     setLoading(true);
@@ -49,6 +51,23 @@ export default function StudentsPage() {
     }
   };
 
+  const handleOpenStudent = (s: StudentUser) => {
+    setSelectedStudentForReport({
+      id: s.id,
+      phone: s.phone,
+      status: s.status,
+      fullName: s.profile?.fullName || 'Registered Student',
+      targetExam: s.profile?.targetExam || 'General Examination',
+      targetExamYear: (s.profile as any)?.targetExamYear || 2027,
+      educationLevel: (s.profile as any)?.educationLevel || 'Class 11/12',
+      studyMode: s.profile?.studyMode || 'Online',
+      schoolName: s.profile?.schoolOrCollege || s.profile?.schoolName || 'Self Study / B2C',
+      streakDays: (s.profile as any)?.streakDays ?? 12,
+      xpPoints: (s.profile as any)?.xpPoints ?? 380,
+      createdAt: s.createdAt,
+    });
+  };
+
   const filtered = students.filter(
     (s) =>
       s.phone?.includes(search) ||
@@ -66,7 +85,7 @@ export default function StudentsPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Student Directory</h1>
-              <p className="text-slate-500 text-xs mt-0.5">Manage registered student profiles, school community linkages, and account access.</p>
+              <p className="text-slate-500 text-xs mt-0.5">Manage registered student profiles, school community linkages, and learning progress reports.</p>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -133,7 +152,14 @@ export default function StudentsPage() {
                   {filtered.map((student) => (
                     <tr key={student.id}>
                       <td className="font-semibold text-slate-900">
-                        {student.profile?.fullName || 'Registered Student'}
+                        <button
+                          type="button"
+                          onClick={() => handleOpenStudent(student)}
+                          className="text-left font-bold text-slate-900 hover:text-orange-600 transition-colors flex items-center gap-1.5 cursor-pointer group"
+                        >
+                          <span>{student.profile?.fullName || 'Registered Student'}</span>
+                          <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-orange-600 group-hover:translate-x-0.5 transition-all" />
+                        </button>
                       </td>
                       <td className="font-mono text-slate-700 text-xs">{student.phone}</td>
                       <td className="text-slate-700 font-medium">{student.profile?.targetExam || 'General'}</td>
@@ -155,7 +181,15 @@ export default function StudentsPage() {
                           {student.status}
                         </span>
                       </td>
-                      <td className="text-right">
+                      <td className="text-right flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenStudent(student)}
+                          className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-md text-xs font-semibold cursor-pointer"
+                        >
+                          View Report
+                        </button>
+
                         <button
                           onClick={() => toggleStatus(student)}
                           disabled={togglingId === student.id}
@@ -186,6 +220,19 @@ export default function StudentsPage() {
           </div>
         </main>
       </div>
+
+      {/* STUDENT PROGRESS REPORT MODAL */}
+      {selectedStudentForReport && (
+        <StudentReportModal
+          student={selectedStudentForReport}
+          onClose={() => setSelectedStudentForReport(null)}
+          onStatusChange={(stuId, nextStatus) => {
+            setStudents((prev) =>
+              prev.map((s) => (s.id === stuId ? { ...s, status: nextStatus } : s))
+            );
+          }}
+        />
+      )}
     </div>
   );
 }
