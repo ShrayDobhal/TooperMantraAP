@@ -8,3 +8,4 @@ export * from './dashboard';
 export * from './media';
 export * from './events';
 export * from './opportunities';
+export * from './playlists';

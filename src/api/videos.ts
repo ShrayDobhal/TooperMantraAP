@@ -18,6 +18,12 @@ export interface VideoItem {
   tags?: string[];
   status?: string;
   isFeatured?: boolean;
+  playlistId?: string | null;
+  playlist?: {
+    id: string;
+    title: string;
+    category?: string;
+  } | null;
   viewsCount?: number;
   targetSchool?: string | null;
   createdAt?: string;
@@ -333,6 +339,7 @@ export const videosApi = {
     durationSeconds?: number;
     targetSchool?: string;
     isFeatured?: boolean;
+    playlistId?: string | null;
     status?: string;
   }): Promise<{ success: boolean; data: VideoItem }> {
     const body: any = {
@@ -350,6 +357,7 @@ export const videosApi = {
       durationSeconds: payload.durationSeconds || 0,
       targetSchool: payload.targetSchool || undefined,
       isFeatured: payload.isFeatured ?? false,
+      playlistId: payload.playlistId || undefined,
       status: payload.status || 'READY',
     };
     const res: any = await api.post('/admin/videos', body);
@@ -537,6 +545,8 @@ function formatVideoItem(v: any): VideoItem {
     tags: Array.isArray(v.tags) ? v.tags : [],
     status: v.status || 'READY',
     isFeatured: v.isFeatured || false,
+    playlistId: v.playlistId,
+    playlist: v.playlist,
     viewsCount: v.viewsCount || 0,
     targetSchool: v.targetSchool,
     createdAt: v.createdAt,
