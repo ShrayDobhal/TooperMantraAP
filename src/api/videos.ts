@@ -107,42 +107,152 @@ export const PILLAR_SECTIONS: VideoPillar[] = [
   },
 ];
 
-export function matchesPillar(videoCategory: string, pillarCode: string): boolean {
+function hasPillarKeyword(str: string, kw: string): boolean {
+  if (!str) return false;
+  const regex = new RegExp('(\\b|_|^)' + kw + '(\\b|_|$)', 'i');
+  return regex.test(str);
+}
+
+export function matchesPillar(
+  videoOrCategory: string | { category?: string | null; tags?: string[] | null; exam?: string | null; title?: string | null },
+  pillarCode: string
+): boolean {
   if (!pillarCode || pillarCode === 'ALL' || pillarCode === 'All') return true;
-  const vCat = (videoCategory || '').toUpperCase().trim();
   const target = pillarCode.toUpperCase().trim();
 
+  let vCat = '';
+  let vExam = '';
+  let vTags: string[] = [];
+  let vTitle = '';
+
+  if (typeof videoOrCategory === 'string') {
+    vCat = (videoOrCategory || '').toUpperCase().trim();
+  } else if (videoOrCategory && typeof videoOrCategory === 'object') {
+    vCat = (videoOrCategory.category || '').toUpperCase().trim();
+    vExam = (videoOrCategory.exam || '').toUpperCase().trim();
+    vTags = Array.isArray(videoOrCategory.tags) ? videoOrCategory.tags.map((t) => (t || '').trim()) : [];
+    vTitle = (videoOrCategory.title || '').trim();
+  }
+
+  // Exact category direct match
+  if (vCat === target) return true;
+
   if (target === 'ACADEMIC') {
-    return (
-      vCat === 'ACADEMIC' ||
-      vCat === 'JEE' ||
-      vCat === 'NEET' ||
-      vCat === 'CUET' ||
-      vCat === 'BOARDS' ||
-      vCat === 'MATH' ||
-      vCat === 'PHYSICS' ||
-      vCat === 'CHEMISTRY'
-    );
+    const academicCats = [
+      'ACADEMIC',
+      'ACADEMICS',
+      'JEE',
+      'NEET',
+      'CUET',
+      'BOARDS',
+      'BOARD',
+      'MATH',
+      'MATHEMATICS',
+      'PHYSICS',
+      'CHEMISTRY',
+      'BIOLOGY',
+      'BOTANY',
+      'ZOOLOGY',
+      'SCIENCE',
+      'FOUNDATION',
+    ];
+    if (academicCats.includes(vCat)) return true;
+    // Prevent videos explicitly assigned to another pillar from cross-pollinating into Academics
+    if (['HACKATHON', 'ENTREPRENEURSHIP', 'DRONE_TECHNOLOGY', 'DRONE_AVIATION', 'INSPIRE'].includes(vCat)) {
+      return false;
+    }
+
+    if (['JEE', 'NEET', 'CUET', 'BOARDS', 'BOARD'].includes(vExam)) return true;
+    const academicKw = ['physics', 'chemistry', 'biology', 'math', 'mathematics', 'calculus', 'jee', 'neet', 'cuet', 'boards', 'ncert', 'mechanics', 'organic'];
+    return vTags.some((t) => academicKw.some((kw) => hasPillarKeyword(t, kw)));
   }
+
   if (target === 'HACKATHON') {
-    return vCat === 'HACKATHON' || vCat === 'CODING' || vCat === 'AI' || vCat === 'ROBOTICS';
+    const hackathonCats = [
+      'HACKATHON',
+      'HACKATHONS',
+      'CODING',
+      'AI',
+      'ROBOTICS',
+      'DEVELOPMENT',
+      'FULLSTACK',
+      'SIH',
+      'SOFTWARE',
+    ];
+    if (hackathonCats.includes(vCat)) return true;
+    if (['ACADEMIC', 'ENTREPRENEURSHIP', 'DRONE_TECHNOLOGY', 'DRONE_AVIATION', 'INSPIRE'].includes(vCat)) {
+      return false;
+    }
+
+    if (vExam === 'HACKATHON') return true;
+    const hackathonKw = ['hackathon', 'sih', 'coding', 'fullstack', 'websockets', 'fastify', 'prototype'];
+    return vTags.some((t) => hackathonKw.some((kw) => hasPillarKeyword(t, kw))) || hackathonKw.some((kw) => hasPillarKeyword(vTitle, kw));
   }
+
   if (target === 'ENTREPRENEURSHIP') {
-    return vCat === 'ENTREPRENEURSHIP' || vCat === 'STARTUP' || vCat === 'BUSINESS';
+    const startupCats = [
+      'ENTREPRENEURSHIP',
+      'ENTREPRENEUR',
+      'STARTUP',
+      'STARTUPS',
+      'BUSINESS',
+      'VENTURE',
+      'PITCHING',
+      'PITCH',
+      'GRANTS',
+      'FUNDING',
+      'FOUNDER',
+      'INCUBATION',
+    ];
+    if (startupCats.includes(vCat)) return true;
+    if (['ACADEMIC', 'HACKATHON', 'DRONE_TECHNOLOGY', 'DRONE_AVIATION', 'INSPIRE'].includes(vCat)) {
+      return false;
+    }
+
+    if (vExam === 'ENTREPRENEURSHIP' || vExam === 'STARTUP') return true;
+    const startupKw = ['startup', 'entrepreneurship', 'founder', 'grants', 'funding', 'pitch', 'mvp', 'incubator', 'angel investor', 'y combinator'];
+    return vTags.some((t) => startupKw.some((kw) => hasPillarKeyword(t, kw))) || startupKw.some((kw) => hasPillarKeyword(vTitle, kw));
   }
+
   if (target === 'DRONE_AVIATION') {
-    return vCat === 'DRONE_AVIATION' || vCat === 'DRONE' || vCat === 'DRONE_TECHNOLOGY';
+    const droneCats = [
+      'DRONE_AVIATION',
+      'DRONE_TECHNOLOGY',
+      'DRONE',
+      'DRONES',
+      'UAV',
+      'AEROSPACE',
+      'AVIATION',
+      'DIGITALSKY',
+      'BETALIGHT',
+      'BETAFLIGHT',
+      'PIXHAWK',
+      'QUADCOPTER',
+    ];
+    if (droneCats.includes(vCat)) return true;
+    if (['ACADEMIC', 'HACKATHON', 'ENTREPRENEURSHIP', 'INSPIRE'].includes(vCat)) {
+      return false;
+    }
+
+    if (vExam === 'DRONE' || vExam === 'DRONE_TECHNOLOGY' || vExam === 'DRONE_AVIATION') return true;
+    const droneKw = ['drone', 'drones', 'uav', 'aviation', 'betaflight', 'quadcopter', 'pixhawk', 'dgca', 'digitalsky', 'aerospace'];
+    return vTags.some((t) => droneKw.some((kw) => hasPillarKeyword(t, kw))) || droneKw.some((kw) => hasPillarKeyword(vTitle, kw));
   }
+
   if (target === 'INSPIRE') {
-    return vCat === 'INSPIRE' || vCat === 'WORKSHOP' || vCat === 'MENTORSHIP' || vCat === 'STRATEGY' || vCat === 'COMMUNITY';
+    const inspireCats = ['INSPIRE', 'MASTERCLASS', 'PODCAST', 'TALK', 'MOTIVATION', 'WORKSHOP', 'MENTORSHIP', 'STRATEGY'];
+    if (inspireCats.includes(vCat)) return true;
+    return false;
   }
 
   return vCat === target;
 }
 
-export function getPillarMeta(category: string): VideoPillar {
+export function getPillarMeta(
+  videoOrCategory: string | { category?: string | null; tags?: string[] | null; exam?: string | null; title?: string | null }
+): VideoPillar {
   for (const pillar of PILLAR_SECTIONS) {
-    if (pillar.id !== 'ALL' && matchesPillar(category, pillar.code)) {
+    if (pillar.id !== 'ALL' && matchesPillar(videoOrCategory, pillar.code)) {
       return pillar;
     }
   }

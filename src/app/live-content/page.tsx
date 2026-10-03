@@ -223,15 +223,15 @@ function LiveContentPageContent() {
 
   // Real-time filtered videos matching destination mode, pillar tab and active filters
   const filteredVideos = videos.filter((v) => {
-    const isInspireCategory = v.category === 'INSPIRE' || v.tags?.some((t) => t.toUpperCase() === 'INSPIRE');
+    const isInspire = v.category === 'INSPIRE';
 
     // 0. App Destination Section filtering
     if (viewMode === 'INSPIRE') {
-      if (!isInspireCategory) return false;
+      if (!isInspire) return false;
     } else {
-      if (isInspireCategory) return false;
-      // 1. Pillar section tab matching for Community
-      if (selectedPillar !== 'ALL' && !matchesPillar(v.category, selectedPillar)) {
+      if (isInspire) return false;
+      // 1. Pillar section tab matching for Community using enhanced multi-field matcher
+      if (selectedPillar !== 'ALL' && !matchesPillar(v, selectedPillar)) {
         return false;
       }
     }
@@ -244,19 +244,25 @@ function LiveContentPageContent() {
       const tagsMatch = v.tags?.some((t) => t.toLowerCase().includes(q));
       if (!titleMatch && !descMatch && !tagsMatch) return false;
     }
-    // 3. Target Exam matching (only in Community view)
+
+    // 3. Target Exam matching (only in Community view and only for Academic or All view)
     if (viewMode === 'COMMUNITY' && examFilter !== 'All') {
-      if (!v.exam || v.exam.toUpperCase() !== examFilter.toUpperCase()) {
-        return false;
+      // For skill pillars (Hackathon, Entrepreneurship, Drone Aviation), competitive/board exams don't restrict video visibility
+      if (selectedPillar === 'ALL' || selectedPillar === 'ACADEMIC') {
+        if (!v.exam || v.exam.toUpperCase() !== examFilter.toUpperCase()) {
+          return false;
+        }
       }
     }
+
     // 4. Target Class Level matching (only in Community view)
     if (viewMode === 'COMMUNITY' && classFilter !== 'ALL') {
-      const target = v.classLevel || v.targetClass;
-      if (target && target !== classFilter && target !== 'ALL') {
+      const target = (v.classLevel || v.targetClass || '').toUpperCase();
+      if (target && target !== 'ALL' && target !== classFilter) {
         return false;
       }
     }
+
     // 5. School matching
     if (schoolFilter) {
       const isAssigned =
@@ -341,12 +347,18 @@ function LiveContentPageContent() {
         }
       }
 
+      let finalCategory = isInspire ? 'INSPIRE' : videoForm.category.toUpperCase();
+      if (finalCategory === 'DRONE_AVIATION') {
+        finalCategory = 'DRONE_TECHNOLOGY';
+        if (!tagsArr.includes('Drone Aviation')) tagsArr.push('Drone Aviation');
+      }
+
       const payload = {
         title: videoForm.title.trim(),
         description: videoForm.description.trim() || undefined,
-        category: isInspire ? 'INSPIRE' : videoForm.category.toUpperCase(),
+        category: finalCategory,
         exam: isInspire ? 'ALL' : videoForm.exam.toUpperCase(),
-        classLevel: isInspire ? 'ALL' : videoForm.classLevel,
+        classLevel: isInspire ? 'ALL' : (videoForm.classLevel || 'ALL'),
         tags: tagsArr,
         youtubeId: videoForm.youtubeId.trim() || undefined,
         bunnyVideoId: finalBunnyId,
@@ -381,6 +393,15 @@ function LiveContentPageContent() {
       setSelectedVideoFile(null);
       setSelectedThumbnailFile(null);
       setThumbnailPreview('');
+
+      // Auto-switch to the uploaded video's pillar so it immediately displays in front of the admin
+      if (!isInspire && videoForm.category) {
+        if (selectedPillar !== 'ALL' && !matchesPillar(videoForm.category, selectedPillar)) {
+          setSelectedPillar(videoForm.category);
+        }
+      }
+      setExamFilter('All');
+      setClassFilter('ALL');
       fetchVideosAndSchools();
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to save and publish video.');
@@ -482,14 +503,25 @@ function LiveContentPageContent() {
                 onClick={() => {
                   setSelectedVideo(null);
                   const isInsp = viewMode === 'INSPIRE';
-                  const defaultCat = isInsp ? 'INSPIRE' : (selectedPillar !== 'ALL' && selectedPillar !== 'INSPIRE' ? selectedPillar : 'ACADEMIC');
+                  let defaultCat = 'ACADEMIC';
+                  let defaultExam = 'JEE';
+                  if (isInsp) {
+                    defaultCat = 'INSPIRE';
+                    defaultExam = 'ALL';
+                  } else if (selectedPillar !== 'ALL') {
+                    defaultCat = selectedPillar;
+                    if (selectedPillar === 'HACKATHON') defaultExam = 'OTHER';
+                    else if (selectedPillar === 'ENTREPRENEURSHIP') defaultExam = 'OTHER';
+                    else if (selectedPillar === 'DRONE_AVIATION') defaultExam = 'OTHER';
+                    else defaultExam = 'JEE';
+                  }
                   setVideoForm({
                     title: '',
                     description: '',
                     targetSection: isInsp ? 'INSPIRE' : 'COMMUNITY',
                     category: defaultCat,
-                    exam: 'JEE',
-                    classLevel: 'CLASS_12',
+                    exam: defaultExam,
+                    classLevel: 'ALL',
                     tagsInput: '',
                     youtubeId: '',
                     bunnyVideoId: '',
@@ -540,6 +572,8 @@ function LiveContentPageContent() {
               onClick={() => {
                 setViewMode('COMMUNITY');
                 setSelectedPillar('ALL');
+                setExamFilter('All');
+                setClassFilter('ALL');
               }}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 viewMode === 'COMMUNITY'
@@ -550,7 +584,7 @@ function LiveContentPageContent() {
               <Video className="w-4 h-4 text-orange-600" />
               <span>Community Sessions & Clips</span>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-black">
-                {videos.filter((v) => v.category !== 'INSPIRE' && !v.tags?.includes('INSPIRE')).length}
+                {videos.filter((v) => v.category !== 'INSPIRE').length}
               </span>
             </button>
 
@@ -569,7 +603,7 @@ function LiveContentPageContent() {
               <Sparkles className="w-4 h-4 text-amber-500" />
               <span>Inspire Hub (Podcasts & Talks)</span>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-black">
-                {videos.filter((v) => v.category === 'INSPIRE' || v.tags?.includes('INSPIRE')).length}
+                {videos.filter((v) => v.category === 'INSPIRE').length}
               </span>
             </button>
           </div>
@@ -593,13 +627,18 @@ function LiveContentPageContent() {
                   const count =
                     pillar.code === 'ALL'
                       ? videos.filter((v) => v.category !== 'INSPIRE').length
-                      : videos.filter((v) => v.category !== 'INSPIRE' && matchesPillar(v.category, pillar.code)).length;
+                      : videos.filter((v) => v.category !== 'INSPIRE' && matchesPillar(v, pillar.code)).length;
 
                   return (
                     <button
                       key={pillar.id}
                       type="button"
-                      onClick={() => setSelectedPillar(pillar.code)}
+                      onClick={() => {
+                        setSelectedPillar(pillar.code);
+                        if (pillar.code !== 'ACADEMIC' && pillar.code !== 'ALL') {
+                          setExamFilter('All');
+                        }
+                      }}
                       className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                         isActive
                           ? 'bg-slate-900 text-white shadow-sm ring-2 ring-slate-900/10'
@@ -724,7 +763,7 @@ function LiveContentPageContent() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {filteredVideos.map((v) => {
                 const assignedCount = v.assignedSchools?.length || 0;
-                const pMeta = getPillarMeta(v.category);
+                const pMeta = getPillarMeta(v);
 
                 return (
                   <div key={v.id} className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden flex flex-col justify-between hover:border-slate-300 transition-all">
@@ -837,14 +876,16 @@ function LiveContentPageContent() {
                             onClick={() => {
                               setSelectedVideo(v);
                               setModalSelectedSchoolIds(v.assignedSchools || []);
-                              const isInsp = v.category === 'INSPIRE' || v.tags?.some((t) => t.toUpperCase() === 'INSPIRE');
+                              const isInsp = v.category === 'INSPIRE';
+                              let editCat = v.category || (isInsp ? 'INSPIRE' : 'ACADEMIC');
+                              if (editCat === 'DRONE_TECHNOLOGY') editCat = 'DRONE_AVIATION';
                               setVideoForm({
                                 title: v.title,
                                 description: v.description || '',
                                 targetSection: isInsp ? 'INSPIRE' : 'COMMUNITY',
-                                category: v.category || (isInsp ? 'INSPIRE' : 'ACADEMIC'),
+                                category: editCat,
                                 exam: v.exam || 'JEE',
-                                classLevel: v.classLevel || v.targetClass || 'CLASS_12',
+                                classLevel: v.classLevel || v.targetClass || 'ALL',
                                 tagsInput: v.tags?.join(', ') || '',
                                 youtubeId: v.youtubeId || '',
                                 bunnyVideoId: v.bunnyVideoId || '',
@@ -1156,7 +1197,18 @@ function LiveContentPageContent() {
                           <label className="block font-semibold text-slate-700 mb-1">Community Pillar *</label>
                           <select
                             value={videoForm.category}
-                            onChange={(e) => setVideoForm({ ...videoForm, category: e.target.value })}
+                            onChange={(e) => {
+                              const newCat = e.target.value;
+                              let newExam = videoForm.exam;
+                              if (newCat === 'HACKATHON' || newCat === 'ENTREPRENEURSHIP' || newCat === 'DRONE_AVIATION') {
+                                if (newExam === 'JEE' || newExam === 'NEET' || newExam === 'CUET' || newExam === 'Boards') {
+                                  newExam = 'OTHER';
+                                }
+                              } else if (newCat === 'ACADEMIC' && newExam === 'OTHER') {
+                                newExam = 'JEE';
+                              }
+                              setVideoForm({ ...videoForm, category: newCat, exam: newExam });
+                            }}
                             className="w-full p-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg font-semibold focus:border-slate-500 focus:outline-none cursor-pointer"
                           >
                             {PILLAR_OPTIONS.filter((p) => p.value !== 'INSPIRE').map((p) => (
