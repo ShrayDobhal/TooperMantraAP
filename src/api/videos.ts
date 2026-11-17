@@ -1,5 +1,4 @@
 import { api } from '@/lib/api';
-import { BUNNY_CONFIG } from '@/lib/bunnyStorage';
 
 export interface VideoItem {
   id: string;
@@ -292,17 +291,7 @@ export const videosApi = {
 
     const queryString = query.toString() ? `?${query.toString()}` : '';
 
-    let res: any = null;
-    try {
-      res = await api.get(`/admin/videos${queryString}`);
-    } catch (adminErr) {
-      // Graceful fallback to public catalog endpoint if admin videos encounters a backend issue
-      try {
-        res = await api.get(`/videos${queryString}`);
-      } catch (publicErr) {
-        throw adminErr;
-      }
-    }
+    const res: any = await api.get(`/admin/videos${queryString}`);
 
     if (Array.isArray(res)) {
       const items = res.map(formatVideoItem);
@@ -372,124 +361,6 @@ export const videosApi = {
   async deleteVideo(id: string): Promise<{ success: boolean; data: any }> {
     const res: any = await api.delete(`/admin/videos/${id}`);
     return res;
-  },
-
-  async initVideoUpload(title: string): Promise<{
-    success: boolean;
-    data: {
-      bunnyVideoId: string;
-      libraryId: string;
-      uploadUrl: string;
-      authorizationHeader: string;
-      cdnUrl: string;
-      embedUrl: string;
-      thumbnailUrl: string;
-    };
-  }> {
-    const cleanTitle = title.trim() || 'Untitled Video';
-    const libraryId = BUNNY_CONFIG.streamLibraryId;
-    const apiKey = BUNNY_CONFIG.streamApiKey;
-    const cdnHost = BUNNY_CONFIG.streamCdnHost;
-
-    // Method 1: Call internal Next.js API route (server-side, zero CORS / network issues)
-    try {
-      const internalRes = await fetch('/api/bunny/create-video', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: cleanTitle }),
-      });
-      if (internalRes.ok) {
-        const json = await internalRes.json();
-        if (json.success && json.data?.bunnyVideoId) {
-          return json;
-        }
-      }
-    } catch (_) {
-      // Continue to Method 2 if internal route is unreachable
-    }
-
-    // Method 2: Direct call to Bunny Stream API from browser
-    try {
-      const bunnyRes = await fetch(`https://video.bunnycdn.com/library/${libraryId}/videos`, {
-        method: 'POST',
-        headers: {
-          'AccessKey': apiKey,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({ title: cleanTitle }),
-      });
-
-      if (!bunnyRes.ok) {
-        const errText = await bunnyRes.text().catch(() => '');
-        throw new Error(`Bunny Stream rejected creation (status ${bunnyRes.status}): ${errText || bunnyRes.statusText}`);
-      }
-
-      const bunnyData = await bunnyRes.json();
-      const videoGuid = bunnyData.guid || bunnyData.id;
-
-      if (!videoGuid) {
-        throw new Error('Bunny Stream response did not contain a valid video GUID.');
-      }
-
-      return {
-        success: true,
-        data: {
-          bunnyVideoId: videoGuid,
-          libraryId: libraryId,
-          uploadUrl: `https://video.bunnycdn.com/library/${libraryId}/videos/${videoGuid}`,
-          authorizationHeader: apiKey,
-          cdnUrl: `https://${cdnHost}/${videoGuid}/playlist.m3u8`,
-          embedUrl: `https://iframe.mediadelivery.net/embed/${libraryId}/${videoGuid}?autoplay=false&preload=true`,
-          thumbnailUrl: `https://${cdnHost}/${videoGuid}/thumbnail.jpg`,
-        },
-      };
-    } catch (err: any) {
-      throw new Error(`Bunny Stream Initialization Error: ${err.message}`);
-    }
-  },
-
-  async uploadVideoFileToBunny(
-    uploadUrl: string,
-    accessKey: string,
-    file: File,
-    onProgress?: (percent: number) => void
-  ): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('PUT', uploadUrl);
-      xhr.setRequestHeader('AccessKey', accessKey);
-      xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
-
-      if (xhr.upload && onProgress) {
-        xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable) {
-            const percent = Math.round((event.loaded / event.total) * 100);
-            onProgress(percent);
-          }
-        };
-      }
-
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          resolve();
-        } else {
-          let errorDetail = '';
-          try {
-            const parsed = JSON.parse(xhr.responseText);
-            errorDetail = parsed.message || parsed.HttpCode || xhr.responseText;
-          } catch (_) {
-            errorDetail = xhr.responseText || xhr.statusText;
-          }
-          reject(new Error(`Bunny Stream upload failed with status ${xhr.status}: ${errorDetail}`));
-        }
-      };
-
-      xhr.onerror = () => reject(new Error('Network error during direct video upload to Bunny CDN.'));
-      xhr.timeout = 600000;
-      xhr.ontimeout = () => reject(new Error('Video upload timed out. Please check your network connection.'));
-      xhr.send(file);
-    });
   },
 
   async assignVideoToSchools(videoId: string, schoolIds: string[]): Promise<{ success: boolean; data: any }> {
