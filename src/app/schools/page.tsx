@@ -89,7 +89,7 @@ export default function SchoolsPage() {
     setErrorMsg('');
     try {
       await schoolsApi.deleteSchool(schoolToDelete.id);
-      setToastMsg(`✓ School "${schoolToDelete.name}" deleted successfully.`);
+      setToastMsg(`School "${schoolToDelete.name}" deleted successfully.`);
       setSchoolToDelete(null);
       await fetchSchools();
     } catch (err: any) {
@@ -186,7 +186,7 @@ export default function SchoolsPage() {
 
       if (res && res.success && res.data) {
         setGeneratedCode(res.data.licenseCode);
-        setToastMsg(`✓ Access code ${res.data.licenseCode} generated with ${seatCount} seats for ${selectedSchool.name}!`);
+        setToastMsg(`Access code ${res.data.licenseCode} generated with ${seatCount} seats for ${selectedSchool.name}!`);
         await fetchSchools();
       } else {
         setErrorMsg('Failed to generate license from backend API.');
@@ -228,7 +228,7 @@ export default function SchoolsPage() {
     setSavingVideos(true);
     try {
       await schoolsApi.assignVideosToSchool(videoSchool.id, assignedVideoIds);
-      setToastMsg(`✓ Curriculum videos updated for "${videoSchool.name}"!`);
+      setToastMsg(`Curriculum videos updated for "${videoSchool.name}"!`);
       setVideoSchool(null);
       await fetchSchools();
     } catch (err: any) {
@@ -281,7 +281,7 @@ export default function SchoolsPage() {
   const copyToClipboard = (code: string) => {
     navigator.clipboard.writeText(code);
     setCopiedCode(code);
-    setToastMsg(`✓ Access code "${code}" copied to clipboard!`);
+    setToastMsg(`Access code "${code}" copied to clipboard!`);
     setTimeout(() => setCopiedCode(null), 2500);
   };
 
@@ -337,7 +337,7 @@ export default function SchoolsPage() {
           {/* Page Title & Main Actions */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Schools</h1>
+              <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Schools</h1>
               <p className="text-slate-500 text-xs mt-0.5">
                 Manage partner school portals, license coupon batches, and institutional student analytics.
               </p>
@@ -373,7 +373,7 @@ export default function SchoolsPage() {
                 setActiveMainTab('licenses');
                 setAnalyticsSelectedSchool(null);
               }}
-              className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 cursor-pointer flex items-center gap-2 ${
+              className={`px-4 py-2.5 text-xs font-semibold transition-all border-b-2 cursor-pointer flex items-center gap-2 ${
                 activeMainTab === 'licenses'
                   ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
                   : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50'
@@ -386,7 +386,7 @@ export default function SchoolsPage() {
             <button
               type="button"
               onClick={() => setActiveMainTab('analytics')}
-              className={`px-4 py-2.5 text-xs font-bold transition-all border-b-2 cursor-pointer flex items-center gap-2 ${
+              className={`px-4 py-2.5 text-xs font-semibold transition-all border-b-2 cursor-pointer flex items-center gap-2 ${
                 activeMainTab === 'analytics'
                   ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
                   : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50'
@@ -434,13 +434,13 @@ export default function SchoolsPage() {
                   />
                   {searchQuery && (
                     <button onClick={() => setSearchQuery('')} className="text-xs text-slate-400 hover:text-slate-600">
-                      ✕
+                      
                     </button>
                   )}
                 </div>
 
                 <div className="flex items-center gap-1.5 self-start sm:self-auto text-xs font-semibold flex-wrap">
-                  <span className="text-slate-400 text-[11px] uppercase tracking-wider mr-1">Filter:</span>
+                  <span className="text-slate-400 text-[11px] mr-1">Filter:</span>
                   <button
                     type="button"
                     onClick={() => setStatusFilter('ALL')}
@@ -458,7 +458,7 @@ export default function SchoolsPage() {
                     onClick={() => setStatusFilter('INDIRAPURAM')}
                     className={`px-3 py-1 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
                       statusFilter === 'INDIRAPURAM'
-                        ? 'bg-indigo-600 text-white font-bold shadow-2xs'
+                        ? 'bg-indigo-600 text-white font-semibold shadow-2xs'
                         : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200'
                     }`}
                   >
@@ -494,7 +494,7 @@ export default function SchoolsPage() {
               <div className="p-4 bg-white border border-slate-200 rounded-xl flex items-start gap-3 shadow-2xs">
                 <Info className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
                 <div className="text-xs text-slate-700 space-y-1">
-                  <p className="font-bold text-slate-900">Institutional Licensing, Video Curriculum & Batch Seat Allocation:</p>
+                  <p className="font-semibold text-slate-900">Institutional Licensing, Video Curriculum & Batch Seat Allocation:</p>
                   <p className="text-slate-600">
                     Each school card displays the <strong>Activation Date</strong>, <strong>Expiry Date</strong>, video catalog allocation, and all generated <strong>Access License Batches</strong>. When students redeem any batch code on the Topper Mantra app, the backend automatically validates remaining seats and activates school curriculum access.
                   </p>
@@ -550,16 +550,16 @@ export default function SchoolsPage() {
                             </div>
                             <div>
                               <div className="flex items-center gap-2 flex-wrap">
-                                <h3 className="text-base font-bold text-slate-900">{s.name}</h3>
+                                <h3 className="text-base font-semibold text-slate-900">{s.name}</h3>
 
                                 {isIndirapuram && (
-                                  <span className="px-2 py-0.5 text-[10px] rounded-full font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
+                                  <span className="px-2 py-0.5 text-[10px] rounded-full font-semibold bg-indigo-100 text-indigo-800 border border-indigo-200">
                                     Indirapuram Public School
                                   </span>
                                 )}
 
                                 <span
-                                  className={`px-2.5 py-0.5 text-[10px] rounded-full font-bold uppercase border ${
+                                  className={`px-2.5 py-0.5 text-[10px] rounded-full font-semibold uppercase border ${
                                     isMembershipActive
                                       ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                       : 'bg-rose-50 text-rose-700 border-rose-200'
@@ -644,19 +644,19 @@ export default function SchoolsPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs bg-slate-50 p-3.5 rounded-xl border border-slate-200">
                           <div>
                             <span className="text-slate-500 font-medium">Total License Seats:</span>
-                            <p className="font-bold text-slate-900 text-sm mt-0.5">{totalSeats.toLocaleString()}</p>
+                            <p className="font-semibold text-slate-900 text-sm mt-0.5">{totalSeats.toLocaleString()}</p>
                           </div>
                           <div>
                             <span className="text-slate-500 font-medium">Allocated / Redeemed:</span>
-                            <p className="font-bold text-emerald-600 text-sm mt-0.5">{allocatedSeats.toLocaleString()} ({percentRedeemed}%)</p>
+                            <p className="font-semibold text-emerald-600 text-sm mt-0.5">{allocatedSeats.toLocaleString()} ({percentRedeemed}%)</p>
                           </div>
                           <div>
                             <span className="text-slate-500 font-medium">Remaining Available:</span>
-                            <p className="font-bold text-slate-700 text-sm mt-0.5">{remainingSeats > 0 ? remainingSeats.toLocaleString() : 0}</p>
+                            <p className="font-semibold text-slate-700 text-sm mt-0.5">{remainingSeats > 0 ? remainingSeats.toLocaleString() : 0}</p>
                           </div>
                           <div>
                             <span className="text-slate-500 font-medium">Total Batches Issued:</span>
-                            <p className="font-bold text-slate-800 text-sm mt-0.5">{s.licenses?.length || 0} Batches</p>
+                            <p className="font-semibold text-slate-800 text-sm mt-0.5">{s.licenses?.length || 0} Batches</p>
                           </div>
                         </div>
 
@@ -665,7 +665,7 @@ export default function SchoolsPage() {
                           s.licenses && s.licenses.length > 0 ? (
                             <div className="space-y-2.5">
                               <div className="flex items-center justify-between">
-                                <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                                <p className="text-xs font-semibold text-slate-700">
                                   Issued Access Coupon Batches ({s.licenses.length})
                                 </p>
                                 <span className="text-[11px] text-slate-400">
@@ -683,7 +683,7 @@ export default function SchoolsPage() {
                                     <div key={idx} className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-2 hover:border-slate-300 transition-colors shadow-2xs">
                                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                         <div className="flex items-center gap-2 flex-wrap">
-                                          <span className="font-mono text-slate-900 font-bold tracking-wider text-xs bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+                                          <span className="font-mono text-slate-900 font-semibold text-xs bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
                                             {lic.licenseCode}
                                           </span>
                                           <button
@@ -695,7 +695,7 @@ export default function SchoolsPage() {
                                             {copiedCode === lic.licenseCode ? (
                                               <>
                                                 <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                                <span className="text-emerald-600 font-bold">Copied!</span>
+                                                <span className="text-emerald-600 font-semibold">Copied!</span>
                                               </>
                                             ) : (
                                               <>
@@ -717,7 +717,7 @@ export default function SchoolsPage() {
                                         </div>
 
                                         <div className="flex items-center gap-3 text-xs flex-wrap">
-                                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
+                                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase ${
                                             isLicActive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
                                           }`}>
                                             {isLicActive ? 'Valid Batch' : 'Expired'}
@@ -769,28 +769,28 @@ export default function SchoolsPage() {
                   {/* Institutional Summary KPIs */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Partner Schools</span>
-                      <p className="text-2xl font-bold text-slate-900 mt-1">{schools.length}</p>
+                      <span className="text-[11px] font-semibold text-slate-400">Partner Schools</span>
+                      <p className="text-2xl font-semibold text-slate-900 mt-1">{schools.length}</p>
                       <p className="text-[11px] text-slate-500 mt-0.5">Active institutional portals</p>
                     </div>
 
                     <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Licensed Capacity</span>
-                      <p className="text-2xl font-bold text-slate-900 mt-1">{totalAllSeats.toLocaleString()}</p>
+                      <span className="text-[11px] font-semibold text-slate-400">Total Licensed Capacity</span>
+                      <p className="text-2xl font-semibold text-slate-900 mt-1">{totalAllSeats.toLocaleString()}</p>
                       <p className="text-[11px] text-slate-500 mt-0.5">Contracted seats</p>
                     </div>
 
                     <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Redeemed Seats</span>
-                      <p className="text-2xl font-bold text-emerald-600 mt-1">
+                      <span className="text-[11px] font-semibold text-slate-400">Redeemed Seats</span>
+                      <p className="text-2xl font-semibold text-emerald-600 mt-1">
                         {totalAllAllocated.toLocaleString()} ({totalAllSeats > 0 ? Math.round((totalAllAllocated / totalAllSeats) * 100) : 0}%)
                       </p>
                       <p className="text-[11px] text-slate-500 mt-0.5">Active student accounts</p>
                     </div>
 
                     <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Unclaimed Seats</span>
-                      <p className="text-2xl font-bold text-indigo-600 mt-1">{totalAllRemaining.toLocaleString()}</p>
+                      <span className="text-[11px] font-semibold text-slate-400">Unclaimed Seats</span>
+                      <p className="text-2xl font-semibold text-indigo-600 mt-1">{totalAllRemaining.toLocaleString()}</p>
                       <p className="text-[11px] text-slate-500 mt-0.5">Available for distribution</p>
                     </div>
                   </div>
@@ -799,7 +799,7 @@ export default function SchoolsPage() {
                   <div className="mnc-card overflow-hidden">
                     <div className="p-4 border-b border-slate-100 flex items-center justify-between gap-3 bg-white">
                       <div>
-                        <h3 className="text-sm font-bold text-slate-900">Partner School Institutional Telemetry</h3>
+                        <h3 className="text-sm font-semibold text-slate-900">Partner School Institutional Telemetry</h3>
                         <p className="text-xs text-slate-500 mt-0.5">Click any school to drill down into student rosters, watch percentages, and video allocations.</p>
                       </div>
                       <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-lg">
@@ -829,15 +829,15 @@ export default function SchoolsPage() {
                             <tr key={school.id} className="hover:bg-slate-50/80 transition-colors">
                               <td>
                                 <div className="flex items-center gap-2.5">
-                                  <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600 font-bold text-xs shrink-0">
+                                  <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600 font-semibold text-xs shrink-0">
                                     <Building2 className="w-4 h-4" />
                                   </div>
                                   <div>
                                     <div className="flex items-center gap-1.5 flex-wrap">
-                                      <span className="font-bold text-slate-900 text-xs">{school.name}</span>
+                                      <span className="font-semibold text-slate-900 text-xs">{school.name}</span>
                                       {isIndirapuram && (
-                                        <span className="px-2 py-0.2 bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-full text-[10px] font-bold">
-                                          ★ Indirapuram
+                                        <span className="px-2 py-0.2 bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-full text-[10px] font-semibold">
+                                          Indirapuram
                                         </span>
                                       )}
                                     </div>
@@ -851,7 +851,7 @@ export default function SchoolsPage() {
                               <td>
                                 <div className="space-y-1 max-w-[180px]">
                                   <div className="flex justify-between text-[11px] text-slate-600">
-                                    <span className="font-bold text-slate-900">{alloc}</span>
+                                    <span className="font-semibold text-slate-900">{alloc}</span>
                                     <span>/ {seats} ({pct}%)</span>
                                   </div>
                                   <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
@@ -865,7 +865,7 @@ export default function SchoolsPage() {
                               </td>
 
                               <td>
-                                <span className={`px-2 py-0.5 text-[10px] rounded-full font-bold uppercase border ${
+                                <span className={`px-2 py-0.5 text-[10px] rounded-full font-semibold uppercase border ${
                                   school.status === 'ACTIVE'
                                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                     : 'bg-rose-50 text-rose-700 border-rose-200'
@@ -922,14 +922,14 @@ export default function SchoolsPage() {
                   <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-2xs space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
                       <div className="flex items-center gap-3.5">
-                        <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600 font-bold">
+                        <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600 font-semibold">
                           <Building2 className="w-6 h-6" />
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <h2 className="text-lg font-bold text-slate-900">{analyticsSelectedSchool.name}</h2>
+                            <h2 className="text-lg font-semibold text-slate-900">{analyticsSelectedSchool.name}</h2>
                             {isIndirapuramSchool(analyticsSelectedSchool) && (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-100 text-indigo-800 border border-indigo-200">
                                 Indirapuram Public School
                               </span>
                             )}
@@ -940,7 +940,7 @@ export default function SchoolsPage() {
                         </div>
                       </div>
 
-                      <span className="px-3 py-1 text-xs rounded-full font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <span className="px-3 py-1 text-xs rounded-full font-semibold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
                         ● Active Institutional Partner
                       </span>
                     </div>
@@ -948,24 +948,24 @@ export default function SchoolsPage() {
                     {/* School Metrics */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                       <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Seat Utilization</span>
-                        <p className="text-xl font-bold text-slate-900 mt-1">
+                        <span className="text-[11px] font-semibold text-slate-500">Seat Utilization</span>
+                        <p className="text-xl font-semibold text-slate-900 mt-1">
                           {analyticsSelectedSchool.allocatedSeats || 0} / {analyticsSelectedSchool.totalSeats || 0}
                         </p>
                         <p className="text-[11px] text-slate-500 mt-0.5">Redeemed license coupons</p>
                       </div>
 
                       <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Assigned Curriculum</span>
-                        <p className="text-xl font-bold text-indigo-600 mt-1">
+                        <span className="text-[11px] font-semibold text-slate-500">Assigned Curriculum</span>
+                        <p className="text-xl font-semibold text-indigo-600 mt-1">
                           {analyticsSelectedSchool.assignedVideosCount || 1} / 22 Videos
                         </p>
                         <p className="text-[11px] text-slate-500 mt-0.5">Active catalog release</p>
                       </div>
 
                       <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">License Batches</span>
-                        <p className="text-xl font-bold text-purple-700 mt-1">
+                        <span className="text-[11px] font-semibold text-slate-500">License Batches</span>
+                        <p className="text-xl font-semibold text-purple-700 mt-1">
                           {analyticsSelectedSchool.licenses?.length || 0} Batches
                         </p>
                         <p className="text-[11px] text-slate-500 mt-0.5">Configured coupon prefixes</p>
@@ -977,7 +977,7 @@ export default function SchoolsPage() {
                   <div className="mnc-card overflow-hidden">
                     <div className="p-4 border-b border-slate-100 flex items-center justify-between gap-3 bg-white">
                       <div>
-                        <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
                           <Users className="w-4 h-4 text-indigo-600" />
                           Enrolled Students Roster ({analyticsSelectedSchool.name})
                         </h4>
@@ -1023,7 +1023,7 @@ export default function SchoolsPage() {
                                 <button
                                   type="button"
                                   onClick={() => handleOpenStudentReport(stu, analyticsSelectedSchool.name)}
-                                  className="text-left font-bold text-slate-900 hover:text-indigo-600 transition-colors flex items-center gap-1.5 cursor-pointer group"
+                                  className="text-left font-semibold text-slate-900 hover:text-indigo-600 transition-colors flex items-center gap-1.5 cursor-pointer group"
                                 >
                                   <span>{stu.profile?.fullName || stu.fullName || 'Registered Student'}</span>
                                   <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all" />
@@ -1033,7 +1033,7 @@ export default function SchoolsPage() {
                               <td className="text-slate-700 font-medium text-xs">{stu.profile?.targetExam || 'General'}</td>
                               <td className="text-slate-600 text-xs">{stu.profile?.educationLevel || 'Class 11/12'}</td>
                               <td>
-                                <span className="px-2 py-0.5 text-[10px] rounded-full font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <span className="px-2 py-0.5 text-[10px] rounded-full font-semibold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
                                   {stu.status || 'ACTIVE'}
                                 </span>
                               </td>
@@ -1069,12 +1069,12 @@ export default function SchoolsPage() {
                   <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600">
                     <Building2 className="w-4 h-4" />
                   </div>
-                  <h3 className="text-base font-bold text-slate-900">Register Institutional School</h3>
+                  <h3 className="text-base font-semibold text-slate-900">Register Institutional School</h3>
                 </div>
 
                 <form onSubmit={handleCreateSchool} className="space-y-3.5 text-xs">
                   <div>
-                    <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">School Name *</label>
+                    <label className="block font-semibold text-slate-700 mb-1">School Name *</label>
                     <input
                       type="text"
                       required
@@ -1085,7 +1085,7 @@ export default function SchoolsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">School Unique Code *</label>
+                    <label className="block font-semibold text-slate-700 mb-1">School Unique Code *</label>
                     <input
                       type="text"
                       required
@@ -1097,7 +1097,7 @@ export default function SchoolsPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">City</label>
+                      <label className="block font-semibold text-slate-700 mb-1">City</label>
                       <input
                         type="text"
                         placeholder="e.g. Ayodhya"
@@ -1107,7 +1107,7 @@ export default function SchoolsPage() {
                       />
                     </div>
                     <div>
-                      <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">State</label>
+                      <label className="block font-semibold text-slate-700 mb-1">State</label>
                       <input
                         type="text"
                         placeholder="e.g. Uttar Pradesh"
@@ -1149,16 +1149,16 @@ export default function SchoolsPage() {
                     <Key className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-slate-900">Generate Bulk Access Code</h3>
+                    <h3 className="text-base font-semibold text-slate-900">Generate Bulk Access Code</h3>
                     <p className="text-xs text-slate-500">{selectedSchool.name}</p>
                   </div>
                 </div>
 
                 <form onSubmit={handleGenerateLicense} className="space-y-3.5 text-xs">
                   <div>
-                    <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">Code Custom Prefix</label>
+                    <label className="block font-semibold text-slate-700 mb-1">Code Custom Prefix</label>
                     <div className="flex items-center gap-1">
-                      <span className="px-2.5 py-2.5 bg-slate-100 border border-slate-300 rounded-lg text-slate-600 font-mono font-bold">TOPPER-</span>
+                      <span className="px-2.5 py-2.5 bg-slate-100 border border-slate-300 rounded-lg text-slate-600 font-mono font-semibold">TOPPER-</span>
                       <input
                         type="text"
                         value={codePrefix}
@@ -1168,7 +1168,7 @@ export default function SchoolsPage() {
                     </div>
                   </div>
                   <div>
-                    <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">Total Seat Licenses *</label>
+                    <label className="block font-semibold text-slate-700 mb-1">Total Seat Licenses *</label>
                     <input
                       type="number"
                       required
@@ -1180,8 +1180,8 @@ export default function SchoolsPage() {
                   </div>
 
                   {generatedCode && (
-                    <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-900 font-mono text-xs font-bold text-center">
-                      🔑 Generated Code: <span className="text-indigo-600 font-semibold">{generatedCode}</span>
+                    <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-900 font-mono text-xs font-semibold text-center">
+                      Generated Code: <span className="text-indigo-600 font-semibold">{generatedCode}</span>
                     </div>
                   )}
 
@@ -1217,7 +1217,7 @@ export default function SchoolsPage() {
                       <Video className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="text-base font-bold text-slate-900">Video Curriculum Allocation</h3>
+                      <h3 className="text-base font-semibold text-slate-900">Video Curriculum Allocation</h3>
                       <p className="text-xs text-slate-500 font-medium">{videoSchool.name} ({videoSchool.code})</p>
                     </div>
                   </div>
@@ -1226,7 +1226,7 @@ export default function SchoolsPage() {
                     onClick={() => setVideoSchool(null)}
                     className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg"
                   >
-                    ✕
+                    
                   </button>
                 </div>
 
@@ -1234,7 +1234,7 @@ export default function SchoolsPage() {
                   <div className="flex items-center justify-between gap-2 flex-wrap text-xs">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-slate-600">Assigned to School:</span>
-                      <span className="font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                      <span className="font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
                         {assignedVideoIds.length} of {catalogVideos.length} videos
                       </span>
                     </div>
@@ -1342,7 +1342,7 @@ export default function SchoolsPage() {
                               )}
 
                               <div className="min-w-0">
-                                <p className="text-xs font-bold text-slate-900 truncate leading-snug">
+                                <p className="text-xs font-semibold text-slate-900 truncate leading-snug">
                                   {video.title}
                                 </p>
                                 <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500">
@@ -1403,7 +1403,7 @@ export default function SchoolsPage() {
                       <Users className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="text-base font-bold text-slate-900">Enrolled Students Roster</h3>
+                      <h3 className="text-base font-semibold text-slate-900">Enrolled Students Roster</h3>
                       <p className="text-xs text-slate-500 font-medium">{studentsSchool.name} • Code: {studentsSchool.code}</p>
                     </div>
                   </div>
@@ -1412,7 +1412,7 @@ export default function SchoolsPage() {
                     onClick={() => setStudentsSchool(null)}
                     className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg"
                   >
-                    ✕
+                    
                   </button>
                 </div>
 
@@ -1438,7 +1438,7 @@ export default function SchoolsPage() {
                             <button
                               type="button"
                               onClick={() => handleOpenStudentReport(stu, studentsSchool.name)}
-                              className="font-bold text-slate-900 hover:text-indigo-600 transition-colors flex items-center gap-1.5 cursor-pointer text-left"
+                              className="font-semibold text-slate-900 hover:text-indigo-600 transition-colors flex items-center gap-1.5 cursor-pointer text-left"
                             >
                               <span>{stu.profile?.fullName || stu.fullName || 'Student User'}</span>
                               <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600" />
@@ -1446,7 +1446,7 @@ export default function SchoolsPage() {
                             <p className="text-slate-500 font-mono text-[11px] mt-0.5">{stu.phone}</p>
                           </div>
                           <div className="text-right flex items-center gap-2">
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                               {stu.status || 'ACTIVE'}
                             </span>
                             <button
@@ -1485,7 +1485,7 @@ export default function SchoolsPage() {
                     <Trash2 className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-slate-900">Delete School Profile</h3>
+                    <h3 className="text-base font-semibold text-slate-900">Delete School Profile</h3>
                     <p className="text-xs text-slate-500">This action will remove the partner school.</p>
                   </div>
                 </div>
@@ -1537,7 +1537,7 @@ export default function SchoolsPage() {
                     <Trash2 className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-slate-900">Delete License Batch</h3>
+                    <h3 className="text-base font-semibold text-slate-900">Delete License Batch</h3>
                     <p className="text-xs text-slate-500">{licenseToDelete.schoolName}</p>
                   </div>
                 </div>
@@ -1547,7 +1547,7 @@ export default function SchoolsPage() {
                     Are you sure you want to revoke and delete this access coupon batch?
                   </p>
                   <div className="text-[11px] text-slate-600 space-y-1 pt-1 font-mono">
-                    <div className="p-2 bg-white rounded border border-slate-200 font-bold text-slate-900 text-center">
+                    <div className="p-2 bg-white rounded border border-slate-200 font-semibold text-slate-900 text-center">
                       {licenseToDelete.license.licenseCode}
                     </div>
                     <div className="flex items-center justify-between font-sans text-xs pt-1">

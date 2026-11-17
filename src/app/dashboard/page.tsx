@@ -77,7 +77,7 @@ export default function DashboardPage() {
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-            <StatCard label="Active right now" value={fmtNumber(t?.activeNow)} hint="last 5 minutes" loading={loading} />
+            <StatCard label="Active right now" value={fmtNumber(t?.activeNow)} hint="last 10 minutes" loading={loading} />
             <StatCard label="Active today" value={fmtNumber(t?.activeToday)} loading={loading} />
             <StatCard label="Active in range" value={fmtNumber(t?.activeUsers)} hint={`of ${fmtCompact(t?.students)} students`} loading={loading} />
             <StatCard label="New signups" value={fmtNumber(t?.newSignups)} loading={loading} />
@@ -258,7 +258,7 @@ export default function DashboardPage() {
                     <p className="text-xs text-slate-500">watched</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium text-slate-900">{fmtPercent(v.completionRate)}</p>
+                    <p className="text-sm font-medium text-slate-900">{fmtPercent(v.completionRate / 100)}</p>
                     <p className="text-xs text-slate-500">completion</p>
                   </div>
                 </li>

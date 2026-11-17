@@ -20,7 +20,7 @@ export default function ContentAnalyticsPage() {
   const items = q.data?.items || [];
   const totalViewers = items.reduce((a, v) => a + v.uniqueViewers, 0);
   const totalMinutes = items.reduce((a, v) => a + v.watchMinutes, 0);
-  const avgCompletion = items.length ? items.reduce((a, v) => a + (v.completionRate <= 1 ? v.completionRate : v.completionRate / 100), 0) / items.length : null;
+  const avgCompletion = items.length ? items.reduce((a, v) => a + v.completionRate / 100, 0) / items.length : null;
 
   const columns: Column<VideoRow>[] = [
     {
@@ -50,7 +50,7 @@ export default function ContentAnalyticsPage() {
       header: 'Completion',
       align: 'right',
       cell: (v) => {
-        const pct = v.completionRate <= 1 ? v.completionRate * 100 : v.completionRate;
+        const pct = v.completionRate; // backend sends 0–100
         return (
           <div className="flex items-center justify-end gap-2">
             <div className="hidden h-1.5 w-16 rounded-full bg-slate-100 sm:block">

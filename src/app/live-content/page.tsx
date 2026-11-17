@@ -381,11 +381,11 @@ function LiveContentPageContent() {
       let targetVideoId = selectedVideo?.id;
       if (selectedVideo) {
         await videosApi.updateVideo(selectedVideo.id, payload);
-        setToastMsg(`🎉 Video "${videoForm.title}" updated successfully!`);
+        setToastMsg(`Video "${videoForm.title}" updated successfully!`);
       } else {
         const createRes = await videosApi.createVideo(payload);
         targetVideoId = createRes?.data?.id;
-        setToastMsg(`🎉 ${isInspire ? 'Inspire video' : 'Community video'} "${videoForm.title}" published successfully!`);
+        setToastMsg(`${isInspire ? 'Inspire video' : 'Community video'} "${videoForm.title}" published successfully!`);
       }
 
       // Automatically sync to Event table if this is a COMMUNITY live/video session so it reflects in the mobile app Live Sessions tab
@@ -478,7 +478,7 @@ function LiveContentPageContent() {
 
     try {
       await videosApi.deleteVideo(id);
-      setToastMsg(`✓ Video "${title}" removed.`);
+      setToastMsg(`Video "${title}" removed.`);
       fetchVideosAndSchools();
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to delete video.');
@@ -489,7 +489,7 @@ function LiveContentPageContent() {
     try {
       const nextFeatured = !v.isFeatured;
       await videosApi.updateVideo(v.id, { isFeatured: nextFeatured });
-      setToastMsg(`✓ Video "${v.title}" is now ${nextFeatured ? '⭐ Featured on Mobile App' : 'removed from Featured'}.`);
+      setToastMsg(`Video "${v.title}" is now ${nextFeatured ? 'Featured on Mobile App' : 'removed from Featured'}.`);
       setVideos((prev) =>
         prev.map((vid) => (vid.id === v.id ? { ...vid, isFeatured: nextFeatured } : vid))
       );
@@ -555,10 +555,10 @@ function LiveContentPageContent() {
 
       if (selectedPlaylist) {
         await playlistsApi.updatePlaylist(selectedPlaylist.id, payload);
-        setToastMsg(`✓ Curated playlist "${playlistForm.title}" updated!`);
+        setToastMsg(`Curated playlist "${playlistForm.title}" updated!`);
       } else {
         await playlistsApi.createPlaylist(payload);
-        setToastMsg(`🎉 Curated playlist "${playlistForm.title}" created successfully!`);
+        setToastMsg(`Curated playlist "${playlistForm.title}" created successfully!`);
       }
 
       setShowPlaylistModal(false);
@@ -587,7 +587,7 @@ function LiveContentPageContent() {
 
     try {
       await playlistsApi.deletePlaylist(id);
-      setToastMsg(`✓ Playlist "${title}" deleted.`);
+      setToastMsg(`Playlist "${title}" deleted.`);
       const pRes = await playlistsApi.getPlaylists();
       if (pRes.success) setPlaylists(pRes.data.items);
     } catch (err: any) {
@@ -600,7 +600,7 @@ function LiveContentPageContent() {
       const nextFeatured = !pl.isFeatured;
       await playlistsApi.updatePlaylist(pl.id, { isFeatured: nextFeatured });
       setToastMsg(
-        `✓ Playlist "${pl.title}" is now ${nextFeatured ? '⭐ Featured on Mobile App' : 'removed from Featured'}.`
+        `Playlist "${pl.title}" is now ${nextFeatured ? 'Featured on Mobile App' : 'removed from Featured'}.`
       );
       setPlaylists((prev) =>
         prev.map((p) => (p.id === pl.id ? { ...p, isFeatured: nextFeatured } : p))
@@ -629,7 +629,7 @@ function LiveContentPageContent() {
 
     try {
       await videosApi.assignVideoToSchools(assigningVideo.id, selectedSchoolIds);
-      setToastMsg(`✓ School assignments updated for "${assigningVideo.title}"!`);
+      setToastMsg(`School assignments updated for "${assigningVideo.title}"!`);
       setShowAssignModal(false);
       setAssigningVideo(null);
       fetchVideosAndSchools();
@@ -650,12 +650,12 @@ function LiveContentPageContent() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md bg-indigo-100 text-indigo-700 border border-indigo-200 inline-flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-md bg-indigo-100 text-indigo-700 border border-indigo-200 inline-flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
                   Target: Student Mobile App → {viewMode === 'INSPIRE' ? 'Inspire Tab (Explore & Playlists)' : 'My Space → Community'}
                 </span>
               </div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <h1 className="text-2xl font-semibold text-slate-900 tracking-tight flex items-center gap-2">
                 {viewMode === 'INSPIRE' ? (
                   <>
                     <Sparkles className="w-6 h-6 text-amber-500" />
@@ -779,7 +779,7 @@ function LiveContentPageContent() {
                 setClassFilter('ALL');
                 setActivePlaylistFilter(null);
               }}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                 viewMode === 'COMMUNITY'
                   ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
@@ -798,7 +798,7 @@ function LiveContentPageContent() {
                 setViewMode('INSPIRE');
                 setSelectedPillar('INSPIRE');
               }}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                 viewMode === 'INSPIRE'
                   ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
@@ -816,7 +816,7 @@ function LiveContentPageContent() {
           {viewMode === 'COMMUNITY' ? (
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs space-y-3">
               <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 uppercase tracking-wider">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
                   <Layers className="w-4 h-4 text-indigo-600" />
                   <span>Community Pillar Navigation</span>
                 </div>
@@ -843,13 +843,12 @@ function LiveContentPageContent() {
                           setExamFilter('All');
                         }
                       }}
-                      className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                      className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
                         isActive
                           ? 'bg-slate-900 text-white shadow-sm ring-2 ring-slate-900/10'
                           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 bg-slate-50 border border-slate-200/70'
                       }`}
                     >
-                      <span className="text-base leading-none">{pillar.emoji}</span>
                       <span>{pillar.name}</span>
                       <span
                         className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
@@ -866,8 +865,8 @@ function LiveContentPageContent() {
               {selectedPillar !== 'ALL' && (
                 <div className="pt-2.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs text-slate-600">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-900">
-                      {PILLAR_SECTIONS.find((p) => p.code === selectedPillar)?.emoji}{' '}
+                    <span className="font-semibold text-slate-900">
+                      
                       {PILLAR_SECTIONS.find((p) => p.code === selectedPillar)?.name}
                     </span>
                     <span className="text-slate-300">•</span>
@@ -876,7 +875,7 @@ function LiveContentPageContent() {
                     </span>
                   </div>
                   <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/70 px-2.5 py-0.5 rounded-md inline-flex items-center gap-1.5 self-start sm:self-auto">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                     Syncs to Student App → Academic Community → Live Sessions
                   </span>
                 </div>
@@ -893,7 +892,7 @@ function LiveContentPageContent() {
                     onClick={() => {
                       setInspireSubTab('VIDEOS');
                     }}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                       inspireSubTab === 'VIDEOS'
                         ? 'bg-amber-500 text-white shadow-sm'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -916,7 +915,7 @@ function LiveContentPageContent() {
                       setInspireSubTab('PLAYLISTS');
                       setActivePlaylistFilter(null);
                     }}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                       inspireSubTab === 'PLAYLISTS'
                         ? 'bg-amber-500 text-white shadow-sm'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -939,7 +938,7 @@ function LiveContentPageContent() {
                       setInspireSubTab('FEATURED');
                       setActivePlaylistFilter(null);
                     }}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                       inspireSubTab === 'FEATURED'
                         ? 'bg-amber-500 text-white shadow-sm'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -969,7 +968,7 @@ function LiveContentPageContent() {
               {inspireSubTab === 'VIDEOS' && (
                 <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-slate-800 flex items-center gap-1.5">
                       <Filter className="w-3.5 h-3.5 text-amber-600" />
                       Inspire Video Categories
                     </span>
@@ -980,10 +979,10 @@ function LiveContentPageContent() {
                         </span>
                         <button
                           onClick={() => setActivePlaylistFilter(null)}
-                          className="text-amber-700 hover:text-amber-900 font-bold"
+                          className="text-amber-700 hover:text-amber-900 font-semibold"
                           title="Clear Playlist Filter"
                         >
-                          ✕
+                          
                         </button>
                       </div>
                     )}
@@ -997,13 +996,12 @@ function LiveContentPageContent() {
                           key={cat.id}
                           type="button"
                           onClick={() => setInspireCategoryFilter(cat.id)}
-                          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
                             isActive
                               ? 'bg-slate-900 text-white shadow-sm ring-2 ring-slate-900/10'
                               : 'text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200'
                           }`}
                         >
-                          <span>{cat.emoji}</span>
                           <span>{cat.label}</span>
                         </button>
                       );
@@ -1081,7 +1079,7 @@ function LiveContentPageContent() {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
                     <ListVideo className="w-5 h-5 text-amber-500" />
                     Curated Playlists ({playlists.length})
                   </h2>
@@ -1135,7 +1133,7 @@ function LiveContentPageContent() {
                             )}
 
                             {/* Category Pill */}
-                            <span className="absolute top-2.5 left-2.5 px-2.5 py-1 bg-slate-900/85 text-white font-bold text-[10px] rounded-md shadow-xs backdrop-blur-sm border border-white/10 uppercase tracking-wider">
+                            <span className="absolute top-2.5 left-2.5 px-2.5 py-1 bg-slate-900/85 text-white font-semibold text-[10px] rounded-md shadow-xs backdrop-blur-sm border border-white/10">
                               {pl.category}
                             </span>
 
@@ -1156,7 +1154,7 @@ function LiveContentPageContent() {
 
                           {/* Playlist Info */}
                           <div className="p-4 space-y-2">
-                            <h3 className="font-bold text-slate-900 text-sm line-clamp-1 leading-snug">
+                            <h3 className="font-semibold text-slate-900 text-sm line-clamp-1 leading-snug">
                               {pl.title}
                             </h3>
                             <p className="text-xs text-slate-500 line-clamp-2">
@@ -1236,19 +1234,19 @@ function LiveContentPageContent() {
               {/* Feed Header Explainer */}
               <div className="bg-white p-5 rounded-xl border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="space-y-1">
-                  <div className="flex items-center gap-2 font-bold text-slate-900 text-sm">
+                  <div className="flex items-center gap-2 font-semibold text-slate-900 text-sm">
                     <Star className="w-4 h-4 fill-amber-500 text-amber-600" />
                     <span>Mobile App Inspire Tab — Hero Carousel &amp; Featured Feeds</span>
                   </div>
                   <p className="text-xs text-slate-600 max-w-2xl">
-                    Items marked with ⭐ Featured appear directly at the top carousel and high-yield collections of the student mobile app Inspire screen.
+                    Items marked with Featured appear directly at the top carousel and high-yield collections of the student mobile app Inspire screen.
                   </p>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className="px-3 py-1 bg-white border border-amber-300 rounded-lg text-xs font-bold text-amber-900 shadow-2xs">
+                  <span className="px-3 py-1 bg-white border border-amber-300 rounded-lg text-xs font-semibold text-amber-900 shadow-2xs">
                     {featuredPlaylists.length} Playlists Active
                   </span>
-                  <span className="px-3 py-1 bg-white border border-amber-300 rounded-lg text-xs font-bold text-amber-900 shadow-2xs">
+                  <span className="px-3 py-1 bg-white border border-amber-300 rounded-lg text-xs font-semibold text-amber-900 shadow-2xs">
                     {featuredVideos.length} Videos Active
                   </span>
                 </div>
@@ -1257,7 +1255,7 @@ function LiveContentPageContent() {
               {/* Sub-section: Featured Curated Playlists */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
                     <ListVideo className="w-4 h-4 text-amber-500" />
                     Featured Playlists ({featuredPlaylists.length})
                   </h3>
@@ -1289,7 +1287,7 @@ function LiveContentPageContent() {
                             )}
                           </div>
                           <div className="min-w-0">
-                            <p className="font-bold text-slate-900 text-xs truncate">{pl.title}</p>
+                            <p className="font-semibold text-slate-900 text-xs truncate">{pl.title}</p>
                             <p className="text-[11px] text-slate-500">Category: {pl.category}</p>
                           </div>
                         </div>
@@ -1310,7 +1308,7 @@ function LiveContentPageContent() {
               {/* Sub-section: Featured Masterclasses */}
               <div className="space-y-3 pt-2">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
                     <Film className="w-4 h-4 text-indigo-500" />
                     Featured Video Masterclasses ({featuredVideos.length})
                   </h3>
@@ -1342,7 +1340,7 @@ function LiveContentPageContent() {
                             )}
                           </div>
                           <div className="min-w-0">
-                            <p className="font-bold text-slate-900 text-xs truncate">{v.title}</p>
+                            <p className="font-semibold text-slate-900 text-xs truncate">{v.title}</p>
                             <p className="text-[11px] text-slate-500">
                               {v.category} • {Math.round((v.durationSeconds || 600) / 60)} min
                             </p>
@@ -1414,15 +1412,14 @@ function LiveContentPageContent() {
 
                             {/* Pillar Badge */}
                             <span
-                              className={`absolute top-2.5 left-2.5 px-2.5 py-1 font-bold text-[10px] rounded-md shadow-xs backdrop-blur-sm flex items-center gap-1 border ${pMeta.badgeBg} ${pMeta.badgeText} ${pMeta.badgeBorder}`}
+                              className={`absolute top-2.5 left-2.5 px-2.5 py-1 font-semibold text-[10px] rounded-md shadow-xs backdrop-blur-sm flex items-center gap-1 border ${pMeta.badgeBg} ${pMeta.badgeText} ${pMeta.badgeBorder}`}
                             >
-                              <span>{pMeta.emoji}</span>
                               <span>{pMeta.name}</span>
                             </span>
 
                             {/* Exam / Class badge */}
                             {v.exam && (
-                              <span className="absolute top-2.5 right-2.5 px-2.5 py-1 bg-slate-900/85 text-white font-bold text-[10px] rounded-md shadow-xs backdrop-blur-sm border border-white/10">
+                              <span className="absolute top-2.5 right-2.5 px-2.5 py-1 bg-slate-900/85 text-white font-semibold text-[10px] rounded-md shadow-xs backdrop-blur-sm border border-white/10">
                                 {v.exam}{' '}
                                 {v.classLevel && v.classLevel !== 'ALL'
                                   ? `• ${v.classLevel.replace('CLASS_', 'Cl ')}`
@@ -1442,7 +1439,7 @@ function LiveContentPageContent() {
                           {/* Video Info Content */}
                           <div className="p-4 space-y-2">
                             <div className="flex items-start justify-between gap-2">
-                              <h4 className="font-bold text-slate-900 text-sm line-clamp-2 leading-snug flex-1">
+                              <h4 className="font-semibold text-slate-900 text-sm line-clamp-2 leading-snug flex-1">
                                 {v.title}
                               </h4>
                               {/* Star Feature button */}
@@ -1475,17 +1472,17 @@ function LiveContentPageContent() {
                             {/* Stream / Provider Badge */}
                             <div className="flex items-center gap-2 pt-1 flex-wrap">
                               {v.bunnyVideoId && (
-                                <span className="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded font-bold">
+                                <span className="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded font-semibold">
                                   Bunny Stream
                                 </span>
                               )}
                               {v.youtubeId && (
-                                <span className="text-[10px] bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded font-bold">
+                                <span className="text-[10px] bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded font-semibold">
                                   YouTube
                                 </span>
                               )}
                               {v.videoUrl && !v.bunnyVideoId && (
-                                <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded font-bold">
+                                <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded font-semibold">
                                   HLS / CDN Stream
                                 </span>
                               )}
@@ -1605,7 +1602,7 @@ function LiveContentPageContent() {
                   <div className="flex items-center gap-2">
                     <ListVideo className="w-5 h-5 text-amber-500" />
                     <div>
-                      <h3 className="font-bold text-slate-900 text-base">
+                      <h3 className="font-semibold text-slate-900 text-base">
                         {selectedPlaylist ? 'Edit Curated Playlist' : 'Create Curated Playlist'}
                       </h3>
                       <p className="text-slate-500 text-xs">
@@ -1706,8 +1703,8 @@ function LiveContentPageContent() {
                         className="rounded text-amber-600 focus:ring-amber-500 w-4 h-4"
                       />
                       <div>
-                        <span className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-                          <span>⭐</span> Feature on Mobile App Feed (Inspire Carousel)
+                        <span className="font-semibold text-slate-900 text-xs flex items-center gap-1.5">
+                          <span></span> Feature on Mobile App Feed (Inspire Carousel)
                         </span>
                         <p className="text-[11px] text-slate-500">
                           Highlights this curated playlist on the student app&apos;s Inspire feed header.
@@ -1747,7 +1744,7 @@ function LiveContentPageContent() {
                   <div className="flex items-center gap-2">
                     <Film className="w-5 h-5 text-indigo-600" />
                     <div>
-                      <h3 className="font-bold text-slate-900 text-base">
+                      <h3 className="font-semibold text-slate-900 text-base">
                         {selectedVideo
                           ? 'Edit Video Metadata'
                           : videoForm.targetSection === 'INSPIRE'
@@ -1793,7 +1790,7 @@ function LiveContentPageContent() {
 
                     {/* Target App Destination Selector */}
                     <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                      <label className="block font-bold text-slate-700 text-xs uppercase tracking-wider">
+                      <label className="block font-semibold text-slate-700 text-xs">
                         Target App Destination *
                       </label>
                       <div className="grid grid-cols-2 gap-3">
@@ -1812,7 +1809,7 @@ function LiveContentPageContent() {
                               : 'bg-white border-slate-200 hover:border-slate-300'
                           }`}
                         >
-                          <div className="flex items-center gap-2 font-bold text-slate-900 text-xs">
+                          <div className="flex items-center gap-2 font-semibold text-slate-900 text-xs">
                             <Video className="w-4 h-4 text-indigo-600" />
                             <span>Community Live Sessions</span>
                           </div>
@@ -1837,7 +1834,7 @@ function LiveContentPageContent() {
                               : 'bg-white border-slate-200 hover:border-slate-300'
                           }`}
                         >
-                          <div className="flex items-center gap-2 font-bold text-slate-900 text-xs">
+                          <div className="flex items-center gap-2 font-semibold text-slate-900 text-xs">
                             <Sparkles className="w-4 h-4 text-amber-500" />
                             <span>Inspire Hub</span>
                           </div>
@@ -1879,7 +1876,7 @@ function LiveContentPageContent() {
                         <option value="">None (Standalone Video)</option>
                         {playlists.map((pl) => (
                           <option key={pl.id} value={pl.id}>
-                            📑 {pl.title} ({pl.category})
+                            {pl.title} ({pl.category})
                           </option>
                         ))}
                       </select>
@@ -1891,7 +1888,7 @@ function LiveContentPageContent() {
                     {videoForm.targetSection === 'INSPIRE' ? (
                       /* Inspire Hub Specific Fields: Speaker, Tagline & Format */
                       <div className="p-4 bg-amber-50/50 border border-amber-200/70 rounded-xl space-y-3">
-                        <div className="flex items-center gap-1.5 font-bold text-amber-900 text-xs uppercase tracking-wider">
+                        <div className="flex items-center gap-1.5 font-semibold text-amber-900 text-xs">
                           <Sparkles className="w-3.5 h-3.5 text-amber-600" />
                           <span>Inspire Speaker &amp; Format Details</span>
                         </div>
@@ -1904,9 +1901,9 @@ function LiveContentPageContent() {
                               onChange={(e: any) => setVideoForm({ ...videoForm, format: e.target.value })}
                               className="w-full p-2.5 bg-white text-slate-900 border border-slate-300 rounded-lg font-semibold focus:border-slate-500 focus:outline-none cursor-pointer"
                             >
-                              <option value="VIDEO">🎬 Video Masterclass</option>
-                              <option value="PODCAST">🎙️ Podcast Episode</option>
-                              <option value="SHORT">⚡ Short / Insight Clip</option>
+                              <option value="VIDEO">Video Masterclass</option>
+                              <option value="PODCAST">Podcast Episode</option>
+                              <option value="SHORT">Short / Insight Clip</option>
                             </select>
                           </div>
 
@@ -1966,7 +1963,7 @@ function LiveContentPageContent() {
                             >
                               {PILLAR_OPTIONS.filter((p) => p.value !== 'INSPIRE').map((p) => (
                                 <option key={p.value} value={p.value} className="text-slate-900 bg-white">
-                                  {p.emoji} {p.label} — {p.subtitle}
+                                  {p.label} — {p.subtitle}
                                 </option>
                               ))}
                             </select>
@@ -2039,8 +2036,8 @@ function LiveContentPageContent() {
                         className="rounded text-amber-600 focus:ring-amber-500 w-4 h-4"
                       />
                       <div>
-                        <span className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-                          <span>⭐</span> Feature on Mobile App Feed &amp; Inspire Carousel
+                        <span className="font-semibold text-slate-900 text-xs flex items-center gap-1.5">
+                          <span></span> Feature on Mobile App Feed &amp; Inspire Carousel
                         </span>
                         <p className="text-[11px] text-slate-500">
                           Highlights this masterclass prominently in the mobile app&apos;s Featured Learning feed.
@@ -2051,7 +2048,7 @@ function LiveContentPageContent() {
                     {/* Video Source Selection (Direct File Upload to Bunny CDN vs Manual Video ID) */}
                     <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 font-bold text-slate-800 uppercase tracking-wider text-xs">
+                        <div className="flex items-center gap-1.5 font-semibold text-slate-800 text-xs">
                           <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
                           <span>Video Source &amp; Playback</span>
                         </div>
@@ -2189,7 +2186,7 @@ function LiveContentPageContent() {
                     {/* Partner School Assignment in Upload Modal */}
                     {videoForm.targetSection === 'INSPIRE' ? (
                       <div className="p-4 bg-amber-50/60 border border-amber-200/70 rounded-xl space-y-1.5">
-                        <div className="flex items-center gap-2 text-amber-900 font-bold text-xs">
+                        <div className="flex items-center gap-2 text-amber-900 font-semibold text-xs">
                           <Sparkles className="w-4 h-4 text-amber-600" />
                           <span>Global App Access — Inspire Tab</span>
                         </div>
@@ -2204,7 +2201,7 @@ function LiveContentPageContent() {
                             <SchoolIcon className="w-4 h-4 text-indigo-600" />
                             <span>Assign to Partner Schools</span>
                           </div>
-                          <span className="text-[11px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
+                          <span className="text-[11px] font-semibold text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
                             {modalSelectedSchoolIds.length} Selected
                           </span>
                         </div>
@@ -2284,15 +2281,15 @@ function LiveContentPageContent() {
                   <div className="flex items-center gap-2">
                     <SchoolIcon className="w-5 h-5 text-indigo-600" />
                     <div>
-                      <h3 className="font-bold text-slate-900 text-sm">Assign Schools</h3>
+                      <h3 className="font-semibold text-slate-900 text-sm">Assign Schools</h3>
                       <p className="text-xs text-slate-500 truncate max-w-[280px]">{assigningVideo.title}</p>
                     </div>
                   </div>
                   <button
                     onClick={() => setShowAssignModal(false)}
-                    className="text-slate-400 hover:text-slate-700 text-xs font-bold cursor-pointer"
+                    className="text-slate-400 hover:text-slate-700 text-xs font-semibold cursor-pointer"
                   >
-                    ✕
+                    
                   </button>
                 </div>
 
@@ -2318,7 +2315,7 @@ function LiveContentPageContent() {
                           }`}
                         >
                           <div>
-                            <p className="font-bold text-slate-900">{sch.name}</p>
+                            <p className="font-semibold text-slate-900">{sch.name}</p>
                             <p className="text-[11px] text-slate-500 font-mono">Code: {sch.code}</p>
                           </div>
                           {isSelected ? (

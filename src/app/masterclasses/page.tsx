@@ -136,10 +136,10 @@ export default function MasterclassesPage() {
 
       if (editingEvent) {
         await eventsApi.updateEvent(editingEvent.id, payload);
-        setToastMsg(`✓ Masterclass "${title}" updated successfully.`);
+        setToastMsg(`Masterclass "${title}" updated successfully.`);
       } else {
         await eventsApi.createEvent(payload);
-        setToastMsg(`✓ Live Masterclass "${title}" scheduled and live on student app!`);
+        setToastMsg(`Live Masterclass "${title}" scheduled and live on student app!`);
       }
 
       setShowAddModal(false);
@@ -158,7 +158,7 @@ export default function MasterclassesPage() {
     setErrorMsg('');
     try {
       await eventsApi.deleteEvent(eventToDelete.id);
-      setToastMsg(`✓ Masterclass "${eventToDelete.title}" removed.`);
+      setToastMsg(`Masterclass "${eventToDelete.title}" removed.`);
       setEventToDelete(null);
       await fetchEvents();
     } catch (err: any) {
@@ -199,8 +199,8 @@ export default function MasterclassesPage() {
           {/* Header Title */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                <Radio className="w-6 h-6 text-indigo-600 animate-pulse" />
+              <h1 className="text-2xl font-semibold text-slate-900 tracking-tight flex items-center gap-2">
+                <Radio className="w-6 h-6 text-indigo-600" />
                 Live Masterclasses & Workshops
               </h1>
               <p className="text-slate-500 text-xs mt-0.5">
@@ -241,13 +241,13 @@ export default function MasterclassesPage() {
               />
               {searchQuery && (
                 <button onClick={() => setSearchQuery('')} className="text-xs text-slate-400 hover:text-slate-600">
-                  ✕
+                  
                 </button>
               )}
             </div>
 
             <div className="flex items-center gap-1.5 flex-wrap text-xs font-semibold">
-              <span className="text-slate-400 text-[11px] uppercase tracking-wider mr-1">Filter:</span>
+              <span className="text-slate-400 text-[11px] mr-1">Filter:</span>
               {['ALL', 'JEE', 'NEET', 'HACKATHON', 'DRONE', 'ENTREPRENEURSHIP'].map((cat) => (
                 <button
                   key={cat}
@@ -295,7 +295,7 @@ export default function MasterclassesPage() {
           ) : filteredEvents.length === 0 ? (
             <div className="p-12 bg-white rounded-xl border border-slate-200 text-center space-y-3">
               <Calendar className="w-10 h-10 mx-auto text-slate-300" />
-              <p className="text-sm font-bold text-slate-700">No scheduled masterclasses found.</p>
+              <p className="text-sm font-semibold text-slate-700">No scheduled masterclasses found.</p>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
                 Click "Schedule Masterclass" above to publish a live session. It will immediately appear on the student mobile app.
               </p>
@@ -325,13 +325,13 @@ export default function MasterclassesPage() {
 
                       {/* Floating Status Badges */}
                       <div className="absolute top-3 left-3 flex items-center gap-1.5 flex-wrap">
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-slate-900/80 text-white backdrop-blur-xs">
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold bg-slate-900/80 text-white backdrop-blur-xs">
                           {evt.category}
                         </span>
                         <span
-                          className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider backdrop-blur-xs flex items-center gap-1 ${
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-semibold backdrop-blur-xs flex items-center gap-1 ${
                             isLive
-                              ? 'bg-rose-600 text-white animate-pulse'
+                              ? 'bg-rose-600 text-white'
                               : isUpcoming
                               ? 'bg-emerald-600 text-white'
                               : 'bg-slate-600 text-white'
@@ -347,13 +347,13 @@ export default function MasterclassesPage() {
                     <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
                       <div className="space-y-2">
                         {/* Event Date & Time */}
-                        <div className="flex items-center gap-1.5 text-xs text-indigo-600 font-bold">
+                        <div className="flex items-center gap-1.5 text-xs text-indigo-600 font-semibold">
                           <Calendar className="w-3.5 h-3.5" />
                           <span>{formatEventDate(evt.eventDate)}</span>
                         </div>
 
                         {/* Title */}
-                        <h3 className="text-sm font-bold text-slate-900 line-clamp-2 leading-snug">
+                        <h3 className="text-sm font-semibold text-slate-900 line-clamp-2 leading-snug">
                           {evt.title}
                         </h3>
 
@@ -365,11 +365,11 @@ export default function MasterclassesPage() {
                         {/* Speaker details */}
                         {evt.speakerName && (
                           <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200 text-xs">
-                            <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-[10px] shrink-0">
+                            <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-semibold text-[10px] shrink-0">
                               <User className="w-3.5 h-3.5" />
                             </div>
                             <div className="min-w-0">
-                              <p className="font-bold text-slate-900 truncate text-[11px]">{evt.speakerName}</p>
+                              <p className="font-semibold text-slate-900 truncate text-[11px]">{evt.speakerName}</p>
                               {evt.speakerDesignation && (
                                 <p className="text-[10px] text-slate-500 truncate">{evt.speakerDesignation}</p>
                               )}
@@ -428,7 +428,7 @@ export default function MasterclassesPage() {
                     <Radio className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-slate-900">
+                    <h3 className="text-base font-semibold text-slate-900">
                       {editingEvent ? 'Edit Live Masterclass' : 'Schedule New Masterclass'}
                     </h3>
                     <p className="text-xs text-slate-500">Live sessions sync with the student mobile app in real-time</p>
@@ -437,7 +437,7 @@ export default function MasterclassesPage() {
 
                 <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
                   <div>
-                    <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    <label className="block font-semibold text-slate-700 mb-1">
                       Masterclass Title *
                     </label>
                     <input
@@ -452,7 +452,7 @@ export default function MasterclassesPage() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                      <label className="block font-semibold text-slate-700 mb-1">
                         Category *
                       </label>
                       <select
@@ -472,7 +472,7 @@ export default function MasterclassesPage() {
                     </div>
 
                     <div>
-                      <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                      <label className="block font-semibold text-slate-700 mb-1">
                         Status *
                       </label>
                       <select
@@ -488,7 +488,7 @@ export default function MasterclassesPage() {
                   </div>
 
                   <div>
-                    <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    <label className="block font-semibold text-slate-700 mb-1">
                       Date & Time (IST) *
                     </label>
                     <input
@@ -502,7 +502,7 @@ export default function MasterclassesPage() {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                      <label className="block font-semibold text-slate-700 mb-1">
                         Speaker Name
                       </label>
                       <input
@@ -515,7 +515,7 @@ export default function MasterclassesPage() {
                     </div>
 
                     <div>
-                      <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                      <label className="block font-semibold text-slate-700 mb-1">
                         Speaker Designation
                       </label>
                       <input
@@ -529,7 +529,7 @@ export default function MasterclassesPage() {
                   </div>
 
                   <div>
-                    <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    <label className="block font-semibold text-slate-700 mb-1">
                       Live Stream / Meeting URL (Google Meet / Zoom / YouTube)
                     </label>
                     <input
@@ -561,7 +561,7 @@ export default function MasterclassesPage() {
                   </div>
 
                   <div>
-                    <label className="block font-semibold text-slate-700 uppercase tracking-wider mb-1">
+                    <label className="block font-semibold text-slate-700 mb-1">
                       Description / Learning Outcomes *
                     </label>
                     <textarea
@@ -605,7 +605,7 @@ export default function MasterclassesPage() {
                     <Trash2 className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-slate-900">Delete Masterclass</h3>
+                    <h3 className="text-base font-semibold text-slate-900">Delete Masterclass</h3>
                     <p className="text-xs text-slate-500">Remove from student mobile app</p>
                   </div>
                 </div>

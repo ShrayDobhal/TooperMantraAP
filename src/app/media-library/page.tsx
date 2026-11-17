@@ -210,7 +210,7 @@ export default function MediaLibraryPage() {
     if (!file) return;
 
     if (file.type.startsWith('video/') || file.name.match(/\.(mp4|mov|avi|mkv|webm)$/i)) {
-      alert('⚠️ Video files cannot be uploaded here!\n\nThe Explore Section is strictly for study resources: PDF notes, formula sheets, and playbooks.\n\nPlease upload videos under "Community Sessions & Clips" or "Inspire Hub".');
+      alert('Video files cannot be uploaded here!\n\nThe Explore Section is strictly for study resources: PDF notes, formula sheets, and playbooks.\n\nPlease upload videos under "Community Sessions & Clips" or "Inspire Hub".');
       return;
     }
 
@@ -320,10 +320,10 @@ export default function MediaLibraryPage() {
 
       if (selectedItem) {
         await mediaApi.updateMedia(selectedItem.id, payload);
-        showToast(`✓ "${form.title}" updated successfully!`);
+        showToast(`"${form.title}" updated successfully!`);
       } else {
         await mediaApi.createMedia(payload);
-        showToast(`🎉 "${form.title}" uploaded to Bunny CDN & saved!`);
+        showToast(`"${form.title}" uploaded to Bunny CDN & saved!`);
       }
 
       setShowUploadModal(false);
@@ -341,7 +341,7 @@ export default function MediaLibraryPage() {
     if (!confirm(`Delete "${item.title}"? This cannot be undone.`)) return;
     try {
       await mediaApi.deleteMedia(item.id);
-      showToast(`✓ "${item.title}" deleted.`);
+      showToast(`"${item.title}" deleted.`);
       fetchAll();
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to delete item.');
@@ -365,7 +365,7 @@ export default function MediaLibraryPage() {
     setSavingAssignments(true);
     try {
       await mediaApi.assignMediaToSchools(assigningItem.id, selectedSchoolIds);
-      showToast(`✓ School assignments updated for "${assigningItem.title}"!`);
+      showToast(`School assignments updated for "${assigningItem.title}"!`);
       setShowAssignModal(false);
       setAssigningItem(null);
       fetchAll();
@@ -414,14 +414,14 @@ export default function MediaLibraryPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <span className="px-2.5 py-0.5 bg-amber-100/80 text-amber-900 border border-amber-300/80 rounded-full text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1">
-                  <span>📂</span> Target: Student App → Explore Section
+                <span className="px-2.5 py-0.5 bg-amber-100/80 text-amber-900 border border-amber-300/80 rounded-full text-[10px] font-semibold flex items-center gap-1">
+                  <span></span> Target: Student App → Explore Section
                 </span>
-                <span className="px-2.5 py-0.5 bg-slate-100 text-slate-600 border border-slate-200 rounded-full text-[10px] font-bold">
+                <span className="px-2.5 py-0.5 bg-slate-100 text-slate-600 border border-slate-200 rounded-full text-[10px] font-semibold">
                   PDFs & Study Notes Only
                 </span>
               </div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <h1 className="text-2xl font-semibold text-slate-900 tracking-tight flex items-center gap-2">
                 <BookOpen className="w-6 h-6 text-indigo-600" />
                 Explore Section — Study Resources & Topper Notes
               </h1>
@@ -472,7 +472,7 @@ export default function MediaLibraryPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 px-1">
               <div className="flex items-center gap-2">
                 <Compass className="w-4 h-4 text-indigo-600" />
-                <span className="text-xs font-semibold text-slate-900 tracking-wider uppercase">
+                <span className="text-xs font-semibold text-slate-900 uppercase">
                   Explore Program Pillars
                 </span>
               </div>
@@ -490,13 +490,12 @@ export default function MediaLibraryPage() {
                     key={pillar.code}
                     type="button"
                     onClick={() => setSelectedPillar(pillar.code)}
-                    className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                    className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
                       isActive
                         ? 'bg-slate-900 text-white shadow-sm ring-2 ring-slate-900/10'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 bg-slate-50 border border-slate-200/70'
                     }`}
                   >
-                    <span className="text-base leading-none">{pillar.emoji}</span>
                     <span>{pillar.name}</span>
                     <span
                       className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
@@ -513,8 +512,8 @@ export default function MediaLibraryPage() {
             {selectedPillar !== 'ALL' && (
               <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-slate-900">
-                    {EXPLORE_PILLARS.find((p) => p.code === selectedPillar)?.emoji}{' '}
+                  <span className="font-semibold text-slate-900">
+                    
                     {EXPLORE_PILLARS.find((p) => p.code === selectedPillar)?.name}
                   </span>
                   <span className="text-slate-300">•</span>
@@ -538,7 +537,7 @@ export default function MediaLibraryPage() {
               { label: 'Partner Schools', value: schools.length, color: 'emerald' },
             ].map((stat) => (
               <div key={stat.label} className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs">
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{stat.label}</p>
+                <p className="text-[11px] font-semibold text-slate-400">{stat.label}</p>
                 <p className={`text-2xl font-semibold mt-0.5 text-${stat.color}-600`}>{stat.value}</p>
               </div>
             ))}
@@ -642,7 +641,7 @@ export default function MediaLibraryPage() {
                           <div className="w-14 h-14 rounded-xl bg-indigo-100 border border-indigo-200 flex items-center justify-center shadow-2xs">
                             <FileText className="w-7 h-7 text-indigo-600" />
                           </div>
-                          <span className="text-[11px] font-bold text-indigo-700 uppercase tracking-wider">PDF Document</span>
+                          <span className="text-[11px] font-semibold text-indigo-700">PDF Document</span>
                         </div>
                       ) : item.thumbnailUrl ? (
                         <img
@@ -659,7 +658,7 @@ export default function MediaLibraryPage() {
                       )}
 
                       {/* Type Badge */}
-                      <span className={`absolute top-2.5 left-2.5 px-2.5 py-1 text-[10px] font-bold uppercase rounded-md backdrop-blur-xs shadow-2xs ${
+                      <span className={`absolute top-2.5 left-2.5 px-2.5 py-1 text-[10px] font-semibold uppercase rounded-md backdrop-blur-xs shadow-2xs ${
                         isPdf
                           ? 'bg-indigo-600 text-white'
                           : 'bg-blue-600 text-white'
@@ -669,7 +668,7 @@ export default function MediaLibraryPage() {
 
                       {/* Exam Badge */}
                       {item.exam && (
-                        <span className="absolute top-2.5 right-2.5 px-2.5 py-1 bg-slate-900/80 text-white font-bold text-[10px] rounded-md backdrop-blur-xs">
+                        <span className="absolute top-2.5 right-2.5 px-2.5 py-1 bg-slate-900/80 text-white font-semibold text-[10px] rounded-md backdrop-blur-xs">
                           {item.exam}
                         </span>
                       )}
@@ -684,7 +683,7 @@ export default function MediaLibraryPage() {
 
                     {/* Info */}
                     <div className="p-4 flex-1 space-y-2">
-                      <h4 className="font-bold text-slate-900 text-sm line-clamp-2 leading-snug">{item.title}</h4>
+                      <h4 className="font-semibold text-slate-900 text-sm line-clamp-2 leading-snug">{item.title}</h4>
                       {item.description && (
                         <p className="text-xs text-slate-500 line-clamp-2">{item.description}</p>
                       )}
@@ -800,7 +799,7 @@ export default function MediaLibraryPage() {
                   <BookOpen className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900">
+                  <h3 className="text-base font-semibold text-slate-900">
                     {selectedItem ? 'Edit Explore Resource' : 'Publish Notes / PDF to Explore'}
                   </h3>
                   <p className="text-xs text-slate-500">Target: Student Mobile App → Explore Section (PDFs & Documents)</p>
@@ -822,20 +821,20 @@ export default function MediaLibraryPage() {
                 {/* Target App Destination Banner */}
                 <div className="p-3 bg-amber-50/80 border border-amber-200/80 rounded-xl flex items-center justify-between shadow-2xs">
                   <div className="flex items-center gap-2.5">
-                    <span className="text-xl">📂</span>
+                    <span className="text-xl"></span>
                     <div>
-                      <p className="font-bold text-amber-950 text-xs">Target Destination: Student Mobile App → Explore Section</p>
+                      <p className="font-semibold text-amber-950 text-xs">Target Destination: Student Mobile App → Explore Section</p>
                       <p className="text-[11px] text-amber-800">Resources uploaded here appear under Explore Programs &amp; Notes. Only PDF documents permitted.</p>
                     </div>
                   </div>
-                  <span className="px-2 py-0.5 bg-amber-200/70 text-amber-900 rounded text-[10px] font-semibold uppercase tracking-wider shrink-0">
+                  <span className="px-2 py-0.5 bg-amber-200/70 text-amber-900 rounded text-[10px] font-semibold shrink-0">
                     Explore Only
                   </span>
                 </div>
 
                 {/* Program Pillar Selector */}
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1.5 uppercase tracking-wider text-[11px]">
+                  <label className="block font-semibold text-slate-700 mb-1.5 text-[11px]">
                     Target Program Pillar *
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -850,8 +849,7 @@ export default function MediaLibraryPage() {
                             : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
                         }`}
                       >
-                        <span className="text-lg block mb-1">{p.emoji}</span>
-                        <span className="font-bold text-xs block truncate">{p.name}</span>
+                        <span className="font-semibold text-xs block truncate">{p.name}</span>
                       </button>
                     ))}
                   </div>
@@ -859,7 +857,7 @@ export default function MediaLibraryPage() {
 
                 {/* Resource Category Type Selector */}
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1.5 uppercase tracking-wider text-[11px]">
+                  <label className="block font-semibold text-slate-700 mb-1.5 text-[11px]">
                     Resource Category Type *
                   </label>
                   <div className="grid grid-cols-2 gap-2">
@@ -870,11 +868,10 @@ export default function MediaLibraryPage() {
                         onClick={() => setForm(prev => ({ ...prev, resourceType: rt.code }))}
                         className={`p-2 rounded-lg border text-left flex items-center gap-2 transition-all cursor-pointer ${
                           form.resourceType === rt.code
-                            ? 'border-indigo-500 bg-indigo-50/70 text-indigo-950 font-bold shadow-xs ring-1 ring-indigo-500/20'
+                            ? 'border-indigo-500 bg-indigo-50/70 text-indigo-950 font-semibold shadow-xs ring-1 ring-indigo-500/20'
                             : 'border-slate-200 bg-white hover:border-slate-300 text-slate-600 font-medium'
                         }`}
                       >
-                        <span className="text-base">{rt.emoji}</span>
                         <span className="truncate text-xs">{rt.label}</span>
                       </button>
                     ))}
@@ -884,7 +881,7 @@ export default function MediaLibraryPage() {
                 {/* File Upload Drop Zone */}
                 {!selectedItem && (
                   <div className="space-y-2">
-                    <label className="block font-bold text-slate-700 uppercase tracking-wider">
+                    <label className="block font-semibold text-slate-700">
                       Select PDF Document *
                     </label>
                     <input
@@ -902,7 +899,7 @@ export default function MediaLibraryPage() {
                         <Upload className="w-6 h-6 text-slate-400 group-hover:text-indigo-500" />
                       </div>
                       <p className="font-semibold text-slate-700 group-hover:text-indigo-700">
-                        {selectedFile ? `✓ ${selectedFile.name}` : 'Click to choose PDF Document'}
+                        {selectedFile ? `${selectedFile.name}` : 'Click to choose PDF Document'}
                       </p>
                       <p className="text-[11px] text-slate-400">PDF Documents Only · Max 100 MB · Uploaded directly to Bunny Storage</p>
                     </div>
@@ -927,7 +924,7 @@ export default function MediaLibraryPage() {
                 {/* Thumbnail Upload (for PDFs) */}
                 {form.type === 'PDF' && (
                   <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                    <label className="block font-bold text-slate-700 uppercase tracking-wider">
+                    <label className="block font-semibold text-slate-700">
                       Cover Thumbnail <span className="text-slate-400 font-normal normal-case">(optional, for PDF)</span>
                     </label>
                     <div className="flex items-center gap-4">
@@ -951,7 +948,7 @@ export default function MediaLibraryPage() {
                           className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 hover:border-indigo-400 text-slate-700 rounded-lg cursor-pointer font-semibold text-[11px] transition-colors"
                         >
                           <Upload className="w-3.5 h-3.5 text-indigo-600" />
-                          {selectedThumbnailFile ? `✓ ${selectedThumbnailFile.name}` : 'Choose Thumbnail Image'}
+                          {selectedThumbnailFile ? `${selectedThumbnailFile.name}` : 'Choose Thumbnail Image'}
                         </label>
                         <p className="text-[10px] text-slate-400 mt-1">PNG, JPG · Uploaded to Bunny CDN</p>
                       </div>
@@ -961,7 +958,7 @@ export default function MediaLibraryPage() {
 
                 {/* Title */}
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1.5">Title *</label>
+                  <label className="block font-semibold text-slate-700 mb-1.5">Title *</label>
                   <input
                     type="text"
                     required
@@ -974,7 +971,7 @@ export default function MediaLibraryPage() {
 
                 {/* Description */}
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1.5">Description</label>
+                  <label className="block font-semibold text-slate-700 mb-1.5">Description</label>
                   <textarea
                     rows={2}
                     value={form.description}
@@ -987,7 +984,7 @@ export default function MediaLibraryPage() {
                 {/* Exam + Class + Subject */}
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1.5">Target Exam</label>
+                    <label className="block font-semibold text-slate-700 mb-1.5">Target Exam</label>
                     <select
                       value={form.exam}
                       onChange={(e) => setForm({ ...form, exam: e.target.value })}
@@ -999,7 +996,7 @@ export default function MediaLibraryPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1.5">Class Level</label>
+                    <label className="block font-semibold text-slate-700 mb-1.5">Class Level</label>
                     <select
                       value={form.classLevel}
                       onChange={(e) => setForm({ ...form, classLevel: e.target.value })}
@@ -1011,7 +1008,7 @@ export default function MediaLibraryPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1.5">Subject</label>
+                    <label className="block font-semibold text-slate-700 mb-1.5">Subject</label>
                     <select
                       value={form.subject}
                       onChange={(e) => setForm({ ...form, subject: e.target.value })}
@@ -1026,7 +1023,7 @@ export default function MediaLibraryPage() {
 
                 {/* Additional Tags */}
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1.5">Additional Tags <span className="text-slate-400 font-normal">(comma-separated)</span></label>
+                  <label className="block font-semibold text-slate-700 mb-1.5">Additional Tags <span className="text-slate-400 font-normal">(comma-separated)</span></label>
                   <input
                     type="text"
                     value={form.tagsInput}
@@ -1068,7 +1065,7 @@ export default function MediaLibraryPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-xs font-bold rounded-lg shadow-2xs flex items-center gap-2 transition-all disabled:opacity-60 cursor-pointer"
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg shadow-2xs flex items-center gap-2 transition-all disabled:opacity-60 cursor-pointer"
                 >
                   {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
                   {submitting ? 'Uploading...' : selectedItem ? 'Save Changes' : 'Upload to Library'}
@@ -1092,7 +1089,7 @@ export default function MediaLibraryPage() {
                   <SchoolIcon className="w-4 h-4 text-indigo-600" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">Assign to Schools</h3>
+                  <h3 className="text-sm font-semibold text-slate-900">Assign to Schools</h3>
                   <p className="text-[11px] text-slate-500 truncate max-w-[220px]">{assigningItem.title}</p>
                 </div>
               </div>
@@ -1153,7 +1150,7 @@ export default function MediaLibraryPage() {
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-slate-900 truncate">{school.name}</p>
+                        <p className="text-xs font-semibold text-slate-900 truncate">{school.name}</p>
                         <p className="text-[10px] text-slate-500 font-medium">
                           {school.code} · {school.city || 'N/A'} · {school.status}
                         </p>
@@ -1177,7 +1174,7 @@ export default function MediaLibraryPage() {
                 type="button"
                 onClick={handleSaveAssignments}
                 disabled={savingAssignments}
-                className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-2 transition-all disabled:opacity-60 cursor-pointer"
+                className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg flex items-center justify-center gap-2 transition-all disabled:opacity-60 cursor-pointer"
               >
                 {savingAssignments ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />

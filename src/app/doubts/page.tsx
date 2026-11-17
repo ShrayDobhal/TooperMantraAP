@@ -213,7 +213,7 @@ export default function DoubtsPage() {
         setExistingSolutionImages(finalSolutionImages);
         setSolutionImageFiles([]);
         setSolutionImagePreviews([]);
-        setStatusMsg('🎉 Solution updated successfully! Changes pushed to student discussion.');
+        setStatusMsg('Solution updated successfully! Changes pushed to student discussion.');
       } else {
         setUploadStage('Posting mentor solution to student app & discussion...');
         await doubtsApi.resolveDoubt(selectedDoubt.id, {
@@ -228,7 +228,7 @@ export default function DoubtsPage() {
           ...prev.filter((d) => d.id !== selectedDoubt.id),
         ]);
 
-        setStatusMsg(`🎉 Solution posted to student discussion! Marked as resolved.`);
+        setStatusMsg(`Solution posted to student discussion! Marked as resolved.`);
         setSelectedDoubt(null);
         setSolutionText('');
         setSolutionImageFiles([]);
@@ -280,7 +280,7 @@ export default function DoubtsPage() {
           {/* Page Header */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Doubt Resolution Queue</h1>
+              <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Doubt Resolution Queue</h1>
               <p className="text-slate-500 text-xs mt-0.5">
                 Browse pending student doubt tickets, claim tickets, and upload step-by-step solutions.
               </p>
@@ -307,13 +307,13 @@ export default function DoubtsPage() {
                 onClick={() => setActiveTab(key)}
                 className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
                   activeTab === key
-                    ? 'bg-indigo-600 text-white shadow-2xs font-bold'
+                    ? 'bg-indigo-600 text-white shadow-2xs font-semibold'
                     : 'text-slate-600 hover:bg-slate-100'
                 }`}
               >
                 {label}
                 {badge !== undefined && badge !== 0 && (
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
                     activeTab === key ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
                   }`}>
                     {badge}
@@ -349,7 +349,7 @@ export default function DoubtsPage() {
 
             {/* ── LEFT: Doubts List ─────────────────────────────────────────── */}
             <div className="space-y-3">
-              <h3 className="text-sm font-bold text-slate-900 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-900 flex items-center justify-between">
                 <span className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-slate-500" />
                   {activeTab === 'resolved' ? `Resolved Doubts (${resolvedCount})` :
@@ -400,7 +400,7 @@ export default function DoubtsPage() {
 
             {/* ── RIGHT: Solution Editor ────────────────────────────────────── */}
             <div className="mnc-card-flat p-5 h-fit space-y-4">
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-emerald-600" />
                 {isEditingSolution ? 'Edit Solution Workspace' : 'Solution Editor Workspace'}
               </h3>
@@ -425,7 +425,7 @@ export default function DoubtsPage() {
                         <button
                           type="button"
                           onClick={handleCancelEdit}
-                          className="text-amber-700 hover:text-amber-900 underline text-xs font-bold cursor-pointer"
+                          className="text-amber-700 hover:text-amber-900 underline text-xs font-semibold cursor-pointer"
                         >
                           Cancel Edit
                         </button>
@@ -435,11 +435,11 @@ export default function DoubtsPage() {
                     {/* Question Preview */}
                     <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-slate-500 font-bold uppercase">{selectedDoubt.subject}</span>
+                        <span className="text-[10px] text-slate-500 font-semibold uppercase">{selectedDoubt.subject}</span>
                         {selectedDoubt.topic && (
                           <span className="text-[10px] text-slate-400">• {selectedDoubt.topic}</span>
                         )}
-                        <span className={`ml-auto px-2 py-0.5 text-[10px] font-bold rounded-full uppercase ${
+                        <span className={`ml-auto px-2 py-0.5 text-[10px] font-semibold rounded-full uppercase ${
                           isEditingSolution
                             ? 'bg-amber-50 text-amber-700 border border-amber-200'
                             : selectedDoubt.status === 'CLAIMED'
@@ -465,7 +465,7 @@ export default function DoubtsPage() {
 
                     {/* Solution Text */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                      <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                         Step-by-Step Explanation (Markdown Supported)
                       </label>
                       <textarea
@@ -481,9 +481,9 @@ export default function DoubtsPage() {
                     {/* Existing Images (When Editing) */}
                     {isEditingSolution && existingSolutionImages.length > 0 && (
                       <div className="space-y-1.5">
-                        <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider flex items-center justify-between">
+                        <label className="block text-xs font-semibold text-slate-700 flex items-center justify-between">
                           <span>Attached Diagrams ({existingSolutionImages.length})</span>
-                          <span className="text-[10px] text-slate-400 font-normal">Click ✕ to remove diagram</span>
+                          <span className="text-[10px] text-slate-400 font-normal">Click to remove diagram</span>
                         </label>
                         <div className="flex items-center gap-2 flex-wrap bg-slate-50 p-2.5 rounded-lg border border-slate-200">
                           {existingSolutionImages.map((img, i) => (
@@ -505,7 +505,7 @@ export default function DoubtsPage() {
 
                     {/* Image Upload → Bunny CDN */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                      <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center justify-between">
                         <span>{isEditingSolution ? 'Add More Handwritten Diagrams / Photos' : 'Upload Handwritten Diagram / Photo'}</span>
                         <span className="text-[10px] text-slate-400 font-normal">Uploaded to Bunny CDN</span>
                       </label>
@@ -659,7 +659,7 @@ function DoubtCard({
           <span className="px-2 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 text-[11px] font-semibold rounded">
             {doubt.subject}{doubt.topic ? ` • ${doubt.topic}` : ''}
           </span>
-          <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full uppercase border ${
+          <span className={`px-2 py-0.5 text-[10px] font-semibold rounded-full uppercase border ${
             isResolved ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
             isClaimed  ? 'bg-amber-50 text-amber-700 border-amber-200' :
                          'bg-blue-50 text-blue-700 border-blue-200'
@@ -710,7 +710,7 @@ function DoubtCard({
         <div className="space-y-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-            <span className="text-[11px] font-bold text-emerald-800">
+            <span className="text-[11px] font-semibold text-emerald-800">
               Solved by {doubt.mentor?.name || 'Mentor'}
               {doubt.resolvedAt && ` · ${new Date(doubt.resolvedAt).toLocaleDateString()}`}
             </span>
@@ -795,7 +795,7 @@ function ResolvedSolutionView({
     <div className="space-y-4">
       {/* Question */}
       <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1">
-        <p className="text-[10px] text-slate-500 font-bold uppercase">{doubt.subject} Question</p>
+        <p className="text-[10px] text-slate-500 font-semibold uppercase">{doubt.subject} Question</p>
         <p className="text-xs text-slate-900 font-medium">{doubt.questionText}</p>
       </div>
 
@@ -804,7 +804,7 @@ function ResolvedSolutionView({
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span className="text-xs font-bold text-emerald-800">
+            <span className="text-xs font-semibold text-emerald-800">
               Solved by {doubt.mentor?.name || 'You'}
               {doubt.resolvedAt && ` on ${new Date(doubt.resolvedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`}
               {isEdited && ' (Edited)'}
@@ -823,7 +823,7 @@ function ResolvedSolutionView({
         </div>
         {doubt.solutionText && (
           <div>
-            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-1">Solution</p>
+            <p className="text-[10px] font-semibold text-emerald-600 mb-1">Solution</p>
             <p className="text-xs text-emerald-900 font-medium whitespace-pre-wrap leading-relaxed">
               {doubt.solutionText}
             </p>
@@ -831,7 +831,7 @@ function ResolvedSolutionView({
         )}
         {doubt.solutionImages && doubt.solutionImages.length > 0 && (
           <div>
-            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-2">
+            <p className="text-[10px] font-semibold text-emerald-600 mb-2">
               Attached Diagrams ({doubt.solutionImages.length})
             </p>
             <div className="flex items-center gap-2 flex-wrap">

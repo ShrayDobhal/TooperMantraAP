@@ -41,11 +41,10 @@ export function fmtSeconds(sec: number | null | undefined): string {
   return fmtMinutes(sec / 60);
 }
 
-export function fmtPercent(n: number | null | undefined, digits = 0): string {
-  if (n === null || n === undefined) return '—';
-  // Accept either 0..1 or 0..100.
-  const v = n <= 1 ? n * 100 : n;
-  return `${v.toFixed(digits)}%`;
+/** Formats a ratio (0.42 → "42%"). Ratios above 1 are valid, e.g. 11 active ÷ 9 onboarded → "122%". */
+export function fmtPercent(ratio: number | null | undefined, digits = 0): string {
+  if (ratio === null || ratio === undefined || !Number.isFinite(ratio)) return '—';
+  return `${(ratio * 100).toFixed(digits)}%`;
 }
 
 export function fmtDate(d: string | Date | null | undefined): string {
