@@ -1,4 +1,5 @@
 import { api } from '@/lib/api';
+import { session } from '@/lib/session';
 
 export interface DoubtComment {
   id: string;
@@ -189,6 +190,7 @@ export const doubtsApi = {
   async getDoubtsPool(): Promise<{ success: boolean; data: { items: DoubtTicket[] } }> {
     const claimedMap = getClaimedMap();
     let tickets: DoubtTicket[] = [];
+    const errors: unknown[] = [];
 
     // 1. Fetch student questions from the discussions module
     try {
@@ -197,7 +199,9 @@ export const doubtsApi = {
       if (Array.isArray(items)) {
         tickets = items.map((item) => discussionToTicket(item, claimedMap));
       }
-    } catch (_) {}
+    } catch (e) {
+      errors.push(e);
+    }
 
     // 2. Fetch from /doubts/pool (if available) and merge
     try {
@@ -215,7 +219,10 @@ export const doubtsApi = {
           }
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      errors.push(e);
+    }
+    if (errors.length === 2) throw errors[0];
 
     // Filter for OPEN tickets only
     const openItems = tickets.filter((t) => t.status === 'OPEN');
@@ -228,6 +235,7 @@ export const doubtsApi = {
   async getMyDoubts(status?: 'CLAIMED' | 'RESOLVED'): Promise<{ success: boolean; data: { items: DoubtTicket[] } }> {
     const claimedMap = getClaimedMap();
     let allTickets: DoubtTicket[] = [];
+    const errors: unknown[] = [];
 
     // 1. Fetch from discussions
     try {
@@ -236,11 +244,13 @@ export const doubtsApi = {
       if (Array.isArray(items)) {
         allTickets = items.map((item) => discussionToTicket(item, claimedMap));
       }
-    } catch (_) {}
+    } catch (e) {
+      errors.push(e);
+    }
 
-    // 2. Fetch from /doubts/my
+    // 2. Fetch from /doubts/my-doubts
     try {
-      const myRes: any = await api.get('/doubts/my' + (status ? `?status=${status}` : ''));
+      const myRes: any = await api.get('/doubts/my-doubts' + (status ? `?status=${status}` : ''));
       const myItems = myRes?.data?.items || myRes?.items || (Array.isArray(myRes?.data) ? myRes.data : []);
       if (Array.isArray(myItems)) {
         for (const item of myItems) {
@@ -255,7 +265,10 @@ export const doubtsApi = {
           }
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      errors.push(e);
+    }
+    if (errors.length === 2) throw errors[0];
 
     // Filter according to status
     let filtered: DoubtTicket[] = [];
@@ -273,13 +286,16 @@ export const doubtsApi = {
   /** Fetch a single doubt ticket with all comments and discussion details */
   async getDoubtById(doubtId: string): Promise<{ success: boolean; data: DoubtTicket | null }> {
     const claimedMap = getClaimedMap();
+    let lastError: unknown = null;
     try {
       const res: any = await api.get(`/discussions/${doubtId}`);
       const data = res?.data || res;
       if (data && data.id) {
         return { success: true, data: discussionToTicket(data, claimedMap) };
       }
-    } catch (_) {}
+    } catch (e) {
+      lastError = e;
+    }
 
     try {
       const res: any = await api.get(`/doubts/${doubtId}`);
@@ -294,8 +310,11 @@ export const doubtsApi = {
           },
         };
       }
-    } catch (_) {}
+    } catch (e) {
+      lastError = e;
+    }
 
+    if (lastError) throw lastError;
     return { success: false, data: null };
   },
 
@@ -303,30 +322,15 @@ export const doubtsApi = {
    * Claim a ticket as a mentor
    */
   async claimDoubt(doubtId: string): Promise<{ success: boolean; data: any }> {
-    // Record in claimed store
+    // The backend is the source of truth; only remember the claim locally once it succeeds.
+    await api.post(`/doubts/${doubtId}/claim`, {});
+    const me = session.getUser();
     const claimedMap = getClaimedMap();
-    let currentMentor: any = null;
-    try {
-      const userRaw = localStorage.getItem('tm_user');
-      currentMentor = userRaw ? JSON.parse(userRaw) : null;
-    } catch {}
-
     claimedMap[doubtId] = {
-      mentor: {
-        id: currentMentor?.id || 'mentor_current',
-        name: currentMentor?.name || 'Verified Mentor',
-        phone: currentMentor?.phone,
-        designation: currentMentor?.designation || 'Topper Mantra Mentor',
-      },
+      mentor: { id: me?.id, name: me?.name, phone: me?.phone },
       claimedAt: new Date().toISOString(),
     };
     saveClaimedMap(claimedMap);
-
-    // Also attempt backend claim route
-    try {
-      await api.post(`/doubts/${doubtId}/claim`);
-    } catch (_) {}
-
     return { success: true, data: { id: doubtId, status: 'CLAIMED' } };
   },
 
@@ -341,9 +345,11 @@ export const doubtsApi = {
     doubtId: string,
     payload: { solutionText: string; solutionImages?: string[] }
   ): Promise<{ success: boolean; data: any }> {
-    let commentRes: any = null;
+    // 1. Save the solution on the backend (throws on failure so the mentor sees the error).
+    await api.post(`/doubts/${doubtId}/resolve`, payload);
 
-    // 1. Post mentor's answer as a comment to the discussion
+    let commentRes: any = null;
+    // 2. Post the answer as a comment so it also shows in the discussion thread.
     try {
       commentRes = await api.post(`/discussions/${doubtId}/comments`, {
         content: payload.solutionText,
@@ -353,11 +359,6 @@ export const doubtsApi = {
     } catch (err: any) {
       console.warn('Comment post fallback:', err.message);
     }
-
-    // 2. Also attempt /doubts/:id/resolve
-    try {
-      await api.post(`/doubts/${doubtId}/resolve`, payload);
-    } catch (_) {}
 
     // 3. Remove from claimed store
     const claimedMap = getClaimedMap();
@@ -388,6 +389,12 @@ export const doubtsApi = {
     doubtId: string,
     payload: { solutionText: string; solutionImages?: string[]; commentId?: string }
   ): Promise<{ success: boolean; data: any }> {
+    // 0. Update the solution on the backend first (throws on failure).
+    await api.post(`/doubts/${doubtId}/resolve`, {
+      solutionText: payload.solutionText,
+      solutionImages: payload.solutionImages,
+    });
+
     // 1. If a previous commentId was provided or can be found, attempt to clean up old comment
     if (payload.commentId) {
       try {
@@ -410,14 +417,6 @@ export const doubtsApi = {
     } catch (err: any) {
       console.warn('Comment post fallback on update:', err.message);
     }
-
-    // 3. Update the doubt resolution record on backend
-    try {
-      await api.post(`/doubts/${doubtId}/resolve`, {
-        solutionText: payload.solutionText,
-        solutionImages: payload.solutionImages,
-      });
-    } catch (_) {}
 
     // 4. Save to persistent store
     saveEditedSolution(doubtId, payload.solutionText, payload.solutionImages);

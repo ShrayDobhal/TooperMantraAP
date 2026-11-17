@@ -2,8 +2,7 @@
 
 import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Sidebar } from '@/components/Sidebar';
-import { Header } from '@/components/Header';
+import { AppShell } from '@/components/AppShell';
 import {
   videosApi,
   VideoItem,
@@ -49,11 +48,9 @@ import {
   BookOpen,
   Filter,
 } from 'lucide-react';
-import {
-  uploadImageToBunnyStorage,
-  compressImageToBlob,
-  createLocalPreview,
-} from '@/lib/bunnyStorage';
+import { FileUploader } from '@/components/FileUploader';
+import { VideoUploader, UploadedVideo } from '@/components/VideoUploader';
+import { waitForVideoReady } from '@/api/uploads';
 
 const PILLAR_OPTIONS = [
   {
@@ -149,6 +146,10 @@ function LiveContentPageContent() {
   const [thumbnailUploadMode, setThumbnailUploadMode] = useState<'file' | 'url'>('file');
   const [selectedThumbnailFile, setSelectedThumbnailFile] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string>('');
+  const [uploadedVideo, setUploadedVideo] = useState<UploadedVideo | null>(null);
+  const [videoUploadBusy, setVideoUploadBusy] = useState(false);
+  const [thumbUploadBusy, setThumbUploadBusy] = useState(false);
+  const [videoUploaderKey, setVideoUploaderKey] = useState(0);
   const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(null);
   const [modalSelectedSchoolIds, setModalSelectedSchoolIds] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -188,53 +189,6 @@ function LiveContentPageContent() {
   const [playlistThumbMode, setPlaylistThumbMode] = useState<'file' | 'url'>('url');
   const [playlistThumbFile, setPlaylistThumbFile] = useState<File | null>(null);
   const [playlistThumbPreview, setPlaylistThumbPreview] = useState<string>('');
-
-  const handleVideoFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setSelectedVideoFile(file);
-
-    // Auto-fill title from filename if title is empty
-    if (!videoForm.title.trim()) {
-      const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
-      setVideoForm((prev) => ({ ...prev, title: cleanName }));
-    }
-  };
-
-  const handleThumbnailFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      alert('Please select a valid image file (PNG, JPG, WEBP).');
-      return;
-    }
-    if (file.size > 25 * 1024 * 1024) {
-      alert('Image file size must be under 25MB.');
-      return;
-    }
-
-    try {
-      setSelectedThumbnailFile(file);
-      const preview = await createLocalPreview(file);
-      setThumbnailPreview(preview);
-    } catch {
-      alert('Failed to process image preview.');
-    }
-  };
-
-  const handlePlaylistThumbFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      setPlaylistThumbFile(file);
-      const preview = await createLocalPreview(file);
-      setPlaylistThumbPreview(preview);
-    } catch {
-      alert('Failed to process thumbnail file');
-    }
-  };
 
   // Assign Schools Modal State
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -391,47 +345,15 @@ function LiveContentPageContent() {
     let finalThumbnailUrl = videoForm.thumbnailUrl.trim() || undefined;
 
     try {
-      // Step 1: If uploading a video file directly to Bunny Stream
-      if (videoSourceMode === 'file' && selectedVideoFile) {
-        setUploadStage('Initializing Bunny Stream video entry...');
-        const initRes = await videosApi.initVideoUpload(videoForm.title.trim());
-
-        if (initRes.success && initRes.data) {
-          finalBunnyId = initRes.data.bunnyVideoId;
-          finalVideoUrl = initRes.data.cdnUrl;
-          if (!finalThumbnailUrl && initRes.data.thumbnailUrl) {
-            finalThumbnailUrl = initRes.data.thumbnailUrl;
-          }
-
-          setUploadStage('Uploading video binary directly to Bunny CDN...');
-          await videosApi.uploadVideoFileToBunny(
-            initRes.data.uploadUrl,
-            initRes.data.authorizationHeader,
-            selectedVideoFile,
-            (pct) => {
-              setUploadProgress(pct);
-              setUploadStage(`Streaming to Bunny CDN (${pct}%)...`);
-            }
-          );
-          setUploadStage('Video binary uploaded! Finalizing...');
-        } else {
-          throw new Error('Failed to initialize Bunny Stream video entry on backend.');
-        }
+      if (videoUploadBusy || thumbUploadBusy) {
+        throw new Error('Please wait for the upload to finish before saving.');
       }
-
-      // Step 2: If uploading a custom thumbnail file to Bunny CDN Storage
-      if (thumbnailUploadMode === 'file' && selectedThumbnailFile) {
-        try {
-          setUploadStage('Uploading video poster to Bunny CDN...');
-          const compressedBlob = await compressImageToBlob(selectedThumbnailFile, 1280, 720, 0.85);
-          finalThumbnailUrl = await uploadImageToBunnyStorage(compressedBlob, 'thumbnails', (pct) => {
-            setUploadProgress(pct);
-            setUploadStage(`Uploading poster to Bunny CDN (${pct}%)...`);
-          });
-        } catch (thumbErr: any) {
-          console.warn('Bunny CDN thumbnail upload issue:', thumbErr.message);
-        }
+      if (videoSourceMode === 'file' && uploadedVideo) {
+        finalBunnyId = uploadedVideo.videoGuid;
+        finalVideoUrl = uploadedVideo.hlsUrl;
+        if (!finalThumbnailUrl) finalThumbnailUrl = uploadedVideo.thumbnailUrl;
       }
+      const stillEncoding = videoSourceMode === 'file' && !!uploadedVideo && uploadedVideo.status !== 'READY';
 
       let finalCategory = isInspire ? 'INSPIRE' : videoForm.category.toUpperCase();
       if (finalCategory === 'DRONE_AVIATION') {
@@ -450,10 +372,10 @@ function LiveContentPageContent() {
         bunnyVideoId: finalBunnyId,
         videoUrl: finalVideoUrl,
         thumbnailUrl: finalThumbnailUrl,
-        durationSeconds: durationSec,
+        durationSeconds: uploadedVideo?.durationSeconds || durationSec,
         playlistId: videoForm.playlistId ? videoForm.playlistId : undefined,
         isFeatured: videoForm.isFeatured,
-        status: 'READY',
+        status: stillEncoding ? 'PROCESSING' : 'READY',
       };
 
       let targetVideoId = selectedVideo?.id;
@@ -508,10 +430,28 @@ function LiveContentPageContent() {
         }
       }
 
+      if (stillEncoding && uploadedVideo && targetVideoId) {
+        const savedId = targetVideoId;
+        waitForVideoReady(uploadedVideo.videoGuid)
+          .then(async (st) => {
+            if (st.status === 'READY') {
+              await videosApi.updateVideo(savedId, {
+                status: 'READY',
+                ...(st.durationSeconds ? { durationSeconds: st.durationSeconds } : {}),
+              } as any);
+              setToastMsg('Encoding finished. The video is now ready to stream.');
+              fetchVideosAndSchools();
+            }
+          })
+          .catch(() => undefined);
+      }
+
       setShowVideoModal(false);
       setSelectedVideo(null);
       setModalSelectedSchoolIds([]);
       setSelectedVideoFile(null);
+      setUploadedVideo(null);
+      setVideoUploaderKey((k) => k + 1);
       setSelectedThumbnailFile(null);
       setThumbnailPreview('');
 
@@ -602,10 +542,7 @@ function LiveContentPageContent() {
     setErrorMsg('');
     try {
       let finalThumb = playlistForm.thumbnailUrl.trim();
-      if (playlistThumbMode === 'file' && playlistThumbFile) {
-        const compressed = await compressImageToBlob(playlistThumbFile, 1280, 720, 0.85);
-        finalThumb = await uploadImageToBunnyStorage(compressed, 'playlists');
-      }
+      if (thumbUploadBusy) throw new Error('Please wait for the cover image to finish uploading.');
 
       const payload = {
         title: playlistForm.title.trim(),
@@ -708,17 +645,13 @@ function LiveContentPageContent() {
   const featuredVideos = videos.filter((v) => v.isFeatured);
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header />
-        <main className="p-8 space-y-6 flex-1 animate-in fade-in duration-300">
+    <AppShell>
           {/* Header Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md bg-orange-100 text-orange-700 border border-orange-200 inline-flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse"></span>
+                <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md bg-indigo-100 text-indigo-700 border border-indigo-200 inline-flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
                   Target: Student Mobile App → {viewMode === 'INSPIRE' ? 'Inspire Tab (Explore & Playlists)' : 'My Space → Community'}
                 </span>
               </div>
@@ -730,7 +663,7 @@ function LiveContentPageContent() {
                   </>
                 ) : (
                   <>
-                    <Video className="w-6 h-6 text-orange-600" />
+                    <Video className="w-6 h-6 text-indigo-600" />
                     Community Live Sessions &amp; Recorded Video Clips
                   </>
                 )}
@@ -749,7 +682,7 @@ function LiveContentPageContent() {
                 className="p-2 bg-white border border-slate-200 text-slate-600 hover:text-slate-900 rounded-lg shadow-2xs cursor-pointer"
                 title="Refresh Catalog"
               >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-orange-600' : ''}`} />
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-indigo-600' : ''}`} />
               </button>
 
               {viewMode === 'INSPIRE' && inspireSubTab === 'PLAYLISTS' ? (
@@ -800,9 +733,11 @@ function LiveContentPageContent() {
                     setSelectedVideoFile(null);
                     setSelectedThumbnailFile(null);
                     setThumbnailPreview('');
+                    setUploadedVideo(null);
+                    setVideoUploaderKey((k) => k + 1);
                     setShowVideoModal(true);
                   }}
-                  className="px-4 py-2 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg shadow-2xs flex items-center gap-2 transition-all cursor-pointer"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg shadow-2xs flex items-center gap-2 transition-all cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
                   {viewMode === 'INSPIRE' ? 'Upload Inspire Masterclass' : 'Upload Video Session'}
@@ -834,7 +769,7 @@ function LiveContentPageContent() {
           )}
 
           {/* App Destination Primary Segmented Switcher */}
-          <div className="flex items-center gap-2 bg-slate-200/70 p-1.5 rounded-2xl w-fit border border-slate-200/80 shadow-2xs">
+          <div className="flex items-center gap-2 bg-slate-200/70 p-1.5 rounded-xl w-fit border border-slate-200/80 shadow-2xs">
             <button
               type="button"
               onClick={() => {
@@ -850,9 +785,9 @@ function LiveContentPageContent() {
                   : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
               }`}
             >
-              <Video className="w-4 h-4 text-orange-600" />
+              <Video className="w-4 h-4 text-indigo-600" />
               <span>Community Sessions &amp; Clips</span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-black">
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-semibold">
                 {videos.filter((v) => v.category !== 'INSPIRE').length}
               </span>
             </button>
@@ -871,7 +806,7 @@ function LiveContentPageContent() {
             >
               <Sparkles className="w-4 h-4 text-amber-500" />
               <span>Inspire Hub (Explore &amp; Playlists)</span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-black">
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold">
                 {playlists.length} Playlists • {videos.length} Videos
               </span>
             </button>
@@ -879,10 +814,10 @@ function LiveContentPageContent() {
 
           {/* SECTION 1: COMMUNITY VIEW */}
           {viewMode === 'COMMUNITY' ? (
-            <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
+            <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 uppercase tracking-wider">
-                  <Layers className="w-4 h-4 text-orange-600" />
+                  <Layers className="w-4 h-4 text-indigo-600" />
                   <span>Community Pillar Navigation</span>
                 </div>
                 <span className="text-[11px] text-slate-500 hidden md:inline">
@@ -917,7 +852,7 @@ function LiveContentPageContent() {
                       <span className="text-base leading-none">{pillar.emoji}</span>
                       <span>{pillar.name}</span>
                       <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                           isActive ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-700'
                         }`}
                       >
@@ -951,7 +886,7 @@ function LiveContentPageContent() {
             /* SECTION 2: INSPIRE HUB SUB-NAVIGATION */
             <div className="space-y-4">
               {/* Inspire Sub-Tabs Switcher */}
-              <div className="bg-white p-2 rounded-2xl border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-3">
+              <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -967,7 +902,7 @@ function LiveContentPageContent() {
                     <Film className="w-4 h-4" />
                     <span>Explore Videos</span>
                     <span
-                      className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
                         inspireSubTab === 'VIDEOS' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
                       }`}
                     >
@@ -990,7 +925,7 @@ function LiveContentPageContent() {
                     <ListVideo className="w-4 h-4" />
                     <span>Curated Playlists</span>
                     <span
-                      className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
                         inspireSubTab === 'PLAYLISTS' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
                       }`}
                     >
@@ -1013,7 +948,7 @@ function LiveContentPageContent() {
                     <Star className="w-4 h-4 text-amber-300 fill-amber-300" />
                     <span>Featured Learning &amp; Feed</span>
                     <span
-                      className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+                      className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
                         inspireSubTab === 'FEATURED' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800'
                       }`}
                     >
@@ -1032,7 +967,7 @@ function LiveContentPageContent() {
 
               {/* Category Pills Bar (Explore Videos mode - exact replica of Screenshot 2) */}
               {inspireSubTab === 'VIDEOS' && (
-                <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-2xs space-y-2">
+                <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                       <Filter className="w-3.5 h-3.5 text-amber-600" />
@@ -1178,7 +1113,7 @@ function LiveContentPageContent() {
                     return (
                       <div
                         key={pl.id}
-                        className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden flex flex-col justify-between hover:border-slate-300 transition-all group"
+                        className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden flex flex-col justify-between hover:border-slate-300 transition-all group"
                       >
                         <div>
                           {/* Playlist Cover Header */}
@@ -1193,7 +1128,7 @@ function LiveContentPageContent() {
                                 }}
                               />
                             ) : (
-                              <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-1 bg-gradient-to-br from-amber-950 via-slate-900 to-slate-900">
+                              <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 gap-1 bg-slate-100">
                                 <ListVideo className="w-8 h-8 text-amber-500/70" />
                                 <span className="text-[11px] font-semibold text-slate-300">Curated Playlist</span>
                               </div>
@@ -1206,7 +1141,7 @@ function LiveContentPageContent() {
 
                             {/* Featured Star Badge */}
                             {pl.isFeatured && (
-                              <span className="absolute top-2.5 right-2.5 px-2.5 py-1 bg-amber-500 text-slate-950 font-black text-[10px] rounded-md shadow-xs flex items-center gap-1">
+                              <span className="absolute top-2.5 right-2.5 px-2.5 py-1 bg-amber-500 text-slate-950 font-semibold text-[10px] rounded-md shadow-xs flex items-center gap-1">
                                 <Star className="w-3 h-3 fill-slate-950" />
                                 Featured on App Feed
                               </span>
@@ -1248,7 +1183,7 @@ function LiveContentPageContent() {
                               setActivePlaylistFilter(pl);
                               setInspireSubTab('VIDEOS');
                             }}
-                            className="text-xs font-semibold text-orange-600 hover:text-orange-700 flex items-center gap-1 cursor-pointer"
+                            className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
                           >
                             <span>View {videoCount} Videos</span>
                             <ArrowRight className="w-3.5 h-3.5" />
@@ -1299,7 +1234,7 @@ function LiveContentPageContent() {
           {viewMode === 'INSPIRE' && inspireSubTab === 'FEATURED' && (
             <div className="space-y-6">
               {/* Feed Header Explainer */}
-              <div className="bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-transparent p-5 rounded-2xl border border-amber-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="bg-white p-5 rounded-xl border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 font-bold text-slate-900 text-sm">
                     <Star className="w-4 h-4 fill-amber-500 text-amber-600" />
@@ -1328,7 +1263,7 @@ function LiveContentPageContent() {
                   </h3>
                   <button
                     onClick={() => setInspireSubTab('PLAYLISTS')}
-                    className="text-xs font-semibold text-orange-600 hover:text-orange-700 cursor-pointer"
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 cursor-pointer"
                   >
                     Manage all playlists →
                   </button>
@@ -1376,12 +1311,12 @@ function LiveContentPageContent() {
               <div className="space-y-3 pt-2">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                    <Film className="w-4 h-4 text-orange-500" />
+                    <Film className="w-4 h-4 text-indigo-500" />
                     Featured Video Masterclasses ({featuredVideos.length})
                   </h3>
                   <button
                     onClick={() => setInspireSubTab('VIDEOS')}
-                    className="text-xs font-semibold text-orange-600 hover:text-orange-700 cursor-pointer"
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 cursor-pointer"
                   >
                     Browse all videos →
                   </button>
@@ -1399,11 +1334,11 @@ function LiveContentPageContent() {
                         className="bg-white p-4 rounded-xl border border-amber-200 shadow-2xs flex items-center justify-between gap-3"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-12 h-12 rounded-lg bg-orange-50 border border-orange-200 flex items-center justify-center shrink-0 overflow-hidden">
+                          <div className="w-12 h-12 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center shrink-0 overflow-hidden">
                             {v.thumbnailUrl ? (
                               <img src={v.thumbnailUrl} alt={v.title} className="w-full h-full object-cover" />
                             ) : (
-                              <Video className="w-5 h-5 text-orange-600" />
+                              <Video className="w-5 h-5 text-indigo-600" />
                             )}
                           </div>
                           <div className="min-w-0">
@@ -1456,7 +1391,7 @@ function LiveContentPageContent() {
                     return (
                       <div
                         key={v.id}
-                        className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden flex flex-col justify-between hover:border-slate-300 transition-all"
+                        className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden flex flex-col justify-between hover:border-slate-300 transition-all"
                       >
                         <div>
                           {/* Video Thumbnail Header */}
@@ -1471,7 +1406,7 @@ function LiveContentPageContent() {
                                 }}
                               />
                             ) : (
-                              <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 gap-1 bg-gradient-to-br from-slate-900 to-slate-800">
+                              <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 gap-1 bg-slate-100">
                                 <Film className="w-8 h-8 text-slate-600" />
                                 <span className="text-[11px] text-slate-400">Topper Mantra Video</span>
                               </div>
@@ -1540,7 +1475,7 @@ function LiveContentPageContent() {
                             {/* Stream / Provider Badge */}
                             <div className="flex items-center gap-2 pt-1 flex-wrap">
                               {v.bunnyVideoId && (
-                                <span className="text-[10px] bg-orange-50 text-orange-700 border border-orange-200 px-2 py-0.5 rounded font-bold">
+                                <span className="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded font-bold">
                                   Bunny Stream
                                 </span>
                               )}
@@ -1597,9 +1532,9 @@ function LiveContentPageContent() {
                           <div className="flex items-center justify-between text-xs">
                             <button
                               onClick={() => openAssignModal(v)}
-                              className="px-3 py-1.5 bg-white border border-slate-200 hover:border-orange-400 text-slate-700 font-semibold rounded-lg shadow-2xs flex items-center gap-1.5 hover:text-orange-600 transition-all cursor-pointer"
+                              className="px-3 py-1.5 bg-white border border-slate-200 hover:border-indigo-400 text-slate-700 font-semibold rounded-lg shadow-2xs flex items-center gap-1.5 hover:text-indigo-600 transition-all cursor-pointer"
                             >
-                              <SchoolIcon className="w-3.5 h-3.5 text-orange-600" />
+                              <SchoolIcon className="w-3.5 h-3.5 text-indigo-600" />
                               <span>
                                 Assigned Schools: <strong className="text-slate-900">{assignedCount}</strong>
                               </span>
@@ -1635,6 +1570,8 @@ function LiveContentPageContent() {
                                   setSelectedVideoFile(null);
                                   setSelectedThumbnailFile(null);
                                   setThumbnailPreview(v.thumbnailUrl || '');
+                                  setUploadedVideo(null);
+                                  setVideoUploaderKey((k) => k + 1);
                                   setShowVideoModal(true);
                                 }}
                                 className="p-1.5 text-slate-600 hover:text-slate-900 bg-white border border-slate-200 rounded-md shadow-2xs cursor-pointer"
@@ -1662,8 +1599,8 @@ function LiveContentPageContent() {
 
           {/* CURATED PLAYLIST CREATE / EDIT MODAL */}
           {showPlaylistModal && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 animate-in fade-in duration-200">
-              <div className="bg-white rounded-2xl border border-slate-200 w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 animate-in fade-in duration-200">
+              <div className="bg-white rounded-xl border border-slate-200 w-full max-w-lg max-h-[90vh] flex flex-col shadow-xl overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
                   <div className="flex items-center gap-2">
                     <ListVideo className="w-5 h-5 text-amber-500" />
@@ -1741,71 +1678,23 @@ function LiveContentPageContent() {
                     </div>
 
                     {/* Playlist Cover Poster */}
-                    <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                      <div className="flex items-center justify-between">
-                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                          Playlist Cover Poster
-                        </label>
-                        <div className="flex items-center gap-1 bg-white border border-slate-200 p-0.5 rounded-lg text-[11px] font-semibold">
-                          <button
-                            type="button"
-                            onClick={() => setPlaylistThumbMode('file')}
-                            className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                              playlistThumbMode === 'file'
-                                ? 'bg-amber-600 text-white shadow-2xs'
-                                : 'text-slate-600 hover:text-slate-900'
-                            }`}
-                          >
-                            Upload File
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setPlaylistThumbMode('url')}
-                            className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                              playlistThumbMode === 'url'
-                                ? 'bg-amber-600 text-white shadow-2xs'
-                                : 'text-slate-600 hover:text-slate-900'
-                            }`}
-                          >
-                            Paste URL
-                          </button>
-                        </div>
-                      </div>
-
-                      {playlistThumbMode === 'file' ? (
-                        <div>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handlePlaylistThumbFileSelect}
-                            className="w-full p-2 bg-white text-slate-700 border border-slate-300 rounded-lg text-xs"
-                          />
-                          {playlistThumbPreview && (
-                            <img
-                              src={playlistThumbPreview}
-                              alt="Playlist Thumbnail"
-                              className="mt-2 h-24 w-44 object-cover rounded-lg border border-slate-300"
-                            />
-                          )}
-                        </div>
-                      ) : (
-                        <div>
-                          <input
-                            type="url"
-                            placeholder="https://images.unsplash.com/..."
-                            value={playlistForm.thumbnailUrl}
-                            onChange={(e) => setPlaylistForm({ ...playlistForm, thumbnailUrl: e.target.value })}
-                            className="w-full p-2 bg-white text-slate-900 border border-slate-300 rounded-lg text-xs font-mono"
-                          />
-                          {playlistForm.thumbnailUrl && (
-                            <img
-                              src={playlistForm.thumbnailUrl}
-                              alt="Playlist Preview"
-                              className="mt-2 h-24 w-44 object-cover rounded-lg border border-slate-300"
-                            />
-                          )}
-                        </div>
-                      )}
+                    <div className="space-y-2">
+                      <FileUploader
+                        label="Playlist cover"
+                        folder="thumbnails"
+                        kind="image"
+                        value={playlistForm.thumbnailUrl || null}
+                        onChange={(url) => setPlaylistForm((prev) => ({ ...prev, thumbnailUrl: url || '' }))}
+                        maxImageSize={{ width: 1280, height: 720 }}
+                        onUploadingChange={setThumbUploadBusy}
+                      />
+                      <input
+                        type="url"
+                        placeholder="…or paste an image URL"
+                        value={playlistForm.thumbnailUrl}
+                        onChange={(e) => setPlaylistForm({ ...playlistForm, thumbnailUrl: e.target.value })}
+                        className="w-full h-9 rounded-lg border border-slate-200 px-3 text-xs"
+                      />
                     </div>
 
                     {/* Feature on App Feed Toggle */}
@@ -1837,7 +1726,7 @@ function LiveContentPageContent() {
                     </button>
                     <button
                       type="submit"
-                      disabled={submitting}
+                      disabled={submitting || thumbUploadBusy}
                       className="px-4 py-2 bg-amber-600 hover:bg-amber-700 active:scale-[0.98] text-white font-semibold rounded-lg shadow-2xs disabled:opacity-60 cursor-pointer flex items-center gap-1.5"
                     >
                       {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
@@ -1851,12 +1740,12 @@ function LiveContentPageContent() {
 
           {/* UPLOAD / EDIT VIDEO MODAL */}
           {showVideoModal && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 animate-in fade-in duration-200">
-              <div className="bg-white rounded-2xl border border-slate-200 w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 animate-in fade-in duration-200">
+              <div className="bg-white rounded-xl border border-slate-200 w-full max-w-xl max-h-[90vh] flex flex-col shadow-xl overflow-hidden">
                 {/* Fixed Header */}
                 <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
                   <div className="flex items-center gap-2">
-                    <Film className="w-5 h-5 text-orange-600" />
+                    <Film className="w-5 h-5 text-indigo-600" />
                     <div>
                       <h3 className="font-bold text-slate-900 text-base">
                         {selectedVideo
@@ -1882,118 +1771,24 @@ function LiveContentPageContent() {
                 <form onSubmit={handleSaveVideo} className="flex flex-col flex-1 min-h-0 overflow-hidden">
                   <div className="p-6 overflow-y-auto flex-1 space-y-4 text-xs">
                     {/* Thumbnail Poster with Device File Upload + URL Switcher */}
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-                      <div className="flex items-center justify-between">
-                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                          Video Thumbnail Poster
-                        </label>
-                        <div className="flex items-center gap-1 bg-white border border-slate-200 p-0.5 rounded-lg text-[11px] font-semibold">
-                          <button
-                            type="button"
-                            onClick={() => setThumbnailUploadMode('file')}
-                            className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                              thumbnailUploadMode === 'file'
-                                ? 'bg-orange-600 text-white shadow-2xs'
-                                : 'text-slate-600 hover:text-slate-900'
-                            }`}
-                          >
-                            Upload File
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setThumbnailUploadMode('url')}
-                            className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                              thumbnailUploadMode === 'url'
-                                ? 'bg-orange-600 text-white shadow-2xs'
-                                : 'text-slate-600 hover:text-slate-900'
-                            }`}
-                          >
-                            Paste URL
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-4">
-                        <div className="w-24 h-16 rounded-xl bg-white border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs relative group">
-                          {thumbnailUploadMode === 'file' ? (
-                            thumbnailPreview ? (
-                              <>
-                                <img
-                                  src={thumbnailPreview}
-                                  alt="Poster Preview"
-                                  className="w-full h-full object-cover"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedThumbnailFile(null);
-                                    setThumbnailPreview('');
-                                  }}
-                                  className="absolute inset-0 bg-slate-900/60 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs font-semibold transition-opacity cursor-pointer"
-                                  title="Remove Poster"
-                                >
-                                  Remove
-                                </button>
-                              </>
-                            ) : (
-                              <ImageIcon className="w-6 h-6 text-slate-300" />
-                            )
-                          ) : videoForm.thumbnailUrl ? (
-                            <>
-                              <img
-                                src={videoForm.thumbnailUrl}
-                                alt="Poster Preview"
-                                className="w-full h-full object-cover"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => setVideoForm((prev) => ({ ...prev, thumbnailUrl: '' }))}
-                                className="absolute inset-0 bg-slate-900/60 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs font-semibold transition-opacity cursor-pointer"
-                                title="Remove Poster"
-                              >
-                                Remove
-                              </button>
-                            </>
-                          ) : (
-                            <ImageIcon className="w-6 h-6 text-slate-300" />
-                          )}
-                        </div>
-
-                        <div className="flex-1 space-y-1.5">
-                          {thumbnailUploadMode === 'file' ? (
-                            <div>
-                              <label className="inline-flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-300 hover:border-orange-500 hover:text-orange-600 rounded-lg text-xs font-semibold text-slate-700 cursor-pointer shadow-2xs transition-all">
-                                <Upload className="w-4 h-4 text-orange-600" />
-                                <span>Choose Image from Device</span>
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={handleThumbnailFileSelect}
-                                  className="hidden"
-                                />
-                              </label>
-                              <p className="text-[11px] text-slate-400 mt-1">
-                                {selectedThumbnailFile
-                                  ? `✓ Poster selected: ${selectedThumbnailFile.name} (${(selectedThumbnailFile.size / 1024).toFixed(0)} KB)`
-                                  : 'Select PNG, JPG, or WEBP poster from your computer (uploaded to Bunny CDN)'}
-                              </p>
-                            </div>
-                          ) : (
-                            <div>
-                              <input
-                                type="url"
-                                placeholder="Paste image URL (https://...)"
-                                value={videoForm.thumbnailUrl}
-                                onChange={(e) => setVideoForm({ ...videoForm, thumbnailUrl: e.target.value })}
-                                className="w-full bg-white text-slate-900 border border-slate-300 rounded-lg p-2 text-xs focus:outline-none focus:border-slate-500 font-mono"
-                              />
-                              <p className="text-[11px] text-slate-400 mt-1">
-                                {videoForm.thumbnailUrl ? '✓ Live poster thumbnail preview' : 'Enter URL to preview poster'}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                    <div className="space-y-2">
+                      <FileUploader
+                        label="Thumbnail"
+                        folder="thumbnails"
+                        kind="image"
+                        value={videoForm.thumbnailUrl || null}
+                        onChange={(url) => setVideoForm((prev) => ({ ...prev, thumbnailUrl: url || '' }))}
+                        maxImageSize={{ width: 1280, height: 720 }}
+                        onUploadingChange={setThumbUploadBusy}
+                        hint="16:9 JPG, PNG or WEBP up to 10 MB. Leave empty to use the frame Bunny generates."
+                      />
+                      <input
+                        type="url"
+                        placeholder="…or paste an image URL"
+                        value={videoForm.thumbnailUrl}
+                        onChange={(e) => setVideoForm({ ...videoForm, thumbnailUrl: e.target.value })}
+                        className="w-full h-9 rounded-lg border border-slate-200 px-3 text-xs"
+                      />
                     </div>
 
                     {/* Target App Destination Selector */}
@@ -2013,12 +1808,12 @@ function LiveContentPageContent() {
                           }
                           className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
                             videoForm.targetSection === 'COMMUNITY'
-                              ? 'bg-orange-50/80 border-orange-400 ring-2 ring-orange-400/20 shadow-2xs'
+                              ? 'bg-indigo-50/80 border-indigo-400 ring-2 ring-indigo-400/20 shadow-2xs'
                               : 'bg-white border-slate-200 hover:border-slate-300'
                           }`}
                         >
                           <div className="flex items-center gap-2 font-bold text-slate-900 text-xs">
-                            <Video className="w-4 h-4 text-orange-600" />
+                            <Video className="w-4 h-4 text-indigo-600" />
                             <span>Community Live Sessions</span>
                           </div>
                           <p className="text-[11px] text-slate-500 mt-1">
@@ -2257,7 +2052,7 @@ function LiveContentPageContent() {
                     <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5 font-bold text-slate-800 uppercase tracking-wider text-xs">
-                          <Sparkles className="w-3.5 h-3.5 text-orange-600" />
+                          <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
                           <span>Video Source &amp; Playback</span>
                         </div>
                         <div className="flex items-center gap-1 bg-white border border-slate-200 p-0.5 rounded-lg text-[11px] font-semibold">
@@ -2266,7 +2061,7 @@ function LiveContentPageContent() {
                             onClick={() => setVideoSourceMode('file')}
                             className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                               videoSourceMode === 'file'
-                                ? 'bg-orange-600 text-white shadow-2xs'
+                                ? 'bg-indigo-600 text-white shadow-2xs'
                                 : 'text-slate-600 hover:text-slate-900'
                             }`}
                           >
@@ -2277,7 +2072,7 @@ function LiveContentPageContent() {
                             onClick={() => setVideoSourceMode('manual')}
                             className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                               videoSourceMode === 'manual'
-                                ? 'bg-orange-600 text-white shadow-2xs'
+                                ? 'bg-indigo-600 text-white shadow-2xs'
                                 : 'text-slate-600 hover:text-slate-900'
                             }`}
                           >
@@ -2288,73 +2083,31 @@ function LiveContentPageContent() {
 
                       {videoSourceMode === 'file' ? (
                         <div className="space-y-2.5">
-                          {selectedVideoFile ? (
-                            <div className="bg-white border border-slate-200 rounded-xl p-3.5 flex items-center justify-between shadow-2xs">
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div className="w-10 h-10 rounded-lg bg-orange-50 border border-orange-200 flex items-center justify-center text-orange-600 shrink-0">
-                                  <Video className="w-5 h-5" />
-                                </div>
-                                <div className="min-w-0">
-                                  <p className="font-bold text-slate-900 text-xs truncate max-w-[280px]">
-                                    {selectedVideoFile.name}
-                                  </p>
-                                  <p className="text-[11px] text-slate-500">
-                                    {(selectedVideoFile.size / (1024 * 1024)).toFixed(1)} MB • Direct Bunny Stream Upload
-                                  </p>
-                                </div>
-                              </div>
-                              <label className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs cursor-pointer transition-colors shrink-0">
-                                <span>Change File</span>
-                                <input
-                                  type="file"
-                                  accept="video/mp4,video/quicktime,video/webm,video/x-matroska,.mp4,.mov,.mkv,.webm"
-                                  onChange={handleVideoFileSelect}
-                                  className="hidden"
-                                />
-                              </label>
-                            </div>
-                          ) : (
-                            <label className="border-2 border-dashed border-slate-300 hover:border-orange-500 bg-white hover:bg-orange-50/20 rounded-xl p-5 flex flex-col items-center justify-center text-center cursor-pointer transition-all group">
-                              <div className="w-11 h-11 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                                <Upload className="w-5 h-5" />
-                              </div>
-                              <p className="text-xs font-bold text-slate-800">
-                                Click to select Video File from Computer
-                              </p>
-                              <p className="text-[11px] text-slate-400 mt-0.5">
-                                Supports .mp4, .mov, .mkv, .webm (Direct high-speed Bunny CDN upload)
-                              </p>
-                              <input
-                                type="file"
-                                accept="video/mp4,video/quicktime,video/webm,video/x-matroska,.mp4,.mov,.mkv,.webm"
-                                onChange={handleVideoFileSelect}
-                                className="hidden"
-                              />
-                            </label>
+                          {selectedVideo && videoForm.bunnyVideoId && !uploadedVideo && (
+                            <p className="text-xs text-slate-500">
+                              Current video ID: <code>{videoForm.bunnyVideoId}</code>. Upload a new file only if you want to replace it.
+                            </p>
                           )}
-
-                          {/* Upload Progress Bar when uploading */}
-                          {uploadStage && (
-                            <div className="bg-white p-3 rounded-lg border border-orange-200 space-y-1.5">
-                              <div className="flex items-center justify-between text-xs font-semibold">
-                                <span className="text-orange-700 flex items-center gap-1.5">
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                  {uploadStage}
-                                </span>
-                                {uploadProgress !== null && (
-                                  <span className="font-mono text-orange-800">{uploadProgress}%</span>
-                                )}
-                              </div>
-                              {uploadProgress !== null && (
-                                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
-                                  <div
-                                    className="h-full bg-orange-600 rounded-full transition-all duration-200"
-                                    style={{ width: `${uploadProgress}%` }}
-                                  ></div>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                          <VideoUploader
+                            key={videoUploaderKey}
+                            title={videoForm.title}
+                            onBusyChange={setVideoUploadBusy}
+                            onUploaded={(v) => {
+                              setUploadedVideo(v);
+                              setVideoForm((prev) => ({
+                                ...prev,
+                                title: prev.title.trim() ? prev.title : v.fileName.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
+                                bunnyVideoId: v.videoGuid,
+                                videoUrl: v.hlsUrl,
+                              }));
+                            }}
+                            onReady={(v) => {
+                              setUploadedVideo(v);
+                              if (v.durationSeconds) {
+                                setVideoForm((prev) => ({ ...prev, durationMinutes: Math.max(1, Math.round(v.durationSeconds / 60)) }));
+                              }
+                            }}
+                          />
                         </div>
                       ) : (
                         <div className="space-y-3">
@@ -2448,10 +2201,10 @@ function LiveContentPageContent() {
                       <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5 font-semibold text-slate-800">
-                            <SchoolIcon className="w-4 h-4 text-orange-600" />
+                            <SchoolIcon className="w-4 h-4 text-indigo-600" />
                             <span>Assign to Partner Schools</span>
                           </div>
-                          <span className="text-[11px] font-bold text-orange-600 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">
+                          <span className="text-[11px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
                             {modalSelectedSchoolIds.length} Selected
                           </span>
                         </div>
@@ -2469,7 +2222,7 @@ function LiveContentPageContent() {
                                   key={s.id}
                                   className={`flex items-center gap-2 p-2 rounded-lg border text-xs cursor-pointer transition-colors ${
                                     isChecked
-                                      ? 'bg-orange-50/80 border-orange-300 text-slate-900 font-semibold'
+                                      ? 'bg-indigo-50/80 border-indigo-300 text-slate-900 font-semibold'
                                       : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100/60'
                                   }`}
                                 >
@@ -2483,7 +2236,7 @@ function LiveContentPageContent() {
                                           : [...prev, s.id]
                                       );
                                     }}
-                                    className="rounded text-orange-600 focus:ring-orange-500 w-3.5 h-3.5"
+                                    className="rounded text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
                                   />
                                   <span className="truncate">{s.name}</span>
                                 </label>
@@ -2510,8 +2263,8 @@ function LiveContentPageContent() {
                       </button>
                       <button
                         type="submit"
-                        disabled={submitting}
-                        className="px-4 py-2 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white font-semibold rounded-lg shadow-2xs disabled:opacity-60 cursor-pointer flex items-center gap-1.5"
+                        disabled={submitting || videoUploadBusy || thumbUploadBusy}
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white font-semibold rounded-lg shadow-2xs disabled:opacity-60 cursor-pointer flex items-center gap-1.5"
                       >
                         {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                         {submitting ? 'Saving...' : selectedVideo ? 'Update Video' : 'Publish Video'}
@@ -2525,11 +2278,11 @@ function LiveContentPageContent() {
 
           {/* ASSIGN SCHOOLS MODAL */}
           {showAssignModal && assigningVideo && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 animate-in fade-in duration-200">
-              <div className="bg-white rounded-2xl max-w-md w-full p-6 border border-slate-200 shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 animate-in fade-in duration-200">
+              <div className="bg-white rounded-xl max-w-md w-full p-6 border border-slate-200 shadow-xl space-y-4 max-h-[85vh] flex flex-col">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
                   <div className="flex items-center gap-2">
-                    <SchoolIcon className="w-5 h-5 text-orange-600" />
+                    <SchoolIcon className="w-5 h-5 text-indigo-600" />
                     <div>
                       <h3 className="font-bold text-slate-900 text-sm">Assign Schools</h3>
                       <p className="text-xs text-slate-500 truncate max-w-[280px]">{assigningVideo.title}</p>
@@ -2545,7 +2298,7 @@ function LiveContentPageContent() {
 
                 <div className="flex items-center justify-between text-xs text-slate-600 shrink-0">
                   <span>Select partner schools:</span>
-                  <span className="font-semibold text-orange-600">{selectedSchoolIds.length} Selected</span>
+                  <span className="font-semibold text-indigo-600">{selectedSchoolIds.length} Selected</span>
                 </div>
 
                 <div className="space-y-2 overflow-y-auto flex-1 pr-1 border border-slate-100 rounded-lg p-2 bg-slate-50/50">
@@ -2560,7 +2313,7 @@ function LiveContentPageContent() {
                           onClick={() => toggleSchoolSelection(sch.id)}
                           className={`p-3 rounded-lg border text-xs flex items-center justify-between cursor-pointer transition-all ${
                             isSelected
-                              ? 'bg-orange-50/70 border-orange-300 text-slate-900 font-semibold'
+                              ? 'bg-indigo-50/70 border-indigo-300 text-slate-900 font-semibold'
                               : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
                           }`}
                         >
@@ -2569,7 +2322,7 @@ function LiveContentPageContent() {
                             <p className="text-[11px] text-slate-500 font-mono">Code: {sch.code}</p>
                           </div>
                           {isSelected ? (
-                            <CheckSquare className="w-4 h-4 text-orange-600 shrink-0" />
+                            <CheckSquare className="w-4 h-4 text-indigo-600 shrink-0" />
                           ) : (
                             <Square className="w-4 h-4 text-slate-300 shrink-0" />
                           )}
@@ -2591,7 +2344,7 @@ function LiveContentPageContent() {
                     type="button"
                     onClick={handleSaveAssignments}
                     disabled={savingAssignments}
-                    className="px-4 py-2 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg shadow-2xs disabled:opacity-60 flex items-center gap-1.5 transition-all cursor-pointer"
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg shadow-2xs disabled:opacity-60 flex items-center gap-1.5 transition-all cursor-pointer"
                   >
                     {savingAssignments && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                     {savingAssignments ? 'Saving...' : 'Save School Access'}
@@ -2600,9 +2353,8 @@ function LiveContentPageContent() {
               </div>
             </div>
           )}
-        </main>
-      </div>
-    </div>
+        
+    </AppShell>
   );
 }
 

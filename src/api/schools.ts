@@ -32,89 +32,28 @@ export interface School {
   updatedAt?: string;
 }
 
-const DELETED_SCHOOLS_KEY = 'tm_deleted_schools';
-const DELETED_LICENSES_KEY = 'tm_deleted_licenses';
-
-function getDeletedSchoolIds(): string[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(DELETED_SCHOOLS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveDeletedSchoolId(id: string) {
-  if (typeof window === 'undefined') return;
-  try {
-    const list = getDeletedSchoolIds();
-    if (!list.includes(id)) {
-      list.push(id);
-      localStorage.setItem(DELETED_SCHOOLS_KEY, JSON.stringify(list));
-    }
-  } catch {}
-}
-
-function getDeletedLicenseCodes(): string[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(DELETED_LICENSES_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveDeletedLicenseCode(code: string) {
-  if (typeof window === 'undefined') return;
-  try {
-    const list = getDeletedLicenseCodes();
-    if (!list.includes(code)) {
-      list.push(code);
-      localStorage.setItem(DELETED_LICENSES_KEY, JSON.stringify(list));
-    }
-  } catch {}
+function withSeatTotals(s: School): School {
+  // Deactivated licenses can no longer be redeemed, so they do not count toward seats.
+  const activeLicenses = (s.licenses || []).filter((lic) => lic.isActive !== false);
+  if (!s.licenses || s.licenses.length === 0) return { ...s, licenses: activeLicenses };
+  const totalSeats = activeLicenses.reduce((acc, l) => acc + (l.totalSeats || 0), 0);
+  const allocatedSeats = activeLicenses.reduce((acc, l) => acc + (l.allocatedSeats || 0), 0);
+  return {
+    ...s,
+    licenses: activeLicenses,
+    totalSeats,
+    allocatedSeats,
+    remainingSeats: Math.max(0, totalSeats - allocatedSeats),
+  };
 }
 
 export const schoolsApi = {
-  async getSchools(): Promise<{ success: boolean; data: School[] }> {
+  /** Lists schools. Deactivated (deleted) schools are hidden unless includeInactive is set. */
+  async getSchools(opts: { includeInactive?: boolean } = {}): Promise<{ success: boolean; data: School[] }> {
     const res: any = await api.get('/admin/schools');
-    let schoolsList: School[] = [];
-
-    // Handle both direct array or wrapped data structure
-    if (Array.isArray(res)) {
-      schoolsList = res;
-    } else if (res && res.data) {
-      schoolsList = Array.isArray(res.data) ? res.data : res.data.items || [];
-    }
-
-    const deletedSchoolIds = getDeletedSchoolIds();
-    const deletedLicenseCodes = getDeletedLicenseCodes();
-
-    // Filter out deleted schools
-    const activeSchools = schoolsList
-      .filter((s) => !deletedSchoolIds.includes(s.id) && !deletedSchoolIds.includes(s.code))
-      .map((s) => {
-        // Filter out deleted licenses within school
-        const activeLicenses = (s.licenses || []).filter(
-          (lic) => !deletedLicenseCodes.includes(lic.licenseCode) && (!lic.id || !deletedLicenseCodes.includes(lic.id))
-        );
-
-        const totalSeats = activeLicenses.reduce((acc, l) => acc + (l.totalSeats || 0), 0);
-        const allocatedSeats = activeLicenses.reduce((acc, l) => acc + (l.allocatedSeats || 0), 0);
-        const remainingSeats = Math.max(0, totalSeats - allocatedSeats);
-
-        return {
-          ...s,
-          licenses: activeLicenses,
-          totalSeats: s.licenses && s.licenses.length > 0 ? totalSeats : s.totalSeats,
-          allocatedSeats: s.licenses && s.licenses.length > 0 ? allocatedSeats : s.allocatedSeats,
-          remainingSeats: s.licenses && s.licenses.length > 0 ? remainingSeats : s.remainingSeats,
-        };
-      });
-
-    return { success: true, data: activeSchools };
+    const list: School[] = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : res?.data?.items || [];
+    const visible = opts.includeInactive ? list : list.filter((s) => s.status !== 'INACTIVE');
+    return { success: true, data: visible.map(withSeatTotals) };
   },
 
   async getSchoolById(id: string): Promise<{ success: boolean; data: School }> {
@@ -127,29 +66,14 @@ export const schoolsApi = {
     return res;
   },
 
+  /** Deactivates the school and its licenses on the backend (student history is kept). */
   async deleteSchool(id: string): Promise<{ success: boolean; data: any }> {
-    // Attempt backend DELETE call
-    try {
-      await api.delete(`/admin/schools/${id}`);
-    } catch (err: any) {
-      console.warn('Backend school delete endpoint fallback:', err.message);
-    }
-    // Record in local persistent storage so it stays deleted even across re-fetches
-    saveDeletedSchoolId(id);
-    return { success: true, data: { id, deleted: true } };
+    return api.delete(`/admin/schools/${id}`);
   },
 
-  async deleteSchoolLicense(schoolId: string, licenseCode: string, licenseId?: string): Promise<{ success: boolean; data: any }> {
-    // Attempt backend DELETE call
-    try {
-      await api.delete(`/admin/schools/${schoolId}/licenses/${licenseId || licenseCode}`);
-    } catch (err: any) {
-      console.warn('Backend school license delete endpoint fallback:', err.message);
-    }
-    // Record in local persistent storage
-    saveDeletedLicenseCode(licenseCode);
-    if (licenseId) saveDeletedLicenseCode(licenseId);
-    return { success: true, data: { schoolId, licenseCode, deleted: true } };
+  /** Deactivates one license so its code can no longer be redeemed. */
+  async deleteSchoolLicense(schoolId: string, licenseId: string): Promise<{ success: boolean; data: any }> {
+    return api.delete(`/admin/schools/${schoolId}/licenses/${encodeURIComponent(licenseId)}`);
   },
 
   async updateSchoolStatus(id: string, status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED'): Promise<{ success: boolean; data: any }> {

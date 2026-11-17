@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Sidebar } from '@/components/Sidebar';
-import { Header } from '@/components/Header';
+import { AppShell } from '@/components/AppShell';
 import { mentorsApi, Mentor } from '@/api';
 import {
   GraduationCap,
@@ -27,11 +26,8 @@ import {
   X,
   Pencil,
 } from 'lucide-react';
-import {
-  uploadImageToBunnyStorage,
-  compressImageToBlob,
-  createLocalPreview,
-} from '@/lib/bunnyStorage';
+import { compressImageToBlob, createLocalPreview } from '@/lib/images';
+import { uploadToCdn } from '@/api/uploads';
 
 const CATEGORIES = ['All', 'JEE', 'NEET', 'HACKATHON', 'ENTREPRENEURSHIP', 'CUET', 'BOARDS', 'DRONE', 'OTHER'];
 
@@ -152,7 +148,7 @@ export default function MentorsPage() {
       try {
         setUploadStage('Optimizing & uploading photo to Bunny CDN...');
         const compressedBlob = await compressImageToBlob(selectedPhotoFile, 800, 800, 0.85);
-        finalAvatarUrl = await uploadImageToBunnyStorage(compressedBlob, 'mentors', (pct) => {
+        finalAvatarUrl = await uploadToCdn(compressedBlob, 'mentors', (pct) => {
           setUploadProgress(pct);
           setUploadStage(`Uploading photo to Bunny CDN (${pct}%)...`);
         });
@@ -305,7 +301,7 @@ export default function MentorsPage() {
       try {
         setEditUploadStage('Optimizing & uploading photo to Bunny CDN...');
         const compressedBlob = await compressImageToBlob(editSelectedPhotoFile, 800, 800, 0.85);
-        finalAvatarUrl = await uploadImageToBunnyStorage(compressedBlob, 'mentors', (pct) => {
+        finalAvatarUrl = await uploadToCdn(compressedBlob, 'mentors', (pct) => {
           setEditUploadProgress(pct);
           setEditUploadStage(`Uploading photo to Bunny CDN (${pct}%)...`);
         });
@@ -412,17 +408,13 @@ export default function MentorsPage() {
   const [selectedMentorAnalytics, setSelectedMentorAnalytics] = useState<Mentor | null>(null);
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header />
-        <main className="p-8 space-y-6 flex-1 animate-in fade-in duration-300">
+    <AppShell>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2.5">
                 <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Mentor Directory & Management</h1>
                 {!loading && (
-                  <span className="text-xs font-bold px-2.5 py-0.5 bg-orange-100 text-orange-800 rounded-full border border-orange-200">
+                  <span className="text-xs font-bold px-2.5 py-0.5 bg-indigo-100 text-indigo-800 rounded-full border border-indigo-200">
                     {mentors.length} {mentors.length === 1 ? 'Mentor' : 'Mentors'}
                   </span>
                 )}
@@ -437,21 +429,21 @@ export default function MentorsPage() {
                 className="p-2 bg-white border border-slate-200 text-slate-600 hover:text-slate-900 rounded-lg shadow-2xs cursor-pointer"
                 title="Refresh Directory"
               >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-orange-600' : ''}`} />
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-indigo-600' : ''}`} />
               </button>
 
               <button
                 onClick={() => setShowAddModal(true)}
                 className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white text-xs font-semibold rounded-lg shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
               >
-                <Plus className="w-4 h-4 text-orange-500" />
+                <Plus className="w-4 h-4 text-indigo-500" />
                 Add New Mentor
               </button>
 
               <button
                 onClick={handleSaveOrder}
                 disabled={saving || mentors.length === 0}
-                className="px-4 py-2 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg shadow-2xs flex items-center gap-2 transition-all disabled:opacity-60 cursor-pointer"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg shadow-2xs flex items-center gap-2 transition-all disabled:opacity-60 cursor-pointer"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                 {saving ? 'Saving Order...' : 'Save Live Priority Order'}
@@ -516,7 +508,7 @@ export default function MentorsPage() {
               {mentors.map((mentor, idx) => (
                 <div
                   key={mentor.id}
-                  className="mnc-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:border-orange-300"
+                  className="mnc-card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:border-indigo-300"
                 >
                   <div className="flex items-start md:items-center gap-3.5 flex-1 min-w-0">
                     <div className="w-7 h-7 rounded-md bg-slate-100 font-mono font-bold text-slate-600 text-xs flex items-center justify-center border border-slate-200 shrink-0 mt-1 md:mt-0">
@@ -526,7 +518,7 @@ export default function MentorsPage() {
                     {/* Mentor Photograph / Avatar */}
                     <div
                       onClick={() => setSelectedMentorAnalytics(mentor)}
-                      className="w-12 h-12 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs relative cursor-pointer hover:ring-2 hover:ring-orange-500 transition-all"
+                      className="w-12 h-12 rounded-xl bg-slate-100 text-slate-700 border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs relative cursor-pointer hover:ring-2 hover:ring-indigo-500 transition-all"
                     >
                       {mentor.avatarUrl ? (
                         <img
@@ -538,7 +530,7 @@ export default function MentorsPage() {
                           }}
                         />
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-orange-500 to-amber-600 text-white font-bold text-sm flex items-center justify-center">
+                        <div className="w-full h-full bg-indigo-600 text-white font-bold text-sm flex items-center justify-center">
                           {mentor.name.charAt(0).toUpperCase()}
                         </div>
                       )}
@@ -549,11 +541,11 @@ export default function MentorsPage() {
                         <button
                           type="button"
                           onClick={() => setSelectedMentorAnalytics(mentor)}
-                          className="font-bold text-slate-900 text-sm hover:text-orange-600 transition-colors text-left cursor-pointer underline decoration-dotted underline-offset-4"
+                          className="font-bold text-slate-900 text-sm hover:text-indigo-600 transition-colors text-left cursor-pointer underline decoration-dotted underline-offset-4"
                         >
                           {mentor.name}
                         </button>
-                        <span className="bg-orange-50 text-orange-700 border border-orange-200 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                        <span className="bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full text-[10px] font-bold">
                           {mentor.category}
                         </span>
                         {mentor.organizationOrCollege && (
@@ -585,7 +577,7 @@ export default function MentorsPage() {
                         <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" /> {mentor.rating || 4.9}
                       </span>
                       <span className="flex items-center gap-1 bg-slate-50 border border-slate-200 px-2 py-1 rounded-md">
-                        <Users className="w-3.5 h-3.5 text-slate-400" /> {mentor.totalStudentsMentored || 150}+
+                        <Users className="w-3.5 h-3.5 text-slate-400" /> {mentor.totalStudentsMentored ? `${mentor.totalStudentsMentored}+` : "—"}
                       </span>
                     </div>
 
@@ -611,7 +603,7 @@ export default function MentorsPage() {
                       {/* Edit Mentor Action Button */}
                       <button
                         onClick={() => openEditModal(mentor)}
-                        className="p-1.5 bg-slate-50 hover:bg-orange-50 hover:text-orange-600 active:scale-[0.95] text-slate-600 rounded-md border border-slate-200 transition-all ml-1 cursor-pointer"
+                        className="p-1.5 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 active:scale-[0.95] text-slate-600 rounded-md border border-slate-200 transition-all ml-1 cursor-pointer"
                         title="Edit Mentor Details"
                       >
                         <Pencil className="w-4 h-4" />
@@ -635,12 +627,12 @@ export default function MentorsPage() {
 
           {/* Add Mentor Modal */}
           {showAddModal && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 animate-in fade-in duration-200">
-              <div className="bg-white rounded-2xl border border-slate-200 w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 animate-in fade-in duration-200">
+              <div className="bg-white rounded-xl border border-slate-200 w-full max-w-xl max-h-[90vh] flex flex-col shadow-xl overflow-hidden">
                 {/* Fixed Modal Header */}
                 <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-center text-orange-600">
+                    <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600">
                       <UserPlus className="w-5 h-5" />
                     </div>
                     <div>
@@ -675,7 +667,7 @@ export default function MentorsPage() {
                             onClick={() => setPhotoUploadMode('file')}
                             className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                               photoUploadMode === 'file'
-                                ? 'bg-orange-600 text-white shadow-2xs'
+                                ? 'bg-indigo-600 text-white shadow-2xs'
                                 : 'text-slate-600 hover:text-slate-900'
                             }`}
                           >
@@ -686,7 +678,7 @@ export default function MentorsPage() {
                             onClick={() => setPhotoUploadMode('url')}
                             className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                               photoUploadMode === 'url'
-                                ? 'bg-orange-600 text-white shadow-2xs'
+                                ? 'bg-indigo-600 text-white shadow-2xs'
                                 : 'text-slate-600 hover:text-slate-900'
                             }`}
                           >
@@ -696,7 +688,7 @@ export default function MentorsPage() {
                       </div>
 
                       <div className="flex items-center gap-4">
-                        <div className="w-18 h-18 rounded-2xl bg-white border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs relative group">
+                        <div className="w-18 h-18 rounded-xl bg-white border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs relative group">
                           {photoUploadMode === 'file' ? (
                             photoPreview ? (
                               <>
@@ -712,7 +704,7 @@ export default function MentorsPage() {
                                     setPhotoPreview('');
                                     if (fileInputRef.current) fileInputRef.current.value = '';
                                   }}
-                                  className="absolute inset-0 bg-slate-900/60 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs font-semibold transition-opacity cursor-pointer"
+                                  className="absolute inset-0 bg-slate-900/40 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs font-semibold transition-opacity cursor-pointer"
                                   title="Remove Photo"
                                 >
                                   Remove
@@ -731,7 +723,7 @@ export default function MentorsPage() {
                               <button
                                 type="button"
                                 onClick={() => setNewMentorAvatarUrl('')}
-                                className="absolute inset-0 bg-slate-900/60 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs font-semibold transition-opacity cursor-pointer"
+                                className="absolute inset-0 bg-slate-900/40 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs font-semibold transition-opacity cursor-pointer"
                                 title="Remove Photo"
                               >
                                 Remove
@@ -745,8 +737,8 @@ export default function MentorsPage() {
                         <div className="flex-1 space-y-1.5">
                           {photoUploadMode === 'file' ? (
                             <div>
-                              <label className="inline-flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-300 hover:border-orange-500 hover:text-orange-600 rounded-lg text-xs font-semibold text-slate-700 cursor-pointer shadow-2xs transition-all">
-                                <Upload className="w-4 h-4 text-orange-600" />
+                              <label className="inline-flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-300 hover:border-indigo-500 hover:text-indigo-600 rounded-lg text-xs font-semibold text-slate-700 cursor-pointer shadow-2xs transition-all">
+                                <Upload className="w-4 h-4 text-indigo-600" />
                                 <span>Choose Image from Device</span>
                                 <input
                                   ref={fileInputRef}
@@ -781,20 +773,20 @@ export default function MentorsPage() {
 
                       {/* Bunny CDN Upload Progress Indicator */}
                       {uploadStage && (
-                        <div className="bg-white p-3 rounded-lg border border-orange-200 space-y-1.5">
+                        <div className="bg-white p-3 rounded-lg border border-indigo-200 space-y-1.5">
                           <div className="flex items-center justify-between text-xs font-semibold">
-                            <span className="text-orange-700 flex items-center gap-1.5">
+                            <span className="text-indigo-700 flex items-center gap-1.5">
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
                               {uploadStage}
                             </span>
                             {uploadProgress !== null && (
-                              <span className="font-mono text-orange-800">{uploadProgress}%</span>
+                              <span className="font-mono text-indigo-800">{uploadProgress}%</span>
                             )}
                           </div>
                           {uploadProgress !== null && (
                             <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
                               <div
-                                className="h-full bg-orange-600 rounded-full transition-all duration-200"
+                                className="h-full bg-indigo-600 rounded-full transition-all duration-200"
                                 style={{ width: `${uploadProgress}%` }}
                               ></div>
                             </div>
@@ -942,7 +934,7 @@ export default function MentorsPage() {
                     <button
                       type="submit"
                       disabled={adding}
-                      className="px-4 py-2 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-60 cursor-pointer"
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-60 cursor-pointer"
                     >
                       {adding && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                       {adding ? 'Onboarding...' : 'Onboard Mentor'}
@@ -955,12 +947,12 @@ export default function MentorsPage() {
 
           {/* Edit Mentor Modal */}
           {editingMentor && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 animate-in fade-in duration-200">
-              <div className="bg-white rounded-2xl border border-slate-200 w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 animate-in fade-in duration-200">
+              <div className="bg-white rounded-xl border border-slate-200 w-full max-w-xl max-h-[90vh] flex flex-col shadow-xl overflow-hidden">
                 {/* Fixed Modal Header */}
                 <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-center text-orange-600">
+                    <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600">
                       <Pencil className="w-5 h-5" />
                     </div>
                     <div>
@@ -999,7 +991,7 @@ export default function MentorsPage() {
                             onClick={() => setEditPhotoUploadMode('file')}
                             className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                               editPhotoUploadMode === 'file'
-                                ? 'bg-orange-600 text-white shadow-2xs'
+                                ? 'bg-indigo-600 text-white shadow-2xs'
                                 : 'text-slate-600 hover:text-slate-900'
                             }`}
                           >
@@ -1010,7 +1002,7 @@ export default function MentorsPage() {
                             onClick={() => setEditPhotoUploadMode('url')}
                             className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                               editPhotoUploadMode === 'url'
-                                ? 'bg-orange-600 text-white shadow-2xs'
+                                ? 'bg-indigo-600 text-white shadow-2xs'
                                 : 'text-slate-600 hover:text-slate-900'
                             }`}
                           >
@@ -1020,7 +1012,7 @@ export default function MentorsPage() {
                       </div>
 
                       <div className="flex items-center gap-4">
-                        <div className="w-18 h-18 rounded-2xl bg-white border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs relative group">
+                        <div className="w-18 h-18 rounded-xl bg-white border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden shrink-0 shadow-2xs relative group">
                           {editPhotoPreview ? (
                             <>
                               <img
@@ -1036,7 +1028,7 @@ export default function MentorsPage() {
                                   setEditMentorAvatarUrl('');
                                   if (editFileInputRef.current) editFileInputRef.current.value = '';
                                 }}
-                                className="absolute inset-0 bg-slate-900/60 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs font-semibold transition-opacity cursor-pointer"
+                                className="absolute inset-0 bg-slate-900/40 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs font-semibold transition-opacity cursor-pointer"
                                 title="Remove Photo"
                               >
                                 Remove
@@ -1050,8 +1042,8 @@ export default function MentorsPage() {
                         <div className="flex-1 space-y-1.5">
                           {editPhotoUploadMode === 'file' ? (
                             <div>
-                              <label className="inline-flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-300 hover:border-orange-500 hover:text-orange-600 rounded-lg text-xs font-semibold text-slate-700 cursor-pointer shadow-2xs transition-all">
-                                <Upload className="w-4 h-4 text-orange-600" />
+                              <label className="inline-flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-300 hover:border-indigo-500 hover:text-indigo-600 rounded-lg text-xs font-semibold text-slate-700 cursor-pointer shadow-2xs transition-all">
+                                <Upload className="w-4 h-4 text-indigo-600" />
                                 <span>{editPhotoPreview ? 'Change Image from Device' : 'Choose Image from Device'}</span>
                                 <input
                                   ref={editFileInputRef}
@@ -1091,20 +1083,20 @@ export default function MentorsPage() {
 
                       {/* Bunny CDN Upload Progress Indicator */}
                       {editUploadStage && (
-                        <div className="bg-white p-3 rounded-lg border border-orange-200 space-y-1.5">
+                        <div className="bg-white p-3 rounded-lg border border-indigo-200 space-y-1.5">
                           <div className="flex items-center justify-between text-xs font-semibold">
-                            <span className="text-orange-700 flex items-center gap-1.5">
+                            <span className="text-indigo-700 flex items-center gap-1.5">
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
                               {editUploadStage}
                             </span>
                             {editUploadProgress !== null && (
-                              <span className="font-mono text-orange-800">{editUploadProgress}%</span>
+                              <span className="font-mono text-indigo-800">{editUploadProgress}%</span>
                             )}
                           </div>
                           {editUploadProgress !== null && (
                             <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
                               <div
-                                className="h-full bg-orange-600 rounded-full transition-all duration-200"
+                                className="h-full bg-indigo-600 rounded-full transition-all duration-200"
                                 style={{ width: `${editUploadProgress}%` }}
                               ></div>
                             </div>
@@ -1276,7 +1268,7 @@ export default function MentorsPage() {
                     <button
                       type="submit"
                       disabled={updating}
-                      className="px-4 py-2 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-60 cursor-pointer"
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white rounded-lg text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all disabled:opacity-60 cursor-pointer"
                     >
                       {updating && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                       {updating ? 'Saving Updates...' : 'Save Changes'}
@@ -1289,12 +1281,12 @@ export default function MentorsPage() {
 
           {/* Interactive Mentor Whole Dashboard Card Modal */}
           {selectedMentorAnalytics && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 animate-in fade-in duration-200">
-              <div className="bg-white rounded-2xl border border-slate-200 w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 animate-in fade-in duration-200">
+              <div className="bg-white rounded-xl border border-slate-200 w-full max-w-3xl max-h-[90vh] flex flex-col shadow-xl overflow-hidden">
                 {/* Modal Header */}
-                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white shrink-0">
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white text-slate-900 text-white shrink-0">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-orange-500/20 text-orange-400 border border-orange-500/30 flex items-center justify-center overflow-hidden shrink-0">
+                    <div className="w-12 h-12 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center overflow-hidden shrink-0">
                       {selectedMentorAnalytics.avatarUrl ? (
                         <img src={selectedMentorAnalytics.avatarUrl} alt={selectedMentorAnalytics.name} className="w-full h-full object-cover" />
                       ) : (
@@ -1304,11 +1296,11 @@ export default function MentorsPage() {
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="text-base font-bold text-white">{selectedMentorAnalytics.name}</h3>
-                        <span className="px-2 py-0.5 bg-orange-500/20 text-orange-300 border border-orange-500/30 text-[10px] font-bold rounded-full uppercase">
+                        <span className="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold rounded-full uppercase">
                           {selectedMentorAnalytics.category}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-300 mt-0.5">{selectedMentorAnalytics.designation} • {selectedMentorAnalytics.organizationOrCollege || 'Topper Mantra Academic Panel'}</p>
+                      <p className="text-xs text-slate-300 mt-0.5">{[selectedMentorAnalytics.designation, selectedMentorAnalytics.organizationOrCollege].filter(Boolean).join(' • ')}</p>
                     </div>
                   </div>
                   <button
@@ -1322,79 +1314,42 @@ export default function MentorsPage() {
 
                 {/* Modal Body: Mentor Dashboard Analytics */}
                 <div className="p-6 overflow-y-auto space-y-6 flex-1 bg-slate-50/50">
-                  {/* Dashboard Metrics Grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className="p-3.5 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Doubts Solved</span>
-                      <p className="text-xl font-black text-slate-900 mt-1">214</p>
-                      <span className="text-[10px] text-emerald-600 font-bold">98.4% resolution</span>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3.5 bg-white rounded-xl border border-slate-200">
+                      <span className="text-xs text-slate-500 block">Students mentored (profile)</span>
+                      <p className="text-xl font-semibold text-slate-900 mt-1">{selectedMentorAnalytics.totalStudentsMentored ?? "—"}</p>
                     </div>
-
-                    <div className="p-3.5 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Sessions Taken</span>
-                      <p className="text-xl font-black text-slate-900 mt-1">46</p>
-                      <span className="text-[10px] text-blue-600 font-bold">1-on-1 calls</span>
-                    </div>
-
-                    <div className="p-3.5 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Students Mentored</span>
-                      <p className="text-xl font-black text-slate-900 mt-1">{selectedMentorAnalytics.totalStudentsMentored || 150}+</p>
-                      <span className="text-[10px] text-indigo-600 font-bold">Active students</span>
-                    </div>
-
-                    <div className="p-3.5 bg-white rounded-xl border border-slate-200 shadow-2xs">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Average Rating</span>
-                      <p className="text-xl font-black text-slate-900 mt-1 flex items-center gap-1">
+                    <div className="p-3.5 bg-white rounded-xl border border-slate-200">
+                      <span className="text-xs text-slate-500 block">Average rating</span>
+                      <p className="text-xl font-semibold text-slate-900 mt-1 flex items-center gap-1">
                         <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
-                        {selectedMentorAnalytics.rating || 4.9}
+                        {selectedMentorAnalytics.rating ? Number(selectedMentorAnalytics.rating).toFixed(1) : "—"}
                       </p>
-                      <span className="text-[10px] text-amber-600 font-bold">From 94 reviews</span>
+                      <span className="text-xs text-slate-500">{selectedMentorAnalytics.reviewCount ? `From ${selectedMentorAnalytics.reviewCount} reviews` : "No reviews yet"}</span>
                     </div>
                   </div>
+                  <p className="text-xs text-slate-500">
+                    Doubt-resolution numbers for each mentor are on <a href="/analytics/mentors" className="font-medium text-indigo-600 hover:underline">Analytics → Mentors</a>.
+                  </p>
 
-                  {/* Expertise Domains & Biography */}
-                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3">
-                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Biography & Subject Expertise</h4>
-                    <p className="text-xs text-slate-600 leading-relaxed">
-                      {selectedMentorAnalytics.bio || 'Senior subject expert providing 1-on-1 mentorship, doubt resolution, and exam problem-solving strategy on Topper Mantra.'}
-                    </p>
+                  <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
+                    <h4 className="text-sm font-semibold text-slate-900">Biography &amp; expertise</h4>
+                    <p className="text-sm text-slate-600 leading-relaxed">{selectedMentorAnalytics.bio || "No biography added yet."}</p>
                     {selectedMentorAnalytics.expertise && selectedMentorAnalytics.expertise.length > 0 && (
                       <div className="flex items-center gap-1.5 flex-wrap pt-1">
                         {selectedMentorAnalytics.expertise.map((exp, i) => (
-                          <span key={i} className="text-[11px] bg-orange-50 text-orange-700 border border-orange-200 px-2 py-0.5 rounded-md font-semibold">
+                          <span key={i} className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-medium">
                             {exp}
                           </span>
                         ))}
                       </div>
                     )}
                   </div>
-
-                  {/* Mentor Activity Log Timeline */}
-                  <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3">
-                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Recent Activity & Doubts Resolved</h4>
-                    <div className="space-y-2">
-                      <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between text-xs">
-                        <div>
-                          <p className="font-bold text-slate-900">Resolved Doubt #4099: Electromagnetism Induction</p>
-                          <p className="text-[11px] text-slate-500">Student: Rohan Sharma • 45 mins ago</p>
-                        </div>
-                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">5.0 ★ Rating</span>
-                      </div>
-
-                      <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-100 flex items-center justify-between text-xs">
-                        <div>
-                          <p className="font-bold text-slate-900">Completed 1-on-1 Mentorship Call: NEET Physiology</p>
-                          <p className="text-[11px] text-slate-500">Student: Ananya Verma • 3 hours ago</p>
-                        </div>
-                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">Completed</span>
-                      </div>
-                    </div>
-                  </div>
                 </div>
 
                 {/* Modal Footer */}
                 <div className="px-6 py-4 border-t border-slate-100 bg-white flex items-center justify-between shrink-0">
-                  <span className="text-xs text-slate-500">Mentor Phone: <strong className="text-slate-900 font-mono">{selectedMentorAnalytics.phone || '+91 9876543210'}</strong></span>
+                  <span className="text-xs text-slate-500">Mentor Phone: <strong className="text-slate-900 font-mono">{selectedMentorAnalytics.phone || '—'}</strong></span>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -1403,7 +1358,7 @@ export default function MentorsPage() {
                         setSelectedMentorAnalytics(null);
                         openEditModal(m);
                       }}
-                      className="px-3.5 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+                      className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
                     >
                       <Pencil className="w-3.5 h-3.5" />
                       Edit Mentor
@@ -1420,8 +1375,7 @@ export default function MentorsPage() {
               </div>
             </div>
           )}
-        </main>
-      </div>
-    </div>
+        
+    </AppShell>
   );
 }

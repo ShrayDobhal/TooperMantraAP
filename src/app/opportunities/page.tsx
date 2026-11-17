@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Sidebar } from '@/components/Sidebar';
-import { Header } from '@/components/Header';
+import { AppShell } from '@/components/AppShell';
+import { FileUploader } from '@/components/FileUploader';
 import { opportunitiesApi, Opportunity } from '@/api';
 import {
   Trophy,
@@ -56,6 +56,7 @@ export default function OpportunitiesPage() {
   const [prizePool, setPrizePool] = useState('');
   const [eligibility, setEligibility] = useState('');
   const [bannerUrl, setBannerUrl] = useState('');
+  const [bannerUploading, setBannerUploading] = useState(false);
   const [applyUrl, setApplyUrl] = useState('');
   const [deadline, setDeadline] = useState('');
   const [isFeatured, setIsFeatured] = useState(false);
@@ -240,25 +241,20 @@ export default function OpportunitiesPage() {
   const scholarshipsCount = opportunities.filter((o) => o.type === 'SCHOLARSHIP').length;
 
   return (
-    <div className="flex bg-slate-50 min-h-screen">
-      <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header />
-
-        <main className="p-8 space-y-6">
+    <AppShell>
           {/* Toast Notification */}
           {toastMsg && (
-            <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-slate-900 text-white px-5 py-3.5 rounded-2xl shadow-2xl border border-slate-700 animate-slide-up">
+            <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-slate-900 text-white px-5 py-3.5 rounded-xl shadow-xl border border-slate-700 animate-slide-up">
               <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
               <p className="text-sm font-medium">{toastMsg}</p>
             </div>
           )}
 
           {/* Top Banner / Title */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-2xs">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-2xs">
             <div>
               <div className="flex items-center gap-2">
-                <span className="p-2 rounded-xl bg-orange-50 text-orange-600 border border-orange-100">
+                <span className="p-2 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
                   <Trophy className="w-5 h-5" />
                 </span>
                 <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Opportunities Hub</h1>
@@ -284,7 +280,7 @@ export default function OpportunitiesPage() {
 
               <button
                 onClick={handleOpenAdd}
-                className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-orange-600 hover:bg-orange-700 rounded-xl transition shadow-xs shadow-orange-600/20 cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition shadow-xs shadow-indigo-600/20 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 Post Opportunity
@@ -294,16 +290,16 @@ export default function OpportunitiesPage() {
 
           {/* Stats Bar */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
+            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Listings</p>
-                <Award className="w-4 h-4 text-orange-500" />
+                <Award className="w-4 h-4 text-indigo-500" />
               </div>
               <p className="text-2xl font-bold text-slate-900 mt-2">{opportunities.length}</p>
               <p className="text-xs text-slate-500 mt-1">Syncing to student mobile explore feed</p>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
+            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Active Competitions</p>
                 <CheckCircle className="w-4 h-4 text-emerald-500" />
@@ -312,7 +308,7 @@ export default function OpportunitiesPage() {
               <p className="text-xs text-slate-500 mt-1">Accepting applications right now</p>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
+            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Hackathons</p>
                 <Trophy className="w-4 h-4 text-purple-500" />
@@ -321,7 +317,7 @@ export default function OpportunitiesPage() {
               <p className="text-xs text-slate-500 mt-1">Coding & Innovation contests</p>
             </div>
 
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
+            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Scholarships & Grants</p>
                 <GraduationCap className="w-4 h-4 text-blue-500" />
@@ -332,7 +328,7 @@ export default function OpportunitiesPage() {
           </div>
 
           {/* Filter Bar */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3">
             <div className="flex flex-col md:flex-row gap-3 items-center justify-between">
               {/* Search */}
               <div className="relative w-full md:w-96">
@@ -342,7 +338,7 @@ export default function OpportunitiesPage() {
                   placeholder="Search by title, organizer, category..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-orange-500 focus:bg-white transition"
+                  className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:bg-white transition"
                 />
               </div>
 
@@ -381,7 +377,7 @@ export default function OpportunitiesPage() {
                   onClick={() => setTypeFilter(t)}
                   className={`px-3 py-1 text-xs font-semibold rounded-full border transition cursor-pointer shrink-0 ${
                     typeFilter === t
-                      ? 'bg-orange-600 text-white border-orange-600 shadow-2xs'
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
                       : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                   }`}
                 >
@@ -393,7 +389,7 @@ export default function OpportunitiesPage() {
 
           {/* Error Message */}
           {errorMsg && (
-            <div className="flex items-center gap-3 p-4 bg-rose-50 border border-rose-200 rounded-2xl text-rose-800 text-sm">
+            <div className="flex items-center gap-3 p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-sm">
               <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
               <p>{errorMsg}</p>
             </div>
@@ -401,12 +397,12 @@ export default function OpportunitiesPage() {
 
           {/* Cards Grid */}
           {loading ? (
-            <div className="flex flex-col items-center justify-center p-16 bg-white rounded-2xl border border-slate-200">
-              <Loader2 className="w-8 h-8 text-orange-600 animate-spin mb-3" />
+            <div className="flex flex-col items-center justify-center p-16 bg-white rounded-xl border border-slate-200">
+              <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mb-3" />
               <p className="text-sm font-semibold text-slate-600">Loading opportunities...</p>
             </div>
           ) : filteredOpportunities.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-16 bg-white rounded-2xl border border-slate-200 text-center">
+            <div className="flex flex-col items-center justify-center p-16 bg-white rounded-xl border border-slate-200 text-center">
               <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-3">
                 <Trophy className="w-6 h-6" />
               </div>
@@ -418,7 +414,7 @@ export default function OpportunitiesPage() {
               </p>
               <button
                 onClick={handleOpenAdd}
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-orange-600 hover:bg-orange-700 rounded-xl transition cursor-pointer"
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 Post Opportunity
@@ -438,7 +434,7 @@ export default function OpportunitiesPage() {
                 return (
                   <div
                     key={opp.id}
-                    className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xs hover:shadow-md transition-all flex flex-col group"
+                    className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs hover:shadow-md transition-all flex flex-col group"
                   >
                     {/* Banner Image */}
                     <div className="relative h-44 bg-slate-100 overflow-hidden">
@@ -449,8 +445,8 @@ export default function OpportunitiesPage() {
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
                       ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 text-slate-500">
-                          <Trophy className="w-10 h-10 text-orange-400/50 mb-1" />
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-slate-100 text-slate-500">
+                          <Trophy className="w-10 h-10 text-indigo-400/50 mb-1" />
                           <span className="text-xs font-semibold text-slate-400">Topper Mantra Hub</span>
                         </div>
                       )}
@@ -496,7 +492,7 @@ export default function OpportunitiesPage() {
                           {opp.category && (
                             <>
                               <span className="text-slate-300">•</span>
-                              <span className="text-orange-600 font-semibold lowercase first-letter:uppercase truncate">
+                              <span className="text-indigo-600 font-semibold lowercase first-letter:uppercase truncate">
                                 {opp.category}
                               </span>
                             </>
@@ -536,7 +532,7 @@ export default function OpportunitiesPage() {
 
                         <div className="flex items-center justify-between text-slate-700 pt-1 border-t border-slate-200/60">
                           <span className="text-slate-500 font-medium flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5 text-orange-500" /> Deadline:
+                            <Calendar className="w-3.5 h-3.5 text-indigo-500" /> Deadline:
                           </span>
                           <span className="font-bold text-slate-900">{deadlineFormatted}</span>
                         </div>
@@ -548,7 +544,7 @@ export default function OpportunitiesPage() {
                           href={opp.applyUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-xs font-bold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 px-3 py-2 rounded-xl transition cursor-pointer"
+                          className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-xl transition cursor-pointer"
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
                           Apply Link
@@ -577,16 +573,15 @@ export default function OpportunitiesPage() {
               })}
             </div>
           )}
-        </main>
-      </div>
+        
 
       {/* Add / Edit Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="bg-white rounded-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto shadow-xl border border-slate-100">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
-                <span className="p-2 rounded-xl bg-orange-50 text-orange-600">
+                <span className="p-2 rounded-xl bg-indigo-50 text-indigo-600">
                   <Trophy className="w-5 h-5" />
                 </span>
                 <div>
@@ -620,7 +615,7 @@ export default function OpportunitiesPage() {
                   placeholder="e.g. Smart India Hackathon 2026"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-orange-500 focus:outline-hidden"
+                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                 />
               </div>
 
@@ -635,7 +630,7 @@ export default function OpportunitiesPage() {
                     placeholder="e.g. Ministry of Education & AICTE"
                     value={organizationName}
                     onChange={(e) => setOrganizationName(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-orange-500 focus:outline-hidden"
+                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                   />
                 </div>
 
@@ -646,7 +641,7 @@ export default function OpportunitiesPage() {
                   <select
                     value={type}
                     onChange={(e) => setType(e.target.value as any)}
-                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-orange-500 focus:outline-hidden"
+                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                   >
                     {OPPORTUNITY_TYPES.map((t) => (
                       <option key={t} value={t}>
@@ -667,7 +662,7 @@ export default function OpportunitiesPage() {
                     placeholder="e.g. Software & AI, Science, Robotics"
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-orange-500 focus:outline-hidden"
+                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                   />
                 </div>
 
@@ -680,7 +675,7 @@ export default function OpportunitiesPage() {
                     required
                     value={deadline}
                     onChange={(e) => setDeadline(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-orange-500 focus:outline-hidden"
+                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                   />
                 </div>
               </div>
@@ -695,7 +690,7 @@ export default function OpportunitiesPage() {
                     placeholder="e.g. ₹1,00,000 Cash Prize + Direct Mentorship"
                     value={prizePool}
                     onChange={(e) => setPrizePool(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-orange-500 focus:outline-hidden"
+                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                   />
                 </div>
 
@@ -708,7 +703,7 @@ export default function OpportunitiesPage() {
                     placeholder="e.g. Class 9-12 & College Undergrads"
                     value={eligibility}
                     onChange={(e) => setEligibility(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-orange-500 focus:outline-hidden"
+                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                   />
                 </div>
               </div>
@@ -723,28 +718,27 @@ export default function OpportunitiesPage() {
                   placeholder="https://sih.gov.in"
                   value={applyUrl}
                   onChange={(e) => setApplyUrl(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-orange-500 focus:outline-hidden"
+                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Banner Image URL (Unsplash or CDN)
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="url"
-                    placeholder="https://images.unsplash.com/photo-..."
-                    value={bannerUrl}
-                    onChange={(e) => setBannerUrl(e.target.value)}
-                    className="flex-1 px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-orange-500 focus:outline-hidden"
-                  />
-                  {bannerUrl && (
-                    <div className="w-11 h-11 rounded-xl overflow-hidden border border-slate-200 shrink-0">
-                      <img src={bannerUrl} alt="Preview" className="w-full h-full object-cover" />
-                    </div>
-                  )}
-                </div>
+              <div className="space-y-2">
+                <FileUploader
+                  label="Banner image"
+                  folder="banners"
+                  kind="image"
+                  value={bannerUrl || null}
+                  onChange={(url) => setBannerUrl(url || '')}
+                  maxImageSize={{ width: 1600, height: 900 }}
+                  onUploadingChange={setBannerUploading}
+                />
+                <input
+                  type="url"
+                  placeholder="…or paste an image URL"
+                  value={bannerUrl}
+                  onChange={(e) => setBannerUrl(e.target.value)}
+                  className="w-full h-9 rounded-lg border border-slate-200 px-3 text-xs"
+                />
               </div>
 
               <div>
@@ -757,11 +751,11 @@ export default function OpportunitiesPage() {
                   placeholder="Explain eligibility, evaluation criteria, rounds, and what makes this opportunity special for students..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-orange-500 focus:outline-hidden"
+                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center bg-slate-50 p-4 rounded-xl border border-slate-100">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                     Listing Status
@@ -769,7 +763,7 @@ export default function OpportunitiesPage() {
                   <select
                     value={status}
                     onChange={(e) => setStatus(e.target.value as any)}
-                    className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:outline-hidden"
+                    className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                   >
                     <option value="ACTIVE">ACTIVE</option>
                     <option value="UPCOMING">UPCOMING</option>
@@ -783,7 +777,7 @@ export default function OpportunitiesPage() {
                     id="isFeatured"
                     checked={isFeatured}
                     onChange={(e) => setIsFeatured(e.target.checked)}
-                    className="w-4 h-4 text-orange-600 rounded-md focus:ring-orange-500"
+                    className="w-4 h-4 text-indigo-600 rounded-md focus:ring-indigo-500"
                   />
                   <label htmlFor="isFeatured" className="text-sm font-semibold text-slate-800 cursor-pointer">
                     Feature on Student Home Carousel
@@ -804,8 +798,8 @@ export default function OpportunitiesPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={submitting}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-orange-600 hover:bg-orange-700 rounded-xl transition shadow-xs shadow-orange-600/20 cursor-pointer disabled:opacity-50"
+                  disabled={submitting || bannerUploading}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition shadow-xs shadow-indigo-600/20 cursor-pointer disabled:opacity-50"
                 >
                   {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                   {editingOpportunity ? 'Save Changes' : 'Publish Opportunity'}
@@ -818,9 +812,9 @@ export default function OpportunitiesPage() {
 
       {/* Delete Confirmation Modal */}
       {itemToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
-            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl border border-slate-100">
+            <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center mb-4">
               <Trash2 className="w-6 h-6" />
             </div>
             <h3 className="text-lg font-bold text-slate-900">Delete Opportunity?</h3>
@@ -849,6 +843,6 @@ export default function OpportunitiesPage() {
           </div>
         </div>
       )}
-    </div>
+    </AppShell>
   );
 }

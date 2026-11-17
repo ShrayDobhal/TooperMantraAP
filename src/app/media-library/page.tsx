@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Sidebar } from '@/components/Sidebar';
-import { Header } from '@/components/Header';
+import { AppShell } from '@/components/AppShell';
 import { mediaApi, MediaItem, MediaType, schoolsApi, School } from '@/api';
 import {
   FileImage,
@@ -29,12 +28,8 @@ import {
   Layers,
   Compass,
 } from 'lucide-react';
-import {
-  uploadImageToBunnyStorage,
-  compressImageToBlob,
-  createLocalPreview,
-  BUNNY_CONFIG,
-} from '@/lib/bunnyStorage';
+import { compressImageToBlob, createLocalPreview } from '@/lib/images';
+import { uploadToCdn, validateUploadFile } from '@/api/uploads';
 
 const EXPLORE_PILLARS = [
   { code: 'ALL', name: 'All Explore Resources', emoji: '📚', desc: 'All study notes & documents published to the Explore section' },
@@ -64,67 +59,11 @@ const CLASSES = [
 ];
 const SUBJECTS = ['', 'Physics', 'Chemistry', 'Mathematics', 'Biology', 'English', 'Other'];
 
-async function uploadPdfToBunny(file: File, onProgress?: (p: number) => void): Promise<string> {
-  const randomSuffix = Math.random().toString(36).substring(2, 8);
-  const timestamp = Date.now();
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-  const filename = `pdfs/pdf_${timestamp}_${randomSuffix}_${safeName}`;
-  const hosts = ['storage.bunnycdn.com', BUNNY_CONFIG.storageHost, 'uk.storage.bunnycdn.com'];
-
-  let lastError: Error | null = null;
-  for (const host of hosts) {
-    try {
-      const uploadUrl = `https://${host}/${BUNNY_CONFIG.storageZone}/${filename}`;
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('PUT', uploadUrl, true);
-        xhr.setRequestHeader('AccessKey', BUNNY_CONFIG.storageKey);
-        xhr.setRequestHeader('Content-Type', 'application/pdf');
-        if (xhr.upload && onProgress) {
-          xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
-          };
-        }
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve();
-          } else {
-            reject(new Error(`Bunny Storage returned HTTP ${xhr.status}: ${xhr.statusText || xhr.responseText}`));
-          }
-        };
-        xhr.onerror = () => reject(new Error(`Network error uploading PDF to Bunny CDN (${host})`));
-        xhr.timeout = 180000;
-        xhr.ontimeout = () => reject(new Error('PDF upload to Bunny CDN timed out after 3 minutes'));
-        xhr.send(file);
-      });
-      return `${BUNNY_CONFIG.cdnPullZoneUrl}/${filename}`;
-    } catch (err: any) {
-      lastError = err;
-      console.warn(`PDF upload to ${host} failed:`, err.message);
-    }
-  }
-
-  // Fallback: If direct browser upload failed, upload via server API route
-  try {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('folder', 'pdfs');
-
-    const res = await fetch('/api/bunny/upload-file', {
-      method: 'POST',
-      body: formData,
-    });
-    if (res.ok) {
-      const json = await res.json();
-      if (json.success && json.data?.url) {
-        return json.data.url;
-      }
-    }
-  } catch (serverErr: any) {
-    console.warn('Server fallback PDF upload failed:', serverErr.message);
-  }
-
-  throw lastError || new Error('Failed to upload PDF to Bunny CDN Storage');
+/** Uploads a PDF through the backend (validated there, stored on Bunny). */
+async function uploadPdf(file: File, onProgress?: (p: number) => void): Promise<string> {
+  const invalid = validateUploadFile(file, 'document');
+  if (invalid) throw new Error(invalid);
+  return uploadToCdn(file, 'documents', onProgress, file.name);
 }
 
 interface MediaForm {
@@ -328,7 +267,7 @@ export default function MediaLibraryPage() {
         const isPdf = form.type === 'PDF';
         if (isPdf) {
           setUploadStage('Uploading PDF to Bunny CDN Storage...');
-          finalFileUrl = await uploadPdfToBunny(selectedFile, (pct) => {
+          finalFileUrl = await uploadPdf(selectedFile, (pct) => {
             setUploadProgress(pct);
             setUploadStage(`Uploading PDF (${pct}%)...`);
           });
@@ -336,7 +275,7 @@ export default function MediaLibraryPage() {
         } else {
           setUploadStage('Compressing and uploading image to Bunny CDN...');
           const compressed = await compressImageToBlob(selectedFile, 2000, 2000, 0.88);
-          finalFileUrl = await uploadImageToBunnyStorage(compressed, 'media-images', (pct) => {
+          finalFileUrl = await uploadToCdn(compressed, 'images', (pct) => {
             setUploadProgress(pct);
             setUploadStage(`Uploading image (${pct}%)...`);
           });
@@ -352,7 +291,7 @@ export default function MediaLibraryPage() {
       if (selectedThumbnailFile) {
         setUploadStage('Uploading thumbnail to Bunny CDN...');
         const compThumb = await compressImageToBlob(selectedThumbnailFile, 800, 800, 0.85);
-        finalThumbnailUrl = await uploadImageToBunnyStorage(compThumb, 'media-thumbs', (pct) => {
+        finalThumbnailUrl = await uploadToCdn(compThumb, 'thumbnails', (pct) => {
           setUploadProgress(pct);
           setUploadStage(`Uploading thumbnail (${pct}%)...`);
         });
@@ -469,17 +408,13 @@ export default function MediaLibraryPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header />
-        <main className="p-8 space-y-6 flex-1 animate-in fade-in duration-300">
+    <AppShell>
 
           {/* Page Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <span className="px-2.5 py-0.5 bg-amber-100/80 text-amber-900 border border-amber-300/80 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                <span className="px-2.5 py-0.5 bg-amber-100/80 text-amber-900 border border-amber-300/80 rounded-full text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1">
                   <span>📂</span> Target: Student App → Explore Section
                 </span>
                 <span className="px-2.5 py-0.5 bg-slate-100 text-slate-600 border border-slate-200 rounded-full text-[10px] font-bold">
@@ -487,7 +422,7 @@ export default function MediaLibraryPage() {
                 </span>
               </div>
               <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                <BookOpen className="w-6 h-6 text-orange-600" />
+                <BookOpen className="w-6 h-6 text-indigo-600" />
                 Explore Section — Study Resources & Topper Notes
               </h1>
               <p className="text-slate-500 text-xs mt-0.5">
@@ -501,11 +436,11 @@ export default function MediaLibraryPage() {
                 className="p-2 bg-white border border-slate-200 text-slate-600 hover:text-slate-900 rounded-lg shadow-2xs cursor-pointer"
                 title="Refresh Library"
               >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-orange-600' : ''}`} />
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-indigo-600' : ''}`} />
               </button>
               <button
                 onClick={() => openUploadModal()}
-                className="px-4 py-2 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg shadow-2xs flex items-center gap-2 transition-all cursor-pointer"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-xs font-semibold rounded-lg shadow-2xs flex items-center gap-2 transition-all cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 Upload Notes / PDF Resource
@@ -533,11 +468,11 @@ export default function MediaLibraryPage() {
           )}
 
           {/* Pillar Navigation Bar */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-3">
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 px-1">
               <div className="flex items-center gap-2">
-                <Compass className="w-4 h-4 text-orange-600" />
-                <span className="text-xs font-black text-slate-900 tracking-wider uppercase">
+                <Compass className="w-4 h-4 text-indigo-600" />
+                <span className="text-xs font-semibold text-slate-900 tracking-wider uppercase">
                   Explore Program Pillars
                 </span>
               </div>
@@ -564,7 +499,7 @@ export default function MediaLibraryPage() {
                     <span className="text-base leading-none">{pillar.emoji}</span>
                     <span>{pillar.name}</span>
                     <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
                         isActive ? 'bg-white/20 text-white' : 'bg-slate-200/80 text-slate-700'
                       }`}
                     >
@@ -598,13 +533,13 @@ export default function MediaLibraryPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
               { label: 'Explore Resources', value: items.length, color: 'slate' },
-              { label: 'PDF Documents', value: pdfItems.length, color: 'orange' },
+              { label: 'PDF Documents', value: pdfItems.length, color: 'indigo' },
               { label: 'Images & Covers', value: imageItems.length, color: 'blue' },
               { label: 'Partner Schools', value: schools.length, color: 'emerald' },
             ].map((stat) => (
               <div key={stat.label} className="bg-white rounded-xl border border-slate-200 p-4 shadow-2xs">
                 <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{stat.label}</p>
-                <p className={`text-2xl font-black mt-0.5 text-${stat.color}-600`}>{stat.value}</p>
+                <p className={`text-2xl font-semibold mt-0.5 text-${stat.color}-600`}>{stat.value}</p>
               </div>
             ))}
           </div>
@@ -703,11 +638,11 @@ export default function MediaLibraryPage() {
                       }}
                     >
                       {isPdf ? (
-                        <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-orange-50 to-amber-50 border-b border-orange-100">
-                          <div className="w-14 h-14 rounded-xl bg-orange-100 border border-orange-200 flex items-center justify-center shadow-2xs">
-                            <FileText className="w-7 h-7 text-orange-600" />
+                        <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-indigo-50 border-b border-indigo-100">
+                          <div className="w-14 h-14 rounded-xl bg-indigo-100 border border-indigo-200 flex items-center justify-center shadow-2xs">
+                            <FileText className="w-7 h-7 text-indigo-600" />
                           </div>
-                          <span className="text-[11px] font-bold text-orange-700 uppercase tracking-wider">PDF Document</span>
+                          <span className="text-[11px] font-bold text-indigo-700 uppercase tracking-wider">PDF Document</span>
                         </div>
                       ) : item.thumbnailUrl ? (
                         <img
@@ -717,7 +652,7 @@ export default function MediaLibraryPage() {
                           onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
                         />
                       ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center gap-1 bg-gradient-to-br from-blue-50 to-indigo-50 border-b border-blue-100">
+                        <div className="w-full h-full flex flex-col items-center justify-center gap-1 bg-indigo-50 border-b border-blue-100">
                           <ImageIcon className="w-8 h-8 text-blue-300" />
                           <span className="text-[11px] text-slate-400">Image</span>
                         </div>
@@ -726,7 +661,7 @@ export default function MediaLibraryPage() {
                       {/* Type Badge */}
                       <span className={`absolute top-2.5 left-2.5 px-2.5 py-1 text-[10px] font-bold uppercase rounded-md backdrop-blur-xs shadow-2xs ${
                         isPdf
-                          ? 'bg-orange-600 text-white'
+                          ? 'bg-indigo-600 text-white'
                           : 'bg-blue-600 text-white'
                       }`}>
                         {item.type}
@@ -812,9 +747,9 @@ export default function MediaLibraryPage() {
                       <div className="flex items-center justify-between text-xs">
                         <button
                           onClick={() => openAssignModal(item)}
-                          className="px-3 py-1.5 bg-white border border-slate-200 hover:border-orange-400 text-slate-700 font-semibold rounded-lg shadow-2xs flex items-center gap-1.5 hover:text-orange-600 transition-all cursor-pointer"
+                          className="px-3 py-1.5 bg-white border border-slate-200 hover:border-indigo-400 text-slate-700 font-semibold rounded-lg shadow-2xs flex items-center gap-1.5 hover:text-indigo-600 transition-all cursor-pointer"
                         >
-                          <SchoolIcon className="w-3.5 h-3.5 text-orange-600" />
+                          <SchoolIcon className="w-3.5 h-3.5 text-indigo-600" />
                           <span>Schools: <strong className="text-slate-900">{assignedCount}</strong></span>
                         </button>
 
@@ -850,19 +785,18 @@ export default function MediaLibraryPage() {
               })}
             </div>
           )}
-        </main>
-      </div>
+        
 
       {/* ══════════════════════════════════════════════════════
           UPLOAD / EDIT MODAL
       ══════════════════════════════════════════════════════ */}
       {showUploadModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl border border-slate-200 w-full max-w-xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl border border-slate-200 w-full max-w-xl max-h-[92vh] flex flex-col shadow-xl overflow-hidden">
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-center text-orange-600">
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600">
                   <BookOpen className="w-5 h-5" />
                 </div>
                 <div>
@@ -894,7 +828,7 @@ export default function MediaLibraryPage() {
                       <p className="text-[11px] text-amber-800">Resources uploaded here appear under Explore Programs &amp; Notes. Only PDF documents permitted.</p>
                     </div>
                   </div>
-                  <span className="px-2 py-0.5 bg-amber-200/70 text-amber-900 rounded text-[10px] font-black uppercase tracking-wider shrink-0">
+                  <span className="px-2 py-0.5 bg-amber-200/70 text-amber-900 rounded text-[10px] font-semibold uppercase tracking-wider shrink-0">
                     Explore Only
                   </span>
                 </div>
@@ -912,7 +846,7 @@ export default function MediaLibraryPage() {
                         onClick={() => setForm(prev => ({ ...prev, pillar: p.code }))}
                         className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                           form.pillar === p.code
-                            ? 'border-orange-500 bg-orange-50/70 text-orange-950 ring-2 ring-orange-500/20 shadow-xs'
+                            ? 'border-indigo-500 bg-indigo-50/70 text-indigo-950 ring-2 ring-indigo-500/20 shadow-xs'
                             : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
                         }`}
                       >
@@ -936,7 +870,7 @@ export default function MediaLibraryPage() {
                         onClick={() => setForm(prev => ({ ...prev, resourceType: rt.code }))}
                         className={`p-2 rounded-lg border text-left flex items-center gap-2 transition-all cursor-pointer ${
                           form.resourceType === rt.code
-                            ? 'border-orange-500 bg-orange-50/70 text-orange-950 font-bold shadow-xs ring-1 ring-orange-500/20'
+                            ? 'border-indigo-500 bg-indigo-50/70 text-indigo-950 font-bold shadow-xs ring-1 ring-indigo-500/20'
                             : 'border-slate-200 bg-white hover:border-slate-300 text-slate-600 font-medium'
                         }`}
                       >
@@ -962,19 +896,19 @@ export default function MediaLibraryPage() {
                     />
                     <div
                       onClick={() => fileInputRef.current?.click()}
-                      className="w-full py-8 border-2 border-dashed border-slate-200 hover:border-orange-400 bg-slate-50 hover:bg-orange-50/20 rounded-xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors group"
+                      className="w-full py-8 border-2 border-dashed border-slate-200 hover:border-indigo-400 bg-slate-50 hover:bg-indigo-50/20 rounded-xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors group"
                     >
-                      <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 group-hover:border-orange-300 flex items-center justify-center shadow-2xs transition-colors">
-                        <Upload className="w-6 h-6 text-slate-400 group-hover:text-orange-500" />
+                      <div className="w-12 h-12 rounded-xl bg-white border border-slate-200 group-hover:border-indigo-300 flex items-center justify-center shadow-2xs transition-colors">
+                        <Upload className="w-6 h-6 text-slate-400 group-hover:text-indigo-500" />
                       </div>
-                      <p className="font-semibold text-slate-700 group-hover:text-orange-700">
+                      <p className="font-semibold text-slate-700 group-hover:text-indigo-700">
                         {selectedFile ? `✓ ${selectedFile.name}` : 'Click to choose PDF Document'}
                       </p>
                       <p className="text-[11px] text-slate-400">PDF Documents Only · Max 100 MB · Uploaded directly to Bunny Storage</p>
                     </div>
                     {selectedFile && (
                       <div className="flex items-center gap-2 p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg">
-                        <FileText className="w-4 h-4 text-orange-600 shrink-0" />
+                        <FileText className="w-4 h-4 text-indigo-600 shrink-0" />
                         <span className="text-[11px] font-semibold text-emerald-800 truncate">
                           {selectedFile.name} · {formatBytes(selectedFile.size)}
                         </span>
@@ -1014,9 +948,9 @@ export default function MediaLibraryPage() {
                         />
                         <label
                           onClick={() => thumbInputRef.current?.click()}
-                          className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 hover:border-orange-400 text-slate-700 rounded-lg cursor-pointer font-semibold text-[11px] transition-colors"
+                          className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 hover:border-indigo-400 text-slate-700 rounded-lg cursor-pointer font-semibold text-[11px] transition-colors"
                         >
-                          <Upload className="w-3.5 h-3.5 text-orange-600" />
+                          <Upload className="w-3.5 h-3.5 text-indigo-600" />
                           {selectedThumbnailFile ? `✓ ${selectedThumbnailFile.name}` : 'Choose Thumbnail Image'}
                         </label>
                         <p className="text-[10px] text-slate-400 mt-1">PNG, JPG · Uploaded to Bunny CDN</p>
@@ -1104,15 +1038,15 @@ export default function MediaLibraryPage() {
 
                 {/* Upload Progress */}
                 {submitting && uploadStage && (
-                  <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg space-y-2">
+                  <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-lg space-y-2">
                     <div className="flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 text-orange-600 animate-spin shrink-0" />
-                      <span className="text-[11px] font-semibold text-orange-700">{uploadStage}</span>
+                      <Loader2 className="w-4 h-4 text-indigo-600 animate-spin shrink-0" />
+                      <span className="text-[11px] font-semibold text-indigo-700">{uploadStage}</span>
                     </div>
                     {uploadProgress !== null && (
-                      <div className="w-full bg-orange-100 rounded-full h-1.5 overflow-hidden">
+                      <div className="w-full bg-indigo-100 rounded-full h-1.5 overflow-hidden">
                         <div
-                          className="h-1.5 bg-orange-500 rounded-full transition-all"
+                          className="h-1.5 bg-indigo-500 rounded-full transition-all"
                           style={{ width: `${uploadProgress}%` }}
                         />
                       </div>
@@ -1134,7 +1068,7 @@ export default function MediaLibraryPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white text-xs font-bold rounded-lg shadow-2xs flex items-center gap-2 transition-all disabled:opacity-60 cursor-pointer"
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white text-xs font-bold rounded-lg shadow-2xs flex items-center gap-2 transition-all disabled:opacity-60 cursor-pointer"
                 >
                   {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
                   {submitting ? 'Uploading...' : selectedItem ? 'Save Changes' : 'Upload to Library'}
@@ -1149,13 +1083,13 @@ export default function MediaLibraryPage() {
           ASSIGN TO SCHOOLS MODAL
       ══════════════════════════════════════════════════════ */}
       {showAssignModal && assigningItem && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl border border-slate-200 w-full max-w-md max-h-[80vh] flex flex-col shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl border border-slate-200 w-full max-w-md max-h-[80vh] flex flex-col shadow-xl overflow-hidden">
             {/* Header */}
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-orange-50 border border-orange-200 flex items-center justify-center">
-                  <SchoolIcon className="w-4 h-4 text-orange-600" />
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center">
+                  <SchoolIcon className="w-4 h-4 text-indigo-600" />
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">Assign to Schools</h3>
@@ -1185,7 +1119,7 @@ export default function MediaLibraryPage() {
                         : schools.map((s) => s.id)
                     )
                   }
-                  className="text-[11px] font-semibold text-orange-600 hover:text-orange-700 cursor-pointer"
+                  className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 cursor-pointer"
                 >
                   {selectedSchoolIds.length === schools.length ? 'Deselect All' : 'Select All'}
                 </button>
@@ -1205,12 +1139,12 @@ export default function MediaLibraryPage() {
                       onClick={() => toggleSchoolSelection(school.id)}
                       className={`w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-all cursor-pointer ${
                         isSelected
-                          ? 'bg-orange-50 border-orange-300 shadow-2xs'
+                          ? 'bg-indigo-50 border-indigo-300 shadow-2xs'
                           : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                       }`}
                     >
                       <div className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${
-                        isSelected ? 'bg-orange-600 border-orange-600' : 'border-slate-300 bg-white'
+                        isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300 bg-white'
                       }`}>
                         {isSelected && (
                           <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 12 12">
@@ -1243,7 +1177,7 @@ export default function MediaLibraryPage() {
                 type="button"
                 onClick={handleSaveAssignments}
                 disabled={savingAssignments}
-                className="flex-1 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-2 transition-all disabled:opacity-60 cursor-pointer"
+                className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-2 transition-all disabled:opacity-60 cursor-pointer"
               >
                 {savingAssignments ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1262,11 +1196,11 @@ export default function MediaLibraryPage() {
       ══════════════════════════════════════════════════════ */}
       {previewUrl && previewType === 'IMAGE' && (
         <div
-          className="fixed inset-0 z-[200] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in"
+          className="fixed inset-0 z-[200] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in"
           onClick={() => setPreviewUrl(null)}
         >
           <div
-            className="relative max-w-3xl max-h-[90vh] bg-white rounded-2xl overflow-hidden shadow-2xl"
+            className="relative max-w-3xl max-h-[90vh] bg-white rounded-xl overflow-hidden shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -1283,6 +1217,6 @@ export default function MediaLibraryPage() {
           </div>
         </div>
       )}
-    </div>
+    </AppShell>
   );
 }

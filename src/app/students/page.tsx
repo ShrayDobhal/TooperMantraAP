@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Sidebar } from '@/components/Sidebar';
-import { Header } from '@/components/Header';
+import { AppShell } from '@/components/AppShell';
 import { studentsApi, StudentUser } from '@/api';
 import { StudentReportModal, StudentReportData } from '@/components/StudentReportModal';
 import { Ban, CheckCircle2, Search, Loader2, AlertCircle, RefreshCw, Users, ArrowRight } from 'lucide-react';
@@ -56,14 +55,14 @@ export default function StudentsPage() {
       id: s.id,
       phone: s.phone,
       status: s.status,
-      fullName: s.profile?.fullName || 'Registered Student',
-      targetExam: s.profile?.targetExam || 'General Examination',
-      targetExamYear: (s.profile as any)?.targetExamYear || 2027,
-      educationLevel: (s.profile as any)?.educationLevel || 'Class 11/12',
-      studyMode: s.profile?.studyMode || 'Online',
-      schoolName: s.profile?.schoolOrCollege || s.profile?.schoolName || 'Self Study / B2C',
-      streakDays: (s.profile as any)?.streakDays ?? 12,
-      xpPoints: (s.profile as any)?.xpPoints ?? 380,
+      fullName: s.profile?.fullName,
+      targetExam: s.profile?.targetExam,
+      targetExamYear: (s.profile as any)?.targetExamYear,
+      educationLevel: (s.profile as any)?.educationLevel,
+      studyMode: s.profile?.studyMode,
+      schoolName: s.profile?.schoolOrCollege || s.profile?.schoolName || 'Direct (B2C)',
+      streakDays: (s.profile as any)?.streakDays,
+      xpPoints: (s.profile as any)?.xpPoints,
       createdAt: s.createdAt,
     });
   };
@@ -77,11 +76,7 @@ export default function StudentsPage() {
   );
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header />
-        <main className="p-8 space-y-6 flex-1 animate-in fade-in duration-300">
+    <AppShell>
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Student Directory</h1>
@@ -94,7 +89,7 @@ export default function StudentsPage() {
                 className="p-2 bg-white border border-slate-200 text-slate-600 hover:text-slate-900 rounded-lg shadow-2xs cursor-pointer"
                 title="Refresh Directory"
               >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-orange-600' : ''}`} />
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-indigo-600' : ''}`} />
               </button>
 
               <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1.5 w-72 focus-within:border-slate-400 transition-all">
@@ -155,10 +150,10 @@ export default function StudentsPage() {
                         <button
                           type="button"
                           onClick={() => handleOpenStudent(student)}
-                          className="text-left font-bold text-slate-900 hover:text-orange-600 transition-colors flex items-center gap-1.5 cursor-pointer group"
+                          className="text-left font-bold text-slate-900 hover:text-indigo-600 transition-colors flex items-center gap-1.5 cursor-pointer group"
                         >
                           <span>{student.profile?.fullName || 'Registered Student'}</span>
-                          <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-orange-600 group-hover:translate-x-0.5 transition-all" />
+                          <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all" />
                         </button>
                       </td>
                       <td className="font-mono text-slate-700 text-xs">{student.phone}</td>
@@ -218,8 +213,7 @@ export default function StudentsPage() {
               </table>
             )}
           </div>
-        </main>
-      </div>
+        
 
       {/* STUDENT PROGRESS REPORT MODAL */}
       {selectedStudentForReport && (
@@ -233,6 +227,6 @@ export default function StudentsPage() {
           }}
         />
       )}
-    </div>
+    </AppShell>
   );
 }

@@ -1,15 +1,15 @@
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { Sidebar } from '@/components/Sidebar';
-import { Header } from '@/components/Header';
+import { AppShell } from '@/components/AppShell';
 import { doubtsApi, DoubtTicket } from '@/api';
 import {
   MessageSquare, CheckCircle, CheckCircle2, Clock, Send, Image as ImageIcon,
   X, ExternalLink, Upload, Loader2, AlertCircle, RefreshCw, User, Calendar,
   BookOpen, FileText, Pencil,
 } from 'lucide-react';
-import { uploadImageToBunnyStorage, compressImageToBlob } from '@/lib/bunnyStorage';
+import { compressImageToBlob } from '@/lib/images';
+import { uploadToCdn } from '@/api/uploads';
 
 type TabKey = 'available' | 'my' | 'in_progress' | 'resolved' | 'history';
 
@@ -175,7 +175,7 @@ export default function DoubtsPage() {
       for (let i = 0; i < solutionImageFiles.length; i++) {
         setUploadStage(`Uploading image ${i + 1}/${solutionImageFiles.length} to Bunny CDN...`);
         const compressed = await compressImageToBlob(solutionImageFiles[i], 1600, 1600, 0.85);
-        const cdnUrl = await uploadImageToBunnyStorage(compressed, 'doubt-solutions', (pct) => {
+        const cdnUrl = await uploadToCdn(compressed, 'images', (pct) => {
           setUploadProgress(pct);
         });
         uploadedUrls.push(cdnUrl);
@@ -275,11 +275,7 @@ export default function DoubtsPage() {
   ];
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header />
-        <main className="p-8 space-y-6 flex-1 animate-in fade-in duration-300">
+    <AppShell>
 
           {/* Page Header */}
           <div className="flex items-center justify-between">
@@ -298,7 +294,7 @@ export default function DoubtsPage() {
               className="p-2 bg-white border border-slate-200 text-slate-600 hover:text-slate-900 rounded-lg shadow-2xs cursor-pointer"
               title="Refresh Queue"
             >
-              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-orange-600' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-indigo-600' : ''}`} />
             </button>
           </div>
 
@@ -311,7 +307,7 @@ export default function DoubtsPage() {
                 onClick={() => setActiveTab(key)}
                 className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
                   activeTab === key
-                    ? 'bg-orange-600 text-white shadow-2xs font-bold'
+                    ? 'bg-indigo-600 text-white shadow-2xs font-bold'
                     : 'text-slate-600 hover:bg-slate-100'
                 }`}
               >
@@ -361,7 +357,7 @@ export default function DoubtsPage() {
                    activeTab === 'my' || activeTab === 'in_progress' ? `Claimed by Me (${displayDoubts.length})` :
                    `Pending Doubts Pool (${displayDoubts.length})`}
                 </span>
-                {isLoading && <Loader2 className="w-4 h-4 animate-spin text-orange-600" />}
+                {isLoading && <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />}
               </h3>
 
               {isLoading ? (
@@ -460,7 +456,7 @@ export default function DoubtsPage() {
                             <img
                               key={i} src={img} onClick={() => setPreviewImage(img)}
                               alt="Student question"
-                              className="w-12 h-12 rounded object-cover border border-slate-200 cursor-pointer hover:border-orange-400"
+                              className="w-12 h-12 rounded object-cover border border-slate-200 cursor-pointer hover:border-indigo-400"
                             />
                           ))}
                         </div>
@@ -525,7 +521,7 @@ export default function DoubtsPage() {
 
                       <div
                         onClick={() => fileInputRef.current?.click()}
-                        className="w-full py-4 border-2 border-dashed border-slate-200 hover:border-orange-400 bg-slate-50 hover:bg-orange-50/30 rounded-lg flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors"
+                        className="w-full py-4 border-2 border-dashed border-slate-200 hover:border-indigo-400 bg-slate-50 hover:bg-indigo-50/30 rounded-lg flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors"
                       >
                         <Upload className="w-5 h-5 text-slate-400" />
                         <span className="text-xs font-semibold text-slate-700">Click to upload handwritten diagram photos</span>
@@ -552,14 +548,14 @@ export default function DoubtsPage() {
 
                     {/* Upload Progress */}
                     {submitting && uploadStage && (
-                      <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg space-y-1.5">
+                      <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-lg space-y-1.5">
                         <div className="flex items-center gap-2">
-                          <Loader2 className="w-4 h-4 text-orange-600 animate-spin shrink-0" />
-                          <span className="text-[11px] font-semibold text-orange-700">{uploadStage}</span>
+                          <Loader2 className="w-4 h-4 text-indigo-600 animate-spin shrink-0" />
+                          <span className="text-[11px] font-semibold text-indigo-700">{uploadStage}</span>
                         </div>
                         {uploadProgress !== null && (
-                          <div className="w-full bg-orange-100 rounded-full h-1.5 overflow-hidden">
-                            <div className="h-1.5 bg-orange-500 rounded-full transition-all" style={{ width: `${uploadProgress}%` }} />
+                          <div className="w-full bg-indigo-100 rounded-full h-1.5 overflow-hidden">
+                            <div className="h-1.5 bg-indigo-500 rounded-full transition-all" style={{ width: `${uploadProgress}%` }} />
                           </div>
                         )}
                       </div>
@@ -589,7 +585,7 @@ export default function DoubtsPage() {
                       <button
                         type="submit"
                         disabled={submitting}
-                        className="w-full py-2.5 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white font-semibold rounded-lg shadow-2xs flex items-center justify-center gap-2 text-xs transition-all disabled:opacity-60 cursor-pointer"
+                        className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white font-semibold rounded-lg shadow-2xs flex items-center justify-center gap-2 text-xs transition-all disabled:opacity-60 cursor-pointer"
                       >
                         {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                         {submitting ? 'Uploading & Submitting...' : 'Submit Solution & Push to Student'}
@@ -607,16 +603,15 @@ export default function DoubtsPage() {
               )}
             </div>
           </div>
-        </main>
-      </div>
+        
 
       {/* Image Lightbox */}
       {previewImage && (
         <div
-          className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in"
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in"
           onClick={() => setPreviewImage(null)}
         >
-          <div className="relative max-w-2xl max-h-[85vh] bg-white p-2 rounded-xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+          <div className="relative max-w-2xl max-h-[85vh] bg-white p-2 rounded-xl shadow-xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <button
               onClick={() => setPreviewImage(null)}
               className="absolute top-3 right-3 p-1.5 bg-slate-900/80 text-white rounded-full hover:bg-rose-600 z-10 transition-colors"
@@ -627,7 +622,7 @@ export default function DoubtsPage() {
           </div>
         </div>
       )}
-    </div>
+    </AppShell>
   );
 }
 
@@ -654,7 +649,7 @@ function DoubtCard({
   return (
     <div
       className={`mnc-card p-4 space-y-3 transition-all cursor-pointer ${
-        isSelected ? 'border-orange-400 ring-2 ring-orange-100' : ''
+        isSelected ? 'border-indigo-400 ring-2 ring-indigo-100' : ''
       }`}
       onClick={onSelect}
     >
@@ -749,7 +744,7 @@ function DoubtCard({
         <div className="flex justify-end pt-1" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={() => onClaim(doubt)}
-            className="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 active:scale-[0.98] text-white rounded-md text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
+            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white rounded-md text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all cursor-pointer"
           >
             <MessageSquare className="w-3.5 h-3.5" />
             Claim Ticket
