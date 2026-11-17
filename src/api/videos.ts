@@ -323,7 +323,7 @@ export const videosApi = {
     thumbnailUrl?: string;
     videoUrl?: string;
     youtubeId?: string;
-    bunnyVideoId?: string;
+    bunnyVideoId?: string | null;
     bunnyLibraryId?: string;
     durationSeconds?: number;
     targetSchool?: string;

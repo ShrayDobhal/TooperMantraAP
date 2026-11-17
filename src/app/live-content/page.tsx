@@ -3,6 +3,7 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
+import { VideoPreviewModal } from '@/components/VideoPreviewModal';
 import {
   videosApi,
   VideoItem,
@@ -146,6 +147,7 @@ function LiveContentPageContent() {
   const [thumbnailUploadMode, setThumbnailUploadMode] = useState<'file' | 'url'>('file');
   const [selectedThumbnailFile, setSelectedThumbnailFile] = useState<File | null>(null);
   const [thumbnailPreview, setThumbnailPreview] = useState<string>('');
+  const [previewVideo, setPreviewVideo] = useState<VideoItem | null>(null);
   const [uploadedVideo, setUploadedVideo] = useState<UploadedVideo | null>(null);
   const [videoUploadBusy, setVideoUploadBusy] = useState(false);
   const [thumbUploadBusy, setThumbUploadBusy] = useState(false);
@@ -354,6 +356,10 @@ function LiveContentPageContent() {
         if (!finalThumbnailUrl) finalThumbnailUrl = uploadedVideo.thumbnailUrl;
       }
       const stillEncoding = videoSourceMode === 'file' && !!uploadedVideo && uploadedVideo.status !== 'READY';
+      const usingUploadedFile = videoSourceMode === 'file' && !!finalBunnyId;
+      if (videoSourceMode === 'file' && !finalBunnyId) {
+        throw new Error('Upload a video file first, or switch to "Manual Video ID / URL" to use a YouTube link.');
+      }
 
       let finalCategory = isInspire ? 'INSPIRE' : videoForm.category.toUpperCase();
       if (finalCategory === 'DRONE_AVIATION') {
@@ -368,11 +374,14 @@ function LiveContentPageContent() {
         exam: isInspire ? 'ALL' : videoForm.exam.toUpperCase(),
         classLevel: isInspire ? 'ALL' : (videoForm.classLevel || 'ALL'),
         tags: tagsArr,
-        youtubeId: videoForm.youtubeId.trim() || undefined,
-        bunnyVideoId: finalBunnyId,
+        // An uploaded file is the video: never send a leftover YouTube id with it (the app would play YouTube instead).
+        youtubeId: usingUploadedFile ? undefined : videoForm.youtubeId.trim() || undefined,
+        // Switching to YouTube: explicitly drop the old uploaded file.
+        bunnyVideoId: usingUploadedFile ? finalBunnyId : videoForm.youtubeId.trim() && !finalBunnyId ? null : finalBunnyId,
         videoUrl: finalVideoUrl,
         thumbnailUrl: finalThumbnailUrl,
-        durationSeconds: uploadedVideo?.durationSeconds || durationSec,
+        // For uploaded files the server takes the real length from Bunny; the form default (30 min) is only for links.
+        durationSeconds: uploadedVideo?.durationSeconds || (usingUploadedFile ? undefined : durationSec),
         playlistId: videoForm.playlistId ? videoForm.playlistId : undefined,
         isFeatured: videoForm.isFeatured,
         status: stillEncoding ? 'PROCESSING' : 'READY',
@@ -1392,8 +1401,25 @@ function LiveContentPageContent() {
                         className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden flex flex-col justify-between hover:border-slate-300 transition-all"
                       >
                         <div>
-                          {/* Video Thumbnail Header */}
-                          <div className="relative h-44 bg-slate-900 group overflow-hidden">
+                          {/* Video Thumbnail Header (click to play) */}
+                          <div
+                            className="relative h-44 bg-slate-900 group overflow-hidden cursor-pointer"
+                            role="button"
+                            tabIndex={0}
+                            title="Play video"
+                            onClick={() => setPreviewVideo(v)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                setPreviewVideo(v);
+                              }
+                            }}
+                          >
+                            <span className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+                              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-black/55 text-white opacity-80 shadow-lg transition group-hover:scale-110 group-hover:opacity-100">
+                                <Play className="ml-0.5 h-5 w-5 fill-current" />
+                              </span>
+                            </span>
                             {v.thumbnailUrl ? (
                               <img
                                 src={v.thumbnailUrl}
@@ -2351,6 +2377,7 @@ function LiveContentPageContent() {
             </div>
           )}
         
+      <VideoPreviewModal video={previewVideo as any} onClose={() => setPreviewVideo(null)} />
     </AppShell>
   );
 }

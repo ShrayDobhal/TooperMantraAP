@@ -109,6 +109,76 @@ export interface StudentDetail {
   recentEvents: { type: string; screen?: string | null; element?: string | null; videoId?: string | null; at: string }[];
 }
 
+export interface SchoolBoard {
+  range: { from: string; to: string };
+  school: {
+    id: string;
+    name: string;
+    code: string;
+    city: string | null;
+    state: string | null;
+    status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+    contactEmail: string | null;
+    contactPhone: string | null;
+    branding: { primaryColor?: string; accentColor?: string; logoUrl?: string; appTitle?: string } | null;
+    totalSeats: number;
+    createdAt: string;
+  };
+  seats: { licensedSeats: number; redeemedSeats: number; linkedStudents: number; activePasses: number };
+  licenses: {
+    id: string;
+    licenseCode: string;
+    totalSeats: number;
+    allocatedSeats: number;
+    validUntil: string;
+    isActive: boolean;
+    createdAt: string;
+  }[];
+  totals: {
+    students: number;
+    newStudents: number;
+    activeNow: number;
+    activeToday: number;
+    activeUsers: number;
+    inactiveStudents: number;
+    neverActive: number;
+    totalActiveHours: number;
+    avgActiveMinutesPerUser: number;
+    videoWatchMinutes: number;
+    videoOpens: number;
+    doubtsAsked: number;
+    doubtsResolved: number;
+    assignedVideos: number;
+  };
+  daily: { date: string; activeUsers: number; activeMinutes: number; videoWatchMinutes: number; newStudents: number }[];
+  hourly: { hour: number; activeUsers: number; minutes: number }[];
+  peakHour: number | null;
+  features: FeatureRow[];
+  topVideos: (VideoRow & { schoolOnly: boolean })[];
+  assignedVideos: {
+    videoId: string;
+    title: string;
+    thumbnailUrl: string | null;
+    status: string;
+    assignedAt: string;
+    views: number;
+    uniqueViewers: number;
+    watchMinutes: number;
+  }[];
+  classBreakdown: { classLevel: string; students: number }[];
+  recentlyActive: { id: string; name: string | null; phone: string; lastSeenAt: string | null }[];
+  recentEvents: {
+    type: string;
+    screen: string | null;
+    element: string | null;
+    videoId: string | null;
+    videoTitle: string | null;
+    studentId: string | null;
+    studentName: string | null;
+    at: string;
+  }[];
+}
+
 export interface MentorRow {
   mentorUserId: string;
   name: string | null;
@@ -139,7 +209,9 @@ export const analyticsApi = {
     unwrap<{ items: ClickRow[] }>(api.get(`/admin/analytics/clicks${qs({ ...p })}`)),
   videos: (p: RangeParams & { limit?: number }) =>
     unwrap<{ items: VideoRow[] }>(api.get(`/admin/analytics/videos${qs({ ...p })}`)),
-  students: (p: RangeParams & { search?: string; page?: number; limit?: number; sort?: StudentSort }) =>
+  school: (id: string, p: RangeParams) =>
+    unwrap<SchoolBoard>(api.get(`/admin/analytics/schools/${encodeURIComponent(id)}${qs({ ...p })}`)),
+  students: (p: RangeParams & { search?: string; page?: number; limit?: number; sort?: StudentSort; schoolId?: string }) =>
     unwrap<{ items: StudentRow[]; total: number; page: number; limit: number }>(
       api.get(`/admin/analytics/students${qs({ ...p })}`),
     ),

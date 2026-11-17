@@ -1,4 +1,4 @@
-import { api } from '@/lib/api';
+import { api, unwrap } from '@/lib/api';
 
 export interface SchoolLicense {
   id?: string;
@@ -12,10 +12,39 @@ export interface SchoolLicense {
   updatedAt?: string;
 }
 
+export interface SchoolBranding {
+  primaryColor?: string;
+  accentColor?: string;
+  logoUrl?: string;
+  appTitle?: string;
+}
+
+export interface UpdateSchoolPayload {
+  name?: string;
+  code?: string;
+  city?: string;
+  state?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  totalSeats?: number;
+  status?: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  branding?: SchoolBranding;
+}
+
+export interface SchoolDeleteResult {
+  deleted: boolean;
+  id: string;
+  code: string;
+  studentsUnlinked: number;
+  licensesRemoved: number;
+  videoAssignmentsRemoved: number;
+}
+
 export interface School {
   id: string;
   name: string;
   code: string;
+  branding?: SchoolBranding | null;
   city?: string;
   state?: string;
   contactEmail?: string | null;
@@ -69,6 +98,20 @@ export const schoolsApi = {
   /** Deactivates the school and its licenses on the backend (student history is kept). */
   async deleteSchool(id: string): Promise<{ success: boolean; data: any }> {
     return api.delete(`/admin/schools/${id}`);
+  },
+
+  /** Edits a school. Only the fields sent change; branding is merged. */
+  async updateSchool(id: string, payload: UpdateSchoolPayload): Promise<School> {
+    return unwrap<School>(api.patch(`/admin/schools/${encodeURIComponent(id)}`, payload));
+  },
+
+  /**
+   * Permanently deletes a school, its codes and video assignments. Students are kept (unlinked, passes kept).
+   * `confirmCode` must equal the school code.
+   */
+  async deleteSchoolPermanently(id: string, confirmCode: string): Promise<SchoolDeleteResult> {
+    const q = new URLSearchParams({ permanent: 'true', confirm: confirmCode });
+    return unwrap<SchoolDeleteResult>(api.delete(`/admin/schools/${encodeURIComponent(id)}?${q.toString()}`));
   },
 
   /** Deactivates one license so its code can no longer be redeemed. */
