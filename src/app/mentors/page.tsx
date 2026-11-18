@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { AppShell } from '@/components/AppShell';
+import { MentorAccessCard } from '@/components/MentorAccessCard';
 import { mentorsApi, Mentor } from '@/api';
 import {
   GraduationCap,
@@ -409,6 +410,8 @@ export default function MentorsPage() {
 
   return (
     <AppShell>
+          <MentorAccessCard mentors={mentors} />
+
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2.5">

@@ -1,4 +1,4 @@
-import { api } from '@/lib/api';
+import { api, unwrap } from '@/lib/api';
 
 export interface Mentor {
   id: string;
@@ -112,4 +112,22 @@ export const mentorsApi = {
     const res: any = await api.patch('/admin/mentors/shuffle', { mentorIdsInOrder });
     return res;
   },
+};
+
+export interface MentorAccess {
+  userId: string;
+  phone: string;
+  status: string;
+  name: string | null;
+  lastLoginAt: string | null;
+  createdAt: string;
+  mentor: { id: string; name: string; designation: string; avatarUrl?: string | null } | null;
+}
+
+/** Who can sign in to the panel as a mentor (phone OTP). */
+export const mentorAccessApi = {
+  list: () => unwrap<MentorAccess[]>(api.get('/admin/mentor-access')),
+  grant: (phone: string, mentorId?: string) =>
+    unwrap<MentorAccess>(api.post('/admin/mentor-access', { phone, ...(mentorId ? { mentorId } : {}) })),
+  revoke: (userId: string) => unwrap<{ userId: string; revoked: boolean }>(api.delete(`/admin/mentor-access/${encodeURIComponent(userId)}`)),
 };
